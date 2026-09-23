@@ -5,6 +5,7 @@
     "dev": "bun run --hot src/index.ts"
   },
   "dependencies": {
+    "@huggingface/transformers": "^4.3.0",
     "@repo/connectors": "workspace:*",
     "@repo/ledger": "workspace:*",
     "drizzle-orm": "^0.45.3",

@@ -18,6 +18,7 @@ import {
   numeric,
   integer,
   boolean,
+  vector,
   pgEnum,
   index,
   uniqueIndex,
@@ -132,6 +133,7 @@ export const postings = pgTable(
     counterpartyResolved: text('counterparty_resolved'),
     categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
     tags: text('tags').array(),
+    descriptionEmbedding: vector('description_embedding', { dimensions: 384 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -196,6 +198,28 @@ export const categorizationRules = pgTable(
     index('categorization_rules_tenant_idx').on(table.tenantId),
     index('categorization_rules_pattern_idx').on(table.pattern),
   ],
+)
+
+/**
+ * category_anchors — embedded example phrases per category (S1-3 Tier 2
+ * cold start). A brand-new tenant has no categorized history to embed
+ * against yet, so anchors give Tier 2 something to match against from day
+ * one. `embedding` uses the same all-MiniLM-L6-v2 model/dimensions as
+ * postings.descriptionEmbedding so cosine distance is comparable across
+ * both sources.
+ */
+export const categoryAnchors = pgTable(
+  'category_anchors',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'cascade' }),
+    anchorText: text('anchor_text').notNull(),
+    embedding: vector('embedding', { dimensions: 384 }).notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [index('category_anchors_category_idx').on(table.categoryId)],
 )
 
 /**
