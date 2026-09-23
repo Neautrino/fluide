@@ -1,28 +1,48 @@
 -- SOURCE OF TRUTH: the architectural guardrails for the ledger (PLAN.md §5.1).
--- WHAT: two DB-enforced invariants — postings are append-only (no UPDATE/DELETE,
--- ever, by anyone), and every transaction's postings must sum to zero per
--- currency, checked at COMMIT time (deferred), not per-row.
--- WHY: these are architectural guardrails, not behavioral ones — no application
--- bug, compromised credential, or AI-driven write can violate them, because
--- the database itself refuses the write. A plain CHECK constraint cannot
--- express "sum across a group of rows" in Postgres, so the balance rule is a
--- deferred constraint trigger, not a CHECK column.
+-- WHAT: two DB-enforced invariants — postings are append-only except for
+-- category_id/tags (metadata, not money-movement), and every transaction's
+-- postings must sum to zero per currency, checked at COMMIT time (deferred),
+-- not per-row.
+-- WHY: these are architectural guardrails, not behavioral ones — no
+-- application bug, compromised credential, or AI-driven write can violate
+-- them, because the database itself refuses the write. A plain CHECK
+-- constraint cannot express "sum across a group of rows" in Postgres, so the
+-- balance rule is a deferred constraint trigger, not a CHECK column. The
+-- append-only rule allows UPDATE only when category_id and/or tags are the
+-- sole changed columns (categorization needs to attach metadata after
+-- insert) -- money-movement columns (transaction_id/account_id/amount/
+-- currency/counterparty_*) stay immutable to protect the sum-to-zero
+-- guardrail. This is the squashed/combined form of what was originally two
+-- migrations (0001_ledger_guardrails.sql + 0007_romantic_groot.sql) before
+-- the pgvector-era migration history was reset.
 -- WHERE: this migration owns enforcement only. Table shape lives in
--- schema.ts / 0000_polite_harpoon.sql — do not add columns here.
+-- schema.ts / 0000_colorful_gorilla_man.sql — do not add columns here.
 
 -- ============================================================================
--- Guardrail 1: postings are immutable (append-only log)
+-- Guardrail 1: postings are append-only except category_id/tags
 -- ============================================================================
--- To correct a mistake, insert a reversing posting — never edit or delete one.
--- Implemented as a trigger (not a role-level REVOKE) so it holds regardless
--- of which Postgres role the application connects as — no separate
--- least-privilege role setup required for this guarantee to be real.
+-- To correct a money-movement mistake, insert a reversing posting — never
+-- edit or delete one. Implemented as a trigger (not a role-level REVOKE) so
+-- it holds regardless of which Postgres role the application connects as —
+-- no separate least-privilege role setup required for this guarantee to be
+-- real.
 
 CREATE OR REPLACE FUNCTION postings_reject_mutation()
 RETURNS TRIGGER AS $$
 BEGIN
+  IF TG_OP = 'UPDATE'
+     AND NEW.transaction_id IS NOT DISTINCT FROM OLD.transaction_id
+     AND NEW.account_id IS NOT DISTINCT FROM OLD.account_id
+     AND NEW.amount IS NOT DISTINCT FROM OLD.amount
+     AND NEW.currency IS NOT DISTINCT FROM OLD.currency
+     AND NEW.counterparty_raw IS NOT DISTINCT FROM OLD.counterparty_raw
+     AND NEW.counterparty_resolved IS NOT DISTINCT FROM OLD.counterparty_resolved
+  THEN
+    RETURN NEW; -- only category_id and/or tags changed — allowed
+  END IF;
+
   RAISE EXCEPTION
-    'postings is append-only: % is not allowed. Insert a reversing posting instead of modifying transaction_id=%.',
+    'postings money-movement fields are append-only: % is not allowed. Insert a reversing posting instead of modifying transaction_id=%.',
     TG_OP,
     COALESCE(OLD.transaction_id, NEW.transaction_id);
   RETURN NULL;

@@ -156,6 +156,9 @@ app.post('/api/review-queue/:id/approve', async (c) => {
   const [item] = await db.select().from(reviewQueue).where(eq(reviewQueue.id, id))
   if (!item) return c.json({ error: 'not found' }, 404)
   if (item.status !== 'pending') return c.json({ error: `already ${item.status}` }, 409)
+  if (!item.suggestedCategoryId) {
+    return c.json({ error: 'this item has no suggested category (low-confidence, Jev < 0.50) -- nothing to approve, pick a category manually instead' }, 400)
+  }
 
   await db
     .update(postings)
@@ -213,5 +216,9 @@ app.get('/api/audit-log/:postingId', async (c) => {
 
 export default {
   port: 4000,
+  // /api/categorize batches Jev calls but can still legitimately take
+  // longer than Bun's 10s default on a large first sync -- widen the idle
+  // timeout so a real in-flight request isn't killed mid-response.
+  idleTimeout: 60,
   fetch: app.fetch,
 }

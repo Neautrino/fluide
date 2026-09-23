@@ -18,7 +18,6 @@ import {
   numeric,
   integer,
   boolean,
-  vector,
   pgEnum,
   index,
   uniqueIndex,
@@ -61,6 +60,8 @@ export const reviewQueueStatus = pgEnum('review_queue_status', [
   'approved',
   'rejected',
 ])
+
+export const jevConfidenceBand = pgEnum('jev_confidence_band', ['high', 'medium', 'low'])
 
 export const auditLogAction = pgEnum('audit_log_action', [
   'auto_applied',
@@ -146,7 +147,6 @@ export const postings = pgTable(
     counterpartyResolved: text('counterparty_resolved'),
     categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
     tags: text('tags').array(),
-    descriptionEmbedding: vector('description_embedding', { dimensions: 384 }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
@@ -214,29 +214,7 @@ export const categorizationRules = pgTable(
 )
 
 /**
- * category_anchors — embedded example phrases per category (S1-3 Tier 2
- * cold start). A brand-new tenant has no categorized history to embed
- * against yet, so anchors give Tier 2 something to match against from day
- * one. `embedding` uses the same all-MiniLM-L6-v2 model/dimensions as
- * postings.descriptionEmbedding so cosine distance is comparable across
- * both sources.
- */
-export const categoryAnchors = pgTable(
-  'category_anchors',
-  {
-    id: uuid('id').primaryKey().defaultRandom(),
-    categoryId: uuid('category_id')
-      .notNull()
-      .references(() => categories.id, { onDelete: 'cascade' }),
-    anchorText: text('anchor_text').notNull(),
-    embedding: vector('embedding', { dimensions: 384 }).notNull(),
-    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
-  },
-  (table) => [index('category_anchors_category_idx').on(table.categoryId)],
-)
-
-/**
- * review_queue — S1-4's confidence gate output for Tier 2/3 matches that
+ * review_queue — S1-4's confidence gate output for Tier 2 (Jev) matches that
  * did not clear the auto-apply checklist (confidence + vendor seen 3+
  * times + amount in the historical range for that vendor/category pair).
  * `postings.categoryId` is left NULL for these — the suggestion lives only
@@ -252,9 +230,8 @@ export const reviewQueue = pgTable(
     postingId: uuid('posting_id')
       .notNull()
       .references(() => postings.id, { onDelete: 'cascade' }),
-    suggestedCategoryId: uuid('suggested_category_id')
-      .notNull()
-      .references(() => categories.id, { onDelete: 'restrict' }),
+    suggestedCategoryId: uuid('suggested_category_id').references(() => categories.id, { onDelete: 'restrict' }),
+    confidenceBand: jevConfidenceBand('confidence_band').notNull(),
     source: text('source').notNull(),
     confidence: numeric('confidence', { precision: 4, scale: 3 }).notNull(),
     reason: text('reason').notNull(),

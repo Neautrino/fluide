@@ -1,16 +1,32 @@
-/** SOURCE OF TRUTH: the deterministic categorization pipeline (S1-2).
+/** SOURCE OF TRUTH: the deterministic categorization pipeline (S1-2),
+ * revised to a 2-tier pipeline after removing the embedding tier.
  * WHAT: matches a posting's counterparty text against categorization_rules
- * before any AI involvement. S1-3's embedding/Jev fallback tiers live in
- * fallback.ts; S1-4's auto-apply-vs-review-queue gate lives in gate.ts.
- * WHY: a known vendor costs zero AI calls — same guardrail principle as
+ * before any AI involvement (Tier 1). Anything unmatched goes to Jev in a
+ * single batched API call (jev.ts's categorizeByJevBatch), gated by
+ * the user's 3-tier confidence rule (gate.ts).
+ * WHY: a known vendor costs zero AI calls -- same guardrail principle as
  * S0-4. `isUserCustom` rules always win over system rules on a tied match.
+ * The embedding-similarity tier (S1-3 Tier 2) was removed after empirical
+ * testing showed it never topped ~14% accuracy on real bank-transaction
+ * text (see project history: generic MiniLM anchors and a fine-tuned
+ * FinBERT variant were both tested and both badly underperformed Jev,
+ * which scored 92% on the same class of data). Jev is now the only AI
+ * tier -- simpler pipeline, and it was already carrying the real accuracy.
+ * WHAT CHANGED: originally called categorizeByJev() one posting at a time
+ * in a sequential loop -- with real transaction counts (42 in a first
+ * Plaid sync) that took 55-65+ seconds of sequential HTTP round-trips
+ * (each one also redundantly re-fetching the categories table), blowing
+ * past Bun.serve's default 10s idle timeout and killing the request
+ * before it finished. Fixed to batch every Tier-1-unmatched posting into
+ * one categorizeByJevBatch() call (~11s for 200 items in earlier testing,
+ * chunked under Jev's token ceiling) instead of N sequential calls.
  * WHERE: owns rule matching + posting updates + tier orchestration. Rule
- * CRUD lives in index.ts routes; embeddings/LLM fallback in fallback.ts;
- * auto-apply gate in gate.ts.
+ * CRUD lives in index.ts routes; Jev call lives in jev.ts; the
+ * confidence gate lives in gate.ts.
  */
 import { db, postings, transactions, categorizationRules, reviewQueue, auditLog } from '@repo/ledger'
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
-import { categorizeByEmbedding, categorizeByJev, type CategorizationMatch } from './fallback.js'
+import { categorizeByJevBatch, type CategorizationMatch } from './jev.js'
 import { evaluateGate, queueForReview } from './gate.js'
 import { writeAuditLog } from './audit.js'
 
@@ -19,7 +35,7 @@ export type CategorizeResult = {
   categorized: number
   queuedForReview: number
   uncategorized: number
-  byTier: { rule: number; embedding: number; llm: number }
+  byTier: { rule: number; jev: number }
 }
 
 async function findBestRule(tenantId: string, text: string) {
@@ -42,6 +58,17 @@ async function findBestRule(tenantId: string, text: string) {
   return matches[0]
 }
 
+/** Runs a Jev match through the gate and writes the outcome. Three
+ * possible results, matching the user's exact rule:
+ *  - auto_apply: postings.categoryId is set directly.
+ *  - queue_with_suggestion: postings.categoryId stays NULL, but
+ *    review_queue gets a row with the suggested category so a human sees
+ *    what Jev thinks it is (0.50-0.75 confidence band, or a high-band
+ *    match that didn't clear the vendor/amount checklist).
+ *  - queue_uncategorized: postings.categoryId stays NULL, review_queue
+ *    gets a row with NO suggested category (< 0.50 confidence) -- the
+ *    posting shows as plain uncategorized in the UI, but it's still
+ *    flagged for review, not silently dropped with zero record. */
 async function applyOrQueue(
   tenantId: string,
   postingId: string,
@@ -49,43 +76,47 @@ async function applyOrQueue(
   amount: number,
   match: CategorizationMatch,
 ): Promise<'applied' | 'queued'> {
-  const decision = await evaluateGate(tenantId, counterpartyRaw, amount, match)
-  if (decision.autoApply) {
-    await db
-      .update(postings)
-      .set({ categoryId: match.categoryId, descriptionEmbedding: match.embedding })
-      .where(eq(postings.id, postingId))
+  const outcome = await evaluateGate(tenantId, counterpartyRaw, amount, match)
+
+  if (outcome.action === 'auto_apply') {
+    await db.update(postings).set({ categoryId: match.categoryId }).where(eq(postings.id, postingId))
     await writeAuditLog({
       postingId,
       action: 'auto_applied',
       categoryId: match.categoryId,
       source: match.source,
       confidence: match.confidence,
-      reason: `gate passed: vendor history + amount range checks satisfied`,
+      reason: `gate passed: confidence band '${match.band}' + vendor history + amount range checks satisfied`,
       actor: 'system',
     })
     return 'applied'
   }
-  await queueForReview(postingId, match, decision.reason)
+
+  const suggestedCategoryId = outcome.action === 'queue_with_suggestion' ? match.categoryId : null
+  await queueForReview(postingId, match, outcome.reason, suggestedCategoryId)
   await writeAuditLog({
     postingId,
     action: 'queued_for_review',
-    categoryId: match.categoryId,
+    categoryId: suggestedCategoryId,
     source: match.source,
     confidence: match.confidence,
-    reason: decision.reason,
+    reason: outcome.reason,
     actor: 'system',
   })
   return 'queued'
 }
 
-/** Categorizes every uncategorized posting for a tenant through 3 tiers:
- * (1) deterministic rule match (applies directly, no gate — already
- * deterministic), (2) embedding similarity vs anchors/history, (3) Jev LLM
- * fallback. Tier 2/3 matches pass through the S1-4 gate before writing —
- * auto-apply if the vendor has enough history and the amount fits, else
- * queued to review_queue. A posting that clears no tier is left
- * uncategorized entirely. */
+/** Categorizes every uncategorized posting for a tenant through 2 tiers:
+ * (1) deterministic rule match (applies directly, no gate -- already
+ * deterministic, and cheap enough to run per-row), (2) Jev LLM, batched
+ * into as few HTTP calls as Jev's token budget allows rather than one
+ * call per posting. Each Jev match passes through the S1-4 gate before
+ * writing -- auto-apply if confidence is high AND the vendor has enough
+ * history AND the amount fits, else queued to review_queue (with or
+ * without a suggestion depending on confidence band). A posting where a
+ * batch call fails outright (no API key, network error) is left fully
+ * uncategorized and unflagged -- that is a hard failure case, not a
+ * confidence judgment. */
 export async function categorizeUncategorizedPostings(tenantId: string): Promise<CategorizeResult> {
   const alreadyQueued = db
     .select({ postingId: reviewQueue.postingId })
@@ -105,9 +136,14 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
       ),
     )
 
-  const byTier = { rule: 0, embedding: 0, llm: 0 }
+  const byTier = { rule: 0, jev: 0 }
   let categorized = 0
   let queuedForReview = 0
+
+  // Pass 1: deterministic rules. Cheap (DB only), applies directly, no
+  // batching needed -- this pass also determines which postings actually
+  // need to go to Jev at all.
+  const needsJev: { id: string; text: string; amount: number }[] = []
 
   for (const posting of candidates) {
     const text = posting.counterpartyRaw!
@@ -134,23 +170,22 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
       continue
     }
 
-    const embMatch = await categorizeByEmbedding(tenantId, posting.id, text)
-    if (embMatch) {
-      const outcome = await applyOrQueue(tenantId, posting.id, text, amount, embMatch)
-      byTier.embedding++
-      if (outcome === 'applied') categorized++
-      else queuedForReview++
-      continue
-    }
+    needsJev.push({ id: posting.id, text, amount })
+  }
 
-    const llmMatch = await categorizeByJev(text)
-    if (llmMatch) {
-      const outcome = await applyOrQueue(tenantId, posting.id, text, amount, llmMatch)
-      byTier.llm++
-      if (outcome === 'applied') categorized++
-      else queuedForReview++
-      continue
-    }
+  // Pass 2: everything Tier 1 didn't resolve goes to Jev in as few batched
+  // HTTP calls as possible (categorizeByJevBatch chunks internally to stay
+  // under Jev's per-request token ceiling) instead of one call per row.
+  const jevResults = await categorizeByJevBatch(needsJev.map((p) => ({ id: p.id, text: p.text })))
+
+  for (const posting of needsJev) {
+    const jevMatch = jevResults.get(posting.id)
+    if (!jevMatch) continue // hard failure for this item -- left uncategorized, unflagged
+
+    const outcome = await applyOrQueue(tenantId, posting.id, posting.text, posting.amount, jevMatch)
+    byTier.jev++
+    if (outcome === 'applied') categorized++
+    else queuedForReview++
   }
 
   return {

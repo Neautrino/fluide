@@ -14,7 +14,8 @@ import { useEffect, useState } from 'react'
 type ReviewItem = {
   id: string
   postingId: string
-  suggestedCategoryId: string
+  suggestedCategoryId: string | null
+  confidenceBand: 'high' | 'medium' | 'low'
   source: string
   confidence: string
   reason: string
@@ -94,7 +95,7 @@ export function ReviewQueue() {
           style={{ border: '1px solid var(--border-standard)', background: 'var(--bg-surface)' }}
         >
           {items.map((item, i) => {
-            const cat = categoriesById[item.suggestedCategoryId]
+            const cat = item.suggestedCategoryId ? categoriesById[item.suggestedCategoryId] : undefined
             return (
               <div
                 key={item.id}
@@ -103,9 +104,17 @@ export function ReviewQueue() {
               >
                 <div className="min-w-0">
                   <p className="text-sm">
-                    Suggested: <span className="font-medium">{cat?.label ?? item.suggestedCategoryId}</span>
+                    {item.suggestedCategoryId ? (
+                      <>
+                        Suggested: <span className="font-medium">{cat?.label ?? item.suggestedCategoryId}</span>
+                      </>
+                    ) : (
+                      <span className="font-medium" style={{ color: 'var(--text-tertiary)' }}>
+                        Uncategorized (Jev confidence too low to suggest)
+                      </span>
+                    )}
                     <span className="ml-2 text-xs" style={{ color: 'var(--text-tertiary)' }}>
-                      {item.source} · {(Number(item.confidence) * 100).toFixed(0)}%
+                      {item.source} · {(Number(item.confidence) * 100).toFixed(0)}% · {item.confidenceBand}
                     </span>
                   </p>
                   <p className="mt-1 truncate text-xs" style={{ color: 'var(--text-tertiary)' }}>
@@ -115,10 +124,11 @@ export function ReviewQueue() {
                 <div className="flex shrink-0 gap-2">
                   <button
                     type="button"
-                    disabled={actingOn === item.id}
+                    disabled={actingOn === item.id || !item.suggestedCategoryId}
                     onClick={() => resolve(item.id, 'approve')}
                     className="rounded-lg px-3 py-1.5 text-xs font-medium text-white transition disabled:opacity-50"
                     style={{ background: 'var(--success)' }}
+                    title={item.suggestedCategoryId ? undefined : 'No suggestion to approve -- pick a category manually'}
                   >
                     Approve
                   </button>
