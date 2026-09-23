@@ -31,7 +31,12 @@ type LedgerRow = {
     accountId: string
     amount: string // numeric comes back as a string from Postgres/drizzle
     currency: string
+    categoryId: string | null
   }
+  category: {
+    label: string
+    detailed: string
+  } | null
 }
 
 type Props = {
@@ -152,6 +157,16 @@ export function TransactionList({ refreshKey }: Props) {
                     <p className="text-xs" style={{ color: 'var(--text-tertiary)' }}>
                       {tx.date.slice(0, 10)}
                       {tx.status === 'pending' ? ' · pending' : ''}
+                    </p>
+                    <p
+                      className="mt-1 inline-block rounded-full px-2 py-0.5 text-xs"
+                      style={
+                        tx.category
+                          ? { background: 'var(--bg-panel)', color: 'var(--text-secondary)' }
+                          : { border: '1px solid var(--border-subtle)', color: 'var(--text-tertiary)' }
+                      }
+                    >
+                      {tx.category?.label ?? 'Uncategorized'}
                     </p>
                   </div>
                   <p

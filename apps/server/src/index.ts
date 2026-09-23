@@ -95,10 +95,15 @@ app.get('/transactions', async (c) => {
         currency: postings.currency,
         categoryId: postings.categoryId,
       },
+      category: {
+        label: categories.label,
+        detailed: categories.detailed,
+      },
     })
     .from(transactions)
     .innerJoin(postings, eq(postings.transactionId, transactions.id))
     .innerJoin(accounts, eq(accounts.id, postings.accountId))
+    .leftJoin(categories, eq(categories.id, postings.categoryId))
     .where(eq(transactions.tenantId, LOCAL_TENANT_ID))
     .orderBy(desc(transactions.date))
     .limit(100)
