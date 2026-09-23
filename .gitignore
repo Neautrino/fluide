@@ -27,6 +27,9 @@ out/
 build
 dist
 
+# Local temp data (pre-database prototyping)
+.data/
+
 
 # Debug
 npm-debug.log*
