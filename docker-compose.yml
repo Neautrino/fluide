@@ -1,0 +1,21 @@
+services:
+  postgres:
+    image: postgres:17-alpine
+    container_name: fluide-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fluide
+      POSTGRES_PASSWORD: fluide_dev_only
+      POSTGRES_DB: fluide
+    ports:
+      - '5433:5432' # 5432 avoided: commonly already bound by a local Postgres install
+    volumes:
+      - fluide_postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fluide -d fluide']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+volumes:
+  fluide_postgres_data:
