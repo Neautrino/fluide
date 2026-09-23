@@ -1,0 +1,27 @@
+{
+  "version": "7",
+  "dialect": "postgresql",
+  "entries": [
+    {
+      "idx": 0,
+      "version": "7",
+      "when": 1790165697518,
+      "tag": "0000_polite_harpoon",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1790165717488,
+      "tag": "0001_ledger_guardrails",
+      "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1790166377142,
+      "tag": "0002_add_transactions_external_ref",
+      "breakpoints": true
+    }
+  ]
+}

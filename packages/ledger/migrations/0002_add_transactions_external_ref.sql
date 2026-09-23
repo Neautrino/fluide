@@ -1,0 +1,2 @@
+ALTER TABLE "transactions" ADD COLUMN "external_ref" text;--> statement-breakpoint
+CREATE UNIQUE INDEX "transactions_external_ref_unique_idx" ON "transactions" USING btree ("external_ref") WHERE "transactions"."external_ref" IS NOT NULL;
