@@ -9,6 +9,8 @@ export default defineConfig({
     port: 3000,
     proxy: {
       '/plaid': 'http://localhost:4000',
+      '/accounts': 'http://localhost:4000',
+      '/transactions': 'http://localhost:4000',
     },
   },
 })

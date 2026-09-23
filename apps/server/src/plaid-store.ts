@@ -1,15 +1,12 @@
-/** SOURCE OF TRUTH: Plaid connected-item registry (TEMPORARY, pre-ledger).
- * WHAT: flat-file store of { itemId, accessToken, institutionName } per
- * connected bank, standing in for packages/ledger's Postgres `connectors`
- * table until that schema exists (see PLAN.md §2, Slice 0 board S0-3/S0-5).
- * WHY: accessToken is the one real secret Plaid hands back after enrollment —
- * it must never round-trip to apps/web or be passed to any LLM tool call.
- * This file is the only place that reads/writes it; every caller goes
- * through saveItem/listItems, never the raw JSON file.
- * WHERE: this store owns "which access tokens exist." It does not own
- * transactions/balances (those are fetched live from Plaid, never cached
- * here) and it is not the ledger's source of truth — once packages/ledger
- * exists, this whole file is deleted, not extended.
+/** SOURCE OF TRUTH: Plaid connected-item registry (TEMPORARY, pre-connectors-table).
+ * WHAT: flat-file store of { itemId, accessToken, institutionName, cursor }
+ * per connected bank. Stands in for the `connectors` table (PLAN.md §2),
+ * not built yet. `cursor` is Plaid's sync pagination token — without it,
+ * every sync re-fetches full history.
+ * WHY: accessToken is the one real secret Plaid hands back after enrollment.
+ * This file is the only place that reads/writes it.
+ * WHERE: owns "which access tokens/cursors exist" only. Once a real
+ * `connectors` table exists, this whole file is deleted, not extended.
  */
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'
@@ -22,6 +19,7 @@ type PlaidItem = {
   accessToken: string
   institutionName?: string
   createdAt: string
+  cursor?: string
 }
 
 function readStore(): PlaidItem[] {
@@ -42,4 +40,13 @@ export function saveItem(item: PlaidItem) {
 
 export function listItems(): PlaidItem[] {
   return readStore()
+}
+
+export function updateItemCursor(itemId: string, cursor: string) {
+  const items = readStore()
+  const item = items.find((i) => i.itemId === itemId)
+  if (item) {
+    item.cursor = cursor
+    writeStore(items)
+  }
 }
