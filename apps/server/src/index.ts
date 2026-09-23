@@ -10,10 +10,11 @@
  */
 import { Hono } from 'hono'
 import { createPlaidLinkToken, exchangePlaidPublicToken } from '@repo/connectors'
-import { db, accounts, transactions, postings } from '@repo/ledger'
+import { db, accounts, transactions, postings, categories, categorizationRules } from '@repo/ledger'
 import { eq, desc } from 'drizzle-orm'
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
+import { categorizeUncategorizedPostings } from './categorize.js'
 
 const app = new Hono()
 
@@ -91,6 +92,7 @@ app.get('/transactions', async (c) => {
         accountId: postings.accountId,
         amount: postings.amount,
         currency: postings.currency,
+        categoryId: postings.categoryId,
       },
     })
     .from(transactions)
@@ -101,6 +103,41 @@ app.get('/transactions', async (c) => {
     .limit(100)
 
   return c.json({ transactions: rows })
+})
+
+app.get('/api/categories', async (c) => {
+  const rows = await db.select().from(categories)
+  return c.json({ categories: rows })
+})
+
+app.get('/api/categorization-rules', async (c) => {
+  const rows = await db
+    .select()
+    .from(categorizationRules)
+    .where(eq(categorizationRules.tenantId, LOCAL_TENANT_ID))
+  return c.json({ rules: rows })
+})
+
+app.post('/api/categorization-rules', async (c) => {
+  const body = await c.req.json<{ pattern: string; categoryId: string; isUserCustom?: boolean }>()
+  if (!body?.pattern || !body?.categoryId) {
+    return c.json({ error: 'pattern and categoryId are required' }, 400)
+  }
+  const [created] = await db
+    .insert(categorizationRules)
+    .values({
+      tenantId: LOCAL_TENANT_ID,
+      pattern: body.pattern,
+      categoryId: body.categoryId,
+      isUserCustom: body.isUserCustom ?? true,
+    })
+    .returning()
+  return c.json({ rule: created })
+})
+
+app.post('/api/categorize', async (c) => {
+  const result = await categorizeUncategorizedPostings(LOCAL_TENANT_ID)
+  return c.json({ result })
 })
 
 export default {

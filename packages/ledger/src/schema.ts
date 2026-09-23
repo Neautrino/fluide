@@ -16,6 +16,8 @@ import {
   text,
   timestamp,
   numeric,
+  integer,
+  boolean,
   pgEnum,
   index,
   uniqueIndex,
@@ -128,13 +130,71 @@ export const postings = pgTable(
     currency: text('currency').notNull(),
     counterpartyRaw: text('counterparty_raw'),
     counterpartyResolved: text('counterparty_resolved'),
-    categoryId: uuid('category_id'), // FK added once categorization_rules exists (later slice)
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
     tags: text('tags').array(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index('postings_transaction_idx').on(table.transactionId),
     index('postings_account_idx').on(table.accountId),
+  ],
+)
+
+/**
+ * categories — the categorization taxonomy (S1-1). `tenantId IS NULL` =
+ * shared system category (seeded, is_system = true); `tenantId IS NOT NULL`
+ * = a tenant's own custom category, layered on top. `detailed` matches
+ * Plaid PFCv2 identifiers verbatim (e.g. "FOOD_AND_DRINK_GROCERIES") so a
+ * future Plaid connector maps onto it with no translation table.
+ */
+export const categories = pgTable(
+  'categories',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id'),
+    primary: text('primary').notNull(),
+    detailed: text('detailed').notNull(),
+    label: text('label').notNull(),
+    isSystem: boolean('is_system').notNull().default(false),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('categories_tenant_idx').on(table.tenantId),
+    index('categories_primary_idx').on(table.primary),
+    uniqueIndex('categories_system_detailed_unique_idx')
+      .on(table.detailed)
+      .where(sql`${table.tenantId} IS NULL`),
+    uniqueIndex('categories_tenant_detailed_unique_idx')
+      .on(table.tenantId, table.detailed)
+      .where(sql`${table.tenantId} IS NOT NULL`),
+  ],
+)
+
+/**
+ * categorization_rules — deterministic pattern → category (S1-2), checked
+ * before any AI fallback (S1-3) so known vendors cost zero AI calls.
+ * `confidenceLearned`/`timesMatched` let an accepted AI categorization
+ * become a permanent rule instead of a one-off relabel. `isUserCustom`
+ * rules always win over system-seeded ones on the same posting.
+ */
+export const categorizationRules = pgTable(
+  'categorization_rules',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    tenantId: uuid('tenant_id').notNull(),
+    pattern: text('pattern').notNull(),
+    categoryId: uuid('category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'restrict' }),
+    isUserCustom: boolean('is_user_custom').notNull().default(true),
+    confidenceLearned: numeric('confidence_learned', { precision: 4, scale: 3 }),
+    timesMatched: integer('times_matched').notNull().default(0),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('categorization_rules_tenant_idx').on(table.tenantId),
+    index('categorization_rules_pattern_idx').on(table.pattern),
   ],
 )
 
