@@ -62,6 +62,13 @@ export const reviewQueueStatus = pgEnum('review_queue_status', [
   'rejected',
 ])
 
+export const auditLogAction = pgEnum('audit_log_action', [
+  'auto_applied',
+  'queued_for_review',
+  'approved',
+  'rejected',
+])
+
 /**
  * accounts — the chart of accounts. `path` follows hledger/beancount's
  * colon-hierarchical convention, e.g. "assets:bank:plaid:checking".
@@ -258,6 +265,38 @@ export const reviewQueue = pgTable(
   (table) => [
     index('review_queue_status_idx').on(table.status),
     index('review_queue_posting_idx').on(table.postingId),
+  ],
+)
+
+/**
+ * audit_log — one row per categorization decision, no exceptions (S1-6).
+ * Every path that touches postings.categoryId writes here first: Tier 1
+ * rule apply, Tier 2/3 gate auto-apply, gate reject-to-queue, and a
+ * human's approve/reject on a queued item. This is a record of decisions,
+ * not of end state — postings.categoryId alone cannot answer "why was
+ * this categorized this way, by what, at what confidence." Append-only by
+ * convention (no code path updates or deletes a row); not DB-enforced like
+ * postings' guardrail since nothing should ever need to touch history here
+ * anyway.
+ */
+export const auditLog = pgTable(
+  'audit_log',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postingId: uuid('posting_id')
+      .notNull()
+      .references(() => postings.id, { onDelete: 'cascade' }),
+    action: auditLogAction('action').notNull(),
+    categoryId: uuid('category_id').references(() => categories.id, { onDelete: 'set null' }),
+    source: text('source').notNull(),
+    confidence: numeric('confidence', { precision: 4, scale: 3 }),
+    reason: text('reason').notNull(),
+    actor: text('actor').notNull(),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    index('audit_log_posting_idx').on(table.postingId),
+    index('audit_log_created_idx').on(table.createdAt),
   ],
 )
 

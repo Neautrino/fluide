@@ -8,10 +8,11 @@
  * CRUD lives in index.ts routes; embeddings/LLM fallback in fallback.ts;
  * auto-apply gate in gate.ts.
  */
-import { db, postings, transactions, categorizationRules, reviewQueue } from '@repo/ledger'
+import { db, postings, transactions, categorizationRules, reviewQueue, auditLog } from '@repo/ledger'
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 import { categorizeByEmbedding, categorizeByJev, type CategorizationMatch } from './fallback.js'
 import { evaluateGate, queueForReview } from './gate.js'
+import { writeAuditLog } from './audit.js'
 
 export type CategorizeResult = {
   checked: number
@@ -54,9 +55,27 @@ async function applyOrQueue(
       .update(postings)
       .set({ categoryId: match.categoryId, descriptionEmbedding: match.embedding })
       .where(eq(postings.id, postingId))
+    await writeAuditLog({
+      postingId,
+      action: 'auto_applied',
+      categoryId: match.categoryId,
+      source: match.source,
+      confidence: match.confidence,
+      reason: `gate passed: vendor history + amount range checks satisfied`,
+      actor: 'system',
+    })
     return 'applied'
   }
   await queueForReview(postingId, match, decision.reason)
+  await writeAuditLog({
+    postingId,
+    action: 'queued_for_review',
+    categoryId: match.categoryId,
+    source: match.source,
+    confidence: match.confidence,
+    reason: decision.reason,
+    actor: 'system',
+  })
   return 'queued'
 }
 
@@ -101,6 +120,15 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
         .update(categorizationRules)
         .set({ timesMatched: rule.timesMatched + 1, updatedAt: new Date() })
         .where(eq(categorizationRules.id, rule.id))
+      await writeAuditLog({
+        postingId: posting.id,
+        action: 'auto_applied',
+        categoryId: rule.categoryId,
+        source: 'rule',
+        confidence: rule.confidenceLearned ? Number(rule.confidenceLearned) : null,
+        reason: `matched categorization_rules pattern "${rule.pattern}"`,
+        actor: 'system',
+      })
       byTier.rule++
       categorized++
       continue

@@ -57,6 +57,13 @@
       "when": 1790182000000,
       "tag": "0007_romantic_groot",
       "breakpoints": true
+    },
+    {
+      "idx": 8,
+      "version": "7",
+      "when": 1790183000000,
+      "tag": "0008_familiar_bastion",
+      "breakpoints": true
     }
   ]
 }

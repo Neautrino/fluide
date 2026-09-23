@@ -10,11 +10,12 @@
  */
 import { Hono } from 'hono'
 import { createPlaidLinkToken, exchangePlaidPublicToken } from '@repo/connectors'
-import { db, accounts, transactions, postings, categories, categorizationRules, reviewQueue } from '@repo/ledger'
+import { db, accounts, transactions, postings, categories, categorizationRules, reviewQueue, auditLog } from '@repo/ledger'
 import { eq, desc } from 'drizzle-orm'
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorize.js'
+import { writeAuditLog } from './audit.js'
 
 const app = new Hono()
 
@@ -159,6 +160,15 @@ app.post('/api/review-queue/:id/approve', async (c) => {
     .update(reviewQueue)
     .set({ status: 'approved', resolvedAt: new Date() })
     .where(eq(reviewQueue.id, id))
+  await writeAuditLog({
+    postingId: item.postingId,
+    action: 'approved',
+    categoryId: item.suggestedCategoryId,
+    source: item.source,
+    confidence: Number(item.confidence),
+    reason: `human approved review_queue suggestion (original reason: ${item.reason})`,
+    actor: 'human',
+  })
 
   return c.json({ approved: id })
 })
@@ -173,8 +183,27 @@ app.post('/api/review-queue/:id/reject', async (c) => {
     .update(reviewQueue)
     .set({ status: 'rejected', resolvedAt: new Date() })
     .where(eq(reviewQueue.id, id))
+  await writeAuditLog({
+    postingId: item.postingId,
+    action: 'rejected',
+    categoryId: item.suggestedCategoryId,
+    source: item.source,
+    confidence: Number(item.confidence),
+    reason: `human rejected review_queue suggestion (original reason: ${item.reason})`,
+    actor: 'human',
+  })
 
   return c.json({ rejected: id })
+})
+
+app.get('/api/audit-log/:postingId', async (c) => {
+  const postingId = c.req.param('postingId')
+  const rows = await db
+    .select()
+    .from(auditLog)
+    .where(eq(auditLog.postingId, postingId))
+    .orderBy(desc(auditLog.createdAt))
+  return c.json({ entries: rows })
 })
 
 export default {

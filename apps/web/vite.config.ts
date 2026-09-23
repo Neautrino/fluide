@@ -11,6 +11,7 @@ export default defineConfig({
       '/plaid': 'http://localhost:4000',
       '/accounts': 'http://localhost:4000',
       '/transactions': 'http://localhost:4000',
+      '/api': 'http://localhost:4000',
     },
   },
 })
