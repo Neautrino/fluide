@@ -10,7 +10,7 @@
  */
 import { Hono } from 'hono'
 import { createPlaidLinkToken, exchangePlaidPublicToken } from '@repo/connectors'
-import { db, accounts, transactions, postings, categories, categorizationRules } from '@repo/ledger'
+import { db, accounts, transactions, postings, categories, categorizationRules, reviewQueue } from '@repo/ledger'
 import { eq, desc } from 'drizzle-orm'
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
@@ -138,6 +138,43 @@ app.post('/api/categorization-rules', async (c) => {
 app.post('/api/categorize', async (c) => {
   const result = await categorizeUncategorizedPostings(LOCAL_TENANT_ID)
   return c.json({ result })
+})
+
+app.get('/api/review-queue', async (c) => {
+  const rows = await db.select().from(reviewQueue).where(eq(reviewQueue.status, 'pending'))
+  return c.json({ items: rows })
+})
+
+app.post('/api/review-queue/:id/approve', async (c) => {
+  const id = c.req.param('id')
+  const [item] = await db.select().from(reviewQueue).where(eq(reviewQueue.id, id))
+  if (!item) return c.json({ error: 'not found' }, 404)
+  if (item.status !== 'pending') return c.json({ error: `already ${item.status}` }, 409)
+
+  await db
+    .update(postings)
+    .set({ categoryId: item.suggestedCategoryId })
+    .where(eq(postings.id, item.postingId))
+  await db
+    .update(reviewQueue)
+    .set({ status: 'approved', resolvedAt: new Date() })
+    .where(eq(reviewQueue.id, id))
+
+  return c.json({ approved: id })
+})
+
+app.post('/api/review-queue/:id/reject', async (c) => {
+  const id = c.req.param('id')
+  const [item] = await db.select().from(reviewQueue).where(eq(reviewQueue.id, id))
+  if (!item) return c.json({ error: 'not found' }, 404)
+  if (item.status !== 'pending') return c.json({ error: `already ${item.status}` }, 409)
+
+  await db
+    .update(reviewQueue)
+    .set({ status: 'rejected', resolvedAt: new Date() })
+    .where(eq(reviewQueue.id, id))
+
+  return c.json({ rejected: id })
 })
 
 export default {

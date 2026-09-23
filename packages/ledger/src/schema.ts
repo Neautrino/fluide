@@ -56,6 +56,12 @@ export const balanceAssertionSource = pgEnum('balance_assertion_source', [
   'manual',
 ])
 
+export const reviewQueueStatus = pgEnum('review_queue_status', [
+  'pending',
+  'approved',
+  'rejected',
+])
+
 /**
  * accounts — the chart of accounts. `path` follows hledger/beancount's
  * colon-hierarchical convention, e.g. "assets:bank:plaid:checking".
@@ -220,6 +226,39 @@ export const categoryAnchors = pgTable(
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [index('category_anchors_category_idx').on(table.categoryId)],
+)
+
+/**
+ * review_queue — S1-4's confidence gate output for Tier 2/3 matches that
+ * did not clear the auto-apply checklist (confidence + vendor seen 3+
+ * times + amount in the historical range for that vendor/category pair).
+ * `postings.categoryId` is left NULL for these — the suggestion lives only
+ * here until a human approves/rejects it (S1-5 UI). Approving writes
+ * `postings.categoryId` through the normal update path; rejecting never
+ * writes it at all. Every row is a record of a tier that almost applied
+ * but didn't — same "never silently guess" principle as S0-4/S1-2/S1-3.
+ */
+export const reviewQueue = pgTable(
+  'review_queue',
+  {
+    id: uuid('id').primaryKey().defaultRandom(),
+    postingId: uuid('posting_id')
+      .notNull()
+      .references(() => postings.id, { onDelete: 'cascade' }),
+    suggestedCategoryId: uuid('suggested_category_id')
+      .notNull()
+      .references(() => categories.id, { onDelete: 'restrict' }),
+    source: text('source').notNull(),
+    confidence: numeric('confidence', { precision: 4, scale: 3 }).notNull(),
+    reason: text('reason').notNull(),
+    status: reviewQueueStatus('status').notNull().default('pending'),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    resolvedAt: timestamp('resolved_at', { withTimezone: true }),
+  },
+  (table) => [
+    index('review_queue_status_idx').on(table.status),
+    index('review_queue_posting_idx').on(table.postingId),
+  ],
 )
 
 /**
