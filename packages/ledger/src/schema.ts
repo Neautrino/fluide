@@ -17,10 +17,12 @@ import {
   timestamp,
   numeric,
   integer,
+  bigint,
   boolean,
   pgEnum,
   index,
   uniqueIndex,
+  check,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 
@@ -68,7 +70,10 @@ export const auditLogAction = pgEnum('audit_log_action', [
   'queued_for_review',
   'approved',
   'rejected',
+  'recategorized',
 ])
+
+export const categorizationRuleStatus = pgEnum('categorization_rule_status', ['proposed', 'active', 'rejected'])
 
 /**
  * accounts — the chart of accounts. `path` follows hledger/beancount's
@@ -190,7 +195,11 @@ export const categories = pgTable(
  * before any AI fallback (S1-3) so known vendors cost zero AI calls.
  * `confidenceLearned`/`timesMatched` let an accepted AI categorization
  * become a permanent rule instead of a one-off relabel. `isUserCustom`
- * rules always win over system-seeded ones on the same posting.
+ * rules always win over system-learned ones on the same posting.
+ * `status`: only 'active' rules are ever matched. A rule learned from a
+ * human approval/recategorize starts 'proposed' and does nothing until the
+ * user activates it (PLAN.md §5.2: the loop that turns corrections into an
+ * auto-rule is itself reviewed before it changes future behavior).
  */
 export const categorizationRules = pgTable(
   'categorization_rules',
@@ -204,6 +213,7 @@ export const categorizationRules = pgTable(
     isUserCustom: boolean('is_user_custom').notNull().default(true),
     confidenceLearned: numeric('confidence_learned', { precision: 4, scale: 3 }),
     timesMatched: integer('times_matched').notNull().default(0),
+    status: categorizationRuleStatus('status').notNull().default('active'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
@@ -247,14 +257,14 @@ export const reviewQueue = pgTable(
 
 /**
  * audit_log — one row per categorization decision, no exceptions (S1-6).
- * Every path that touches postings.categoryId writes here first: Tier 1
- * rule apply, Tier 2/3 gate auto-apply, gate reject-to-queue, and a
- * human's approve/reject on a queued item. This is a record of decisions,
- * not of end state — postings.categoryId alone cannot answer "why was
- * this categorized this way, by what, at what confidence." Append-only by
- * convention (no code path updates or deletes a row); not DB-enforced like
- * postings' guardrail since nothing should ever need to touch history here
- * anyway.
+ * Every path that touches postings.categoryId writes here: Tier 1 rule
+ * apply, gate auto-apply, gate reject-to-queue, a human's approve/reject
+ * on a queued item, and a human's manual recategorize. This is a record of
+ * decisions, not of end state — postings.categoryId alone cannot answer
+ * "why was this categorized this way, by what, at what confidence."
+ * `txId` is the writing DB transaction's id (txid_current()), recorded
+ * so a category change can be tied to the audit row written with it.
+ * Append-only by convention (no code path updates or deletes a row).
  */
 export const auditLog = pgTable(
   'audit_log',
@@ -270,10 +280,54 @@ export const auditLog = pgTable(
     reason: text('reason').notNull(),
     actor: text('actor').notNull(),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+    txId: bigint('tx_id', { mode: 'number' })
+      .notNull()
+      .default(sql`txid_current()`),
   },
   (table) => [
     index('audit_log_posting_idx').on(table.postingId),
     index('audit_log_created_idx').on(table.createdAt),
+  ],
+)
+
+/** The gate's defaults when a tenant has never saved settings. The column
+ * defaults below are derived from this, so there is one place to change. */
+export const GATE_SETTINGS_DEFAULTS = {
+  highConfidence: 0.75,
+  lowConfidence: 0.5,
+  minVendorOccurrences: 3,
+  amountRangeTolerance: 0.5,
+} as const
+
+/**
+ * gate_settings — the confidence gate's thresholds, one row per tenant
+ * (PLAN.md §5.2: thresholds are visible and admin-configurable, not hidden
+ * constants). No row = GATE_SETTINGS_DEFAULTS; the Settings screen upserts
+ * it. CHECKs keep the bands coherent so a bad save can't e.g. put the
+ * review band above the auto-apply band.
+ */
+export const gateSettings = pgTable(
+  'gate_settings',
+  {
+    tenantId: uuid('tenant_id').primaryKey(),
+    highConfidence: numeric('high_confidence', { precision: 4, scale: 3 })
+      .notNull()
+      .default(GATE_SETTINGS_DEFAULTS.highConfidence.toFixed(3)),
+    lowConfidence: numeric('low_confidence', { precision: 4, scale: 3 })
+      .notNull()
+      .default(GATE_SETTINGS_DEFAULTS.lowConfidence.toFixed(3)),
+    minVendorOccurrences: integer('min_vendor_occurrences')
+      .notNull()
+      .default(GATE_SETTINGS_DEFAULTS.minVendorOccurrences),
+    amountRangeTolerance: numeric('amount_range_tolerance', { precision: 6, scale: 3 })
+      .notNull()
+      .default(GATE_SETTINGS_DEFAULTS.amountRangeTolerance.toFixed(3)),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    check('gate_settings_confidence_bands', sql`0 <= ${table.lowConfidence} AND ${table.lowConfidence} < ${table.highConfidence} AND ${table.highConfidence} <= 1`),
+    check('gate_settings_min_vendor_occurrences', sql`${table.minVendorOccurrences} >= 1`),
+    check('gate_settings_amount_range_tolerance', sql`${table.amountRangeTolerance} >= 0`),
   ],
 )
 
