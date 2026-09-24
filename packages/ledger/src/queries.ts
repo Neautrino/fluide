@@ -26,7 +26,8 @@ import {
   GATE_SETTINGS_DEFAULTS,
 } from './schema.js'
 
-export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' | 'all_time'
+export const PERIODS = ['this_week', 'this_month', 'last_30_days', 'this_year', 'all_time'] as const
+export type Period = (typeof PERIODS)[number]
 
 function periodStart(period: Period): Date | undefined {
   const now = new Date()
@@ -226,7 +227,8 @@ export async function listAccounts(tenantId: string) {
 }
 
 /** One row per posting (both legs of every transaction), newest first --
- * the web transaction table's shape. */
+ * the web transaction table's shape. `account.type` lets the UI hide the
+ * equity suspense leg; `posting.id` is what recategorize targets. */
 export async function listTransactionsWithPostings(tenantId: string, limit = 100) {
   return db
     .select({
@@ -235,10 +237,16 @@ export async function listTransactionsWithPostings(tenantId: string, limit = 100
       description: transactions.description,
       status: transactions.status,
       posting: {
+        id: postings.id,
         accountId: postings.accountId,
         amount: postings.amount,
         currency: postings.currency,
         categoryId: postings.categoryId,
+        counterpartyRaw: postings.counterpartyRaw,
+      },
+      account: {
+        name: accounts.name,
+        type: accounts.type,
       },
       category: {
         label: categories.label,
@@ -262,12 +270,48 @@ export async function listCategorizationRules(tenantId: string) {
   return db.select().from(categorizationRules).where(eq(categorizationRules.tenantId, tenantId))
 }
 
+/** Pending items with the posting context a reviewer needs to decide. */
 export async function listPendingReviewItems() {
-  return db.select().from(reviewQueue).where(eq(reviewQueue.status, 'pending'))
+  return db
+    .select({
+      id: reviewQueue.id,
+      postingId: reviewQueue.postingId,
+      suggestedCategoryId: reviewQueue.suggestedCategoryId,
+      confidenceBand: reviewQueue.confidenceBand,
+      source: reviewQueue.source,
+      confidence: reviewQueue.confidence,
+      reason: reviewQueue.reason,
+      status: reviewQueue.status,
+      createdAt: reviewQueue.createdAt,
+      posting: {
+        amount: postings.amount,
+        currency: postings.currency,
+        counterpartyRaw: postings.counterpartyRaw,
+        description: transactions.description,
+        date: transactions.date,
+      },
+    })
+    .from(reviewQueue)
+    .innerJoin(postings, eq(postings.id, reviewQueue.postingId))
+    .innerJoin(transactions, eq(transactions.id, postings.transactionId))
+    .where(eq(reviewQueue.status, 'pending'))
+    .orderBy(desc(transactions.date))
 }
 
 export async function listAuditLogForPosting(postingId: string) {
   return db.select().from(auditLog).where(eq(auditLog.postingId, postingId)).orderBy(desc(auditLog.createdAt))
+}
+
+/** The Overview screen's numbers -- the same aggregates the chat tools
+ * call, so the dashboard and the assistant can never disagree. */
+export async function getSummary(tenantId: string, period: Period) {
+  const [incomeExpense, topCategories, merchants, balances] = await Promise.all([
+    incomeVsExpense(tenantId, period),
+    topExpenseCategories(tenantId, period),
+    topMerchants(tenantId, period),
+    listAccountBalances(tenantId),
+  ])
+  return { period, incomeVsExpense: incomeExpense, topCategories, topMerchants: merchants, balances }
 }
 
 export type GateSettings = {

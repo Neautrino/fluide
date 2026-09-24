@@ -19,7 +19,10 @@ import {
   listCategorizationRules,
   listPendingReviewItems,
   listAuditLogForPosting,
+  getSummary,
   getGateSettings,
+  PERIODS,
+  type Period,
 } from '@repo/ledger'
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
@@ -173,6 +176,12 @@ app.put('/api/settings/gate', async (c) => {
   const result = await saveGateSettings(LOCAL_TENANT_ID, body)
   if (!result.ok) return c.json({ error: result.error }, 400)
   return c.json({ settings: result.settings })
+})
+
+app.get('/api/summary', async (c) => {
+  const period = (c.req.query('period') ?? 'this_month') as Period
+  if (!PERIODS.includes(period)) return c.json({ error: `period must be one of ${PERIODS.join(', ')}` }, 400)
+  return c.json(await getSummary(LOCAL_TENANT_ID, period))
 })
 
 app.post('/api/chat', async (c) => {
