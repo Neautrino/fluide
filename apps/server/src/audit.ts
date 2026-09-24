@@ -8,8 +8,8 @@
  * WHERE: called from categorization/categorize.ts (tier decisions) and
  * review.ts (human decisions). Never called from gate.ts directly -- the
  * caller already has the full context (postingId, tier, confidence).
- * Callers MUST pass their transaction handle so the audit row commits or
- * rolls back together with the category write it records.
+ * Callers MUST pass their transaction handle: migration 0004 only accepts
+ * a category change whose audit row was written in the same transaction.
  */
 import { auditLog, auditLogAction, type DbExecutor } from '@repo/ledger'
 

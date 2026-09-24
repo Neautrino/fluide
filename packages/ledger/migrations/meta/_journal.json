@@ -29,6 +29,13 @@
       "when": 1790259574191,
       "tag": "0003_rule_status_gate_settings",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "7",
+      "when": 1790259574626,
+      "tag": "0004_category_change_requires_audit",
+      "breakpoints": true
     }
   ]
 }

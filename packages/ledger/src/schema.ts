@@ -262,9 +262,10 @@ export const reviewQueue = pgTable(
  * on a queued item, and a human's manual recategorize. This is a record of
  * decisions, not of end state — postings.categoryId alone cannot answer
  * "why was this categorized this way, by what, at what confidence."
- * `txId` is the writing DB transaction's id (txid_current()), recorded
- * so a category change can be tied to the audit row written with it.
- * Append-only by convention (no code path updates or deletes a row).
+ * `txId` is the writing DB transaction's id; migration 0004's deferred
+ * trigger uses it to refuse any postings.category_id change that has no
+ * matching audit row written in the same transaction. Append-only by
+ * convention (no code path updates or deletes a row).
  */
 export const auditLog = pgTable(
   'audit_log',
