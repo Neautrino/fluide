@@ -33,9 +33,13 @@ docs, git, memory files.
 
 ### Never
 - Commit `.env`, `.pem`, or any Plaid/Teller/bank credential.
-- Return a Plaid `access_token` or a Teller/mTLS private key to `apps/web` or to
-  any LLM tool call. They stay server-side, referenced by opaque ids.
+- Return a Plaid `access_token`, an Enable Banking `session_id` or private key,
+  or a Teller/mTLS private key to `apps/web` or to any LLM tool call. They stay
+  server-side (`apps/server/src/connection-store.ts`, key file outside the repo),
+  referenced by opaque ids.
 - Add a payment-initiation or write-to-bank code path (PLAN.md principle #1).
+  Enable Banking sandbox apps have payments switched on; its adapter allowlists
+  read endpoints only — keep it that way.
 
 ## Source-of-truth file headers
 Files that own a source of truth, an architectural invariant, or a secret
@@ -53,7 +57,7 @@ Applies to `packages/ledger` (schema, migrations — guardrails live in its SQL
 migrations), connector adapters that touch access tokens/certs, and any file
 where "don't touch this without understanding why" matters. Skip boilerplate and
 pure UI components. Examples: `packages/connectors/src/plaid-client.ts`,
-`apps/server/src/plaid-store.ts`, `apps/server/src/index.ts`.
+`apps/server/src/connection-store.ts`, `apps/server/src/index.ts`.
 
 ## Commands
 - Install: `bun install` (repo root)
