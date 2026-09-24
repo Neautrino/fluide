@@ -1,17 +1,20 @@
 /** SOURCE OF TRUTH: Hono entrypoint — the only HTTP surface this server exposes.
- * WHAT: wires the Plaid Link enrollment flow (link-token -> widget -> exchange)
- * and ledger-backed read routes, writing to the real double-entry ledger.
- * WHY: the public_token/access_token boundary is load-bearing — apps/web only
- * ever sees link_token and public_token, never access_token. Do not add a
- * route that returns accessToken to the client.
- * WHERE: this file owns HTTP routing only. Plaid calls + normalization live
- * in packages/connectors, credentials in connection-store.ts, ledger writes live in ingest.ts, all ledger reads
- * live in @repo/ledger's queries.ts (shared with chat/tools.ts),
- * categorization lives in categorization/, review resolution lives in
- * review.ts, guardrail enforcement lives in packages/ledger's migrations.
+ * WHAT: wires the Plaid Link enrollment flow (link-token -> widget -> exchange),
+ * the Enable Banking connect flow (bank list -> auth url -> callback code ->
+ * session) and ledger-backed read routes, writing to the real double-entry ledger.
+ * WHY: the credential boundary is load-bearing — apps/web only ever sees
+ * link_token/public_token (Plaid) and the one-time callback code (Enable
+ * Banking), never an access_token or session_id. Do not add a route that
+ * returns a stored credential to the client.
+ * WHERE: this file owns HTTP routing only. Provider calls + normalization live
+ * in packages/connectors, the Enable Banking handshake in enable-banking-link.ts,
+ * credentials in connection-store.ts, ledger writes in ingest.ts, all ledger
+ * reads in @repo/ledger's queries.ts (shared with chat/tools.ts),
+ * categorization in categorization/, review resolution in review.ts,
+ * guardrail enforcement in packages/ledger's migrations.
  */
 import { Hono, type MiddlewareHandler } from 'hono'
-import { createPlaidLinkToken, exchangePlaidPublicToken, plaidConnector } from '@repo/connectors'
+import { createPlaidLinkToken, exchangePlaidPublicToken, listEnableBankingAspsps, plaidConnector } from '@repo/connectors'
 import {
   listAccounts,
   listTransactionsWithPostings,
@@ -26,6 +29,7 @@ import {
 } from '@repo/ledger'
 import { saveConnection, listConnections, updateConnectionCursor } from './connection-store.js'
 import { ingestConnection, LOCAL_TENANT_ID } from './ingest.js'
+import { startEnableBankingLink, completeEnableBankingLink } from './enable-banking-link.js'
 import { categorizeUncategorizedPostings } from './categorization/categorize.js'
 import { createUserRule, decideProposedRule } from './categorization/rules.js'
 import { resolveReviewItem, recategorizePosting } from './review.js'
@@ -102,6 +106,54 @@ app.post('/plaid/sync', async (c) => {
   } catch (err: any) {
     console.error('sync error', err?.response?.data ?? err)
     return c.json({ error: 'failed to sync transactions' }, 500)
+  }
+})
+
+const COUNTRY_RE = /^[A-Z]{2}$/
+
+app.get('/enable-banking/aspsps', async (c) => {
+  const country = c.req.query('country')?.toUpperCase()
+  if (!country || !COUNTRY_RE.test(country)) return c.json({ error: 'country must be a 2-letter ISO code' }, 400)
+  try {
+    const aspsps = await listEnableBankingAspsps(country)
+    return c.json({
+      aspsps: aspsps.map((a) => ({ name: a.name, country: a.country, logo: a.logo, beta: a.beta ?? false })),
+    })
+  } catch (err) {
+    console.error('enable-banking aspsps error', err)
+    return c.json({ error: 'failed to list banks' }, 500)
+  }
+})
+
+app.post('/enable-banking/auth', async (c) => {
+  const body = await c.req.json<{ aspspName?: string; country?: string }>().catch(() => null)
+  if (!body) return c.json({ error: 'body must be JSON' }, 400)
+  const country = body.country?.toUpperCase()
+  if (!body.aspspName?.trim() || !country || !COUNTRY_RE.test(country)) {
+    return c.json({ error: 'aspspName and a 2-letter country are required' }, 400)
+  }
+  try {
+    const result = await startEnableBankingLink(body.aspspName.trim(), country)
+    if (!result.ok) return c.json({ error: result.error }, result.status)
+    return c.json({ url: result.url })
+  } catch (err) {
+    console.error('enable-banking auth error', err)
+    return c.json({ error: 'failed to start bank authorization' }, 500)
+  }
+})
+
+app.post('/enable-banking/session', async (c) => {
+  const body = await c.req.json<{ code?: string; state?: string }>().catch(() => null)
+  if (!body) return c.json({ error: 'body must be JSON' }, 400)
+  if (!body.code || !body.state) return c.json({ error: 'code and state are required' }, 400)
+  try {
+    const result = await completeEnableBankingLink(body.code, body.state)
+    if (!result.ok) return c.json({ error: result.error }, result.status)
+    const { ok: _ok, ...summary } = result
+    return c.json(summary)
+  } catch (err) {
+    console.error('enable-banking session error', err)
+    return c.json({ error: 'failed to complete bank connection' }, 500)
   }
 })
 
