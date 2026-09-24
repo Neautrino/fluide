@@ -73,7 +73,7 @@ export function ConnectBank({ onConnected, variant = 'primary', showSandboxHint 
   return (
     <div className="flex flex-col items-start gap-2">
       <Button variant={variant} onClick={handleClick} busy={status === 'loading'}>
-        {status === 'loading' ? 'Connecting…' : 'Connect a bank'}
+        {status === 'loading' ? 'Connecting…' : 'Connect a US bank'}
       </Button>
       {status === 'error' && (
         <p role="alert" className="text-[13px] text-red">

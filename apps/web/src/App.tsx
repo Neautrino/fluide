@@ -1,4 +1,5 @@
 import { useCallback, useMemo, useState, type ComponentType } from 'react'
+import { EnableBankingCallback } from './components/EnableBankingCallback'
 import { Sidebar } from './components/Sidebar'
 import { getJson, type ReviewItem } from './lib/api'
 import { AppContext, type View } from './lib/app-context'
@@ -55,6 +56,7 @@ function App() {
         <Sidebar view={view} onNavigate={navigate} reviewCount={reviewCount} />
         <main className="min-w-0 flex-1">
           <div className="mx-auto w-full max-w-[1120px] px-5 pt-8 pb-20 md:px-12 md:pt-12">
+            <EnableBankingCallback />
             {ActiveView && (
               <div key={view} className="animate-rise">
                 <ActiveView />
