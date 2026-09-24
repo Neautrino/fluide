@@ -5,13 +5,13 @@
  * ever sees link_token and public_token, never access_token. Do not add a
  * route that returns accessToken to the client.
  * WHERE: this file owns HTTP routing only. Plaid calls + normalization live
- * in packages/connectors, ledger writes live in ingest.ts, all ledger reads
+ * in packages/connectors, credentials in connection-store.ts, ledger writes live in ingest.ts, all ledger reads
  * live in @repo/ledger's queries.ts (shared with chat/tools.ts),
  * categorization lives in categorization/, review resolution lives in
  * review.ts, guardrail enforcement lives in packages/ledger's migrations.
  */
 import { Hono, type MiddlewareHandler } from 'hono'
-import { createPlaidLinkToken, exchangePlaidPublicToken } from '@repo/connectors'
+import { createPlaidLinkToken, exchangePlaidPublicToken, plaidConnector } from '@repo/connectors'
 import {
   listAccounts,
   listTransactionsWithPostings,
@@ -24,8 +24,8 @@ import {
   PERIODS,
   type Period,
 } from '@repo/ledger'
-import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
-import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
+import { saveConnection, listConnections, updateConnectionCursor } from './connection-store.js'
+import { ingestConnection, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorization/categorize.js'
 import { createUserRule, decideProposedRule } from './categorization/rules.js'
 import { resolveReviewItem, recategorizePosting } from './review.js'
@@ -67,16 +67,17 @@ app.post('/plaid/exchange', async (c) => {
   }
   try {
     const { itemId, accessToken } = await exchangePlaidPublicToken(body.public_token)
-    saveItem({
-      itemId,
-      accessToken,
+    saveConnection({
+      id: itemId,
+      provider: 'plaid',
+      credential: accessToken,
       institutionName: body.institution_name,
       createdAt: new Date().toISOString(),
     })
 
     // ingest immediately so the ledger has data right after connecting
-    const result = await ingestPlaidItem(accessToken)
-    if (result.nextCursor) updateItemCursor(itemId, result.nextCursor)
+    const result = await ingestConnection(plaidConnector, accessToken)
+    if (result.nextCursor) updateConnectionCursor(itemId, result.nextCursor)
 
     return c.json({ item_id: itemId, ingest: result })
   } catch (err: any) {
@@ -86,16 +87,16 @@ app.post('/plaid/exchange', async (c) => {
 })
 
 app.post('/plaid/sync', async (c) => {
-  const items = listItems()
+  const items = listConnections('plaid')
   if (items.length === 0) {
     return c.json({ error: 'no connected accounts yet' }, 404)
   }
   try {
     const results = []
     for (const item of items) {
-      const result = await ingestPlaidItem(item.accessToken, item.cursor)
-      if (result.nextCursor) updateItemCursor(item.itemId, result.nextCursor)
-      results.push({ item_id: item.itemId, ...result })
+      const result = await ingestConnection(plaidConnector, item.credential, item.cursor)
+      if (result.nextCursor) updateConnectionCursor(item.id, result.nextCursor)
+      results.push({ item_id: item.id, ...result })
     }
     return c.json({ synced: results })
   } catch (err: any) {
