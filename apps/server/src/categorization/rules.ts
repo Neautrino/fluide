@@ -1,15 +1,17 @@
 /** SOURCE OF TRUTH: every write to categorization_rules.
  * WHAT: creates Tier 1 rules -- either typed by the user (POST
- * /api/categorization-rules) or learned from a human approving a Jev
- * suggestion in the review queue.
- * WHY: without the learned path, approving "Uber -> Transport" fixed one
+ * /api/categorization-rules, active immediately) or proposed from a human
+ * approving a Jev suggestion / recategorizing a posting -- and moves a
+ * proposed rule to active or rejected when the user decides.
+ * WHY: without the learned path, approving "Uber -> Taxis" fixed one
  * posting and the next Uber charge went straight back to Jev and the
- * queue. A learned rule makes the approval permanent, so a known vendor
- * costs zero AI calls from then on (schema.ts's categorizationRules doc).
- * Learned rules are isUserCustom=false, so a rule the user typed by hand
- * always wins over one the system inferred (categorize.ts's tie-break).
- * WHERE: owns rule inserts only. Matching lives in categorize.ts; reads
- * live in @repo/ledger's queries.ts.
+ * queue. But PLAN.md §5.2 says the loop that turns corrections into an
+ * auto-rule must itself be reviewed before it changes future behavior, so
+ * a learned rule is only ever 'proposed': categorize.ts ignores it until
+ * the user activates it. Learned rules are isUserCustom=false, so a rule
+ * the user typed always wins over one the system inferred.
+ * WHERE: owns rule inserts + status changes only. Matching lives in
+ * categorize.ts; reads live in @repo/ledger's queries.ts.
  */
 import { db, categorizationRules, postings, transactions, type DbExecutor } from '@repo/ledger'
 import { and, eq, sql } from 'drizzle-orm'
@@ -20,6 +22,7 @@ export async function createCategorizationRule(
     pattern: string
     categoryId: string
     isUserCustom: boolean
+    status: 'proposed' | 'active'
     confidenceLearned?: number
   },
   executor: DbExecutor = db,
@@ -31,26 +34,27 @@ export async function createCategorizationRule(
       pattern: rule.pattern,
       categoryId: rule.categoryId,
       isUserCustom: rule.isUserCustom,
+      status: rule.status,
       confidenceLearned: rule.confidenceLearned === undefined ? null : rule.confidenceLearned.toFixed(3),
     })
     .returning()
   return created!
 }
 
-/** Turns an approved review-queue suggestion into a Tier 1 rule keyed on
- * the posting's counterparty text. Skips (returns null) when the posting
- * has no counterparty to match on, or when the tenant already has a rule
- * for that exact counterparty -- an existing rule, especially a
- * user-typed one, is never overwritten by an inferred one. */
-export async function learnRuleFromApproval(
-  approval: { postingId: string; categoryId: string; confidence: number },
+/** Proposes a Tier 1 rule keyed on the posting's counterparty text after a
+ * human categorized it. Skips (returns null) when the posting has no
+ * counterparty to match on, or when the tenant already has a rule for that
+ * exact counterparty in any status -- an existing rule is never
+ * overwritten, and a rule the user already rejected is not re-proposed. */
+export async function proposeRuleForPosting(
+  proposal: { postingId: string; categoryId: string; confidence: number | null },
   executor: DbExecutor,
 ) {
   const [posting] = await executor
     .select({ tenantId: transactions.tenantId, counterpartyRaw: postings.counterpartyRaw })
     .from(postings)
     .innerJoin(transactions, eq(transactions.id, postings.transactionId))
-    .where(eq(postings.id, approval.postingId))
+    .where(eq(postings.id, proposal.postingId))
   if (!posting?.counterpartyRaw) return null
 
   const [existing] = await executor
@@ -69,10 +73,32 @@ export async function learnRuleFromApproval(
     {
       tenantId: posting.tenantId,
       pattern: posting.counterpartyRaw,
-      categoryId: approval.categoryId,
+      categoryId: proposal.categoryId,
       isUserCustom: false,
-      confidenceLearned: approval.confidence,
+      status: 'proposed',
+      confidenceLearned: proposal.confidence ?? undefined,
     },
     executor,
   )
+}
+
+export type RuleDecisionResult =
+  | { ok: true; rule: typeof categorizationRules.$inferSelect }
+  | { ok: false; status: 404 | 409; error: string }
+
+/** The user's decision on a proposed rule. Only 'proposed' rules can be
+ * decided; active/rejected are final from this path. */
+export async function decideProposedRule(id: string, decision: 'active' | 'rejected'): Promise<RuleDecisionResult> {
+  return db.transaction(async (tx) => {
+    const [rule] = await tx.select().from(categorizationRules).where(eq(categorizationRules.id, id)).for('update')
+    if (!rule) return { ok: false, status: 404, error: 'not found' }
+    if (rule.status !== 'proposed') return { ok: false, status: 409, error: `rule is already ${rule.status}` }
+
+    const [updated] = await tx
+      .update(categorizationRules)
+      .set({ status: decision, updatedAt: new Date() })
+      .where(eq(categorizationRules.id, id))
+      .returning()
+    return { ok: true, rule: updated! }
+  })
 }

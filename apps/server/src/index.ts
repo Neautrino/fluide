@@ -24,7 +24,7 @@ import {
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorization/categorize.js'
-import { createCategorizationRule } from './categorization/rules.js'
+import { createCategorizationRule, decideProposedRule } from './categorization/rules.js'
 import { resolveReviewItem } from './review.js'
 import { saveGateSettings, type GateSettingsInput } from './settings.js'
 import { askAgent } from './chat/agent.js'
@@ -106,17 +106,30 @@ app.get('/api/categorization-rules', async (c) => {
 })
 
 app.post('/api/categorization-rules', async (c) => {
-  const body = await c.req.json<{ pattern: string; categoryId: string; isUserCustom?: boolean }>()
-  if (!body?.pattern || !body?.categoryId) {
+  const body = await c.req.json<{ pattern: string; categoryId: string }>()
+  if (!body?.pattern?.trim() || !body?.categoryId) {
     return c.json({ error: 'pattern and categoryId are required' }, 400)
   }
   const rule = await createCategorizationRule({
     tenantId: LOCAL_TENANT_ID,
-    pattern: body.pattern,
+    pattern: body.pattern.trim(),
     categoryId: body.categoryId,
-    isUserCustom: body.isUserCustom ?? true,
+    isUserCustom: true,
+    status: 'active',
   })
   return c.json({ rule })
+})
+
+app.post('/api/categorization-rules/:id/activate', async (c) => {
+  const result = await decideProposedRule(c.req.param('id'), 'active')
+  if (!result.ok) return c.json({ error: result.error }, result.status)
+  return c.json({ rule: result.rule })
+})
+
+app.post('/api/categorization-rules/:id/reject', async (c) => {
+  const result = await decideProposedRule(c.req.param('id'), 'rejected')
+  if (!result.ok) return c.json({ error: result.error }, result.status)
+  return c.json({ rule: result.rule })
 })
 
 app.post('/api/categorize', async (c) => {
@@ -132,7 +145,7 @@ app.post('/api/review-queue/:id/approve', async (c) => {
   const id = c.req.param('id')
   const result = await resolveReviewItem(id, 'approve')
   if (!result.ok) return c.json({ error: result.error }, result.status)
-  return c.json({ approved: id, learnedRuleId: result.learnedRuleId })
+  return c.json({ approved: id, proposedRuleId: result.proposedRuleId })
 })
 
 app.post('/api/review-queue/:id/reject', async (c) => {

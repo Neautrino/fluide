@@ -23,8 +23,9 @@
  * WHAT CHANGED (Slice 1 gap fixes): every per-posting write (category
  * update + rule counter + audit row, or queue row + audit row) now runs in
  * its own db.transaction, so a crash can't leave a category without its
- * audit entry -- migration 0004 refuses to commit that anyway. Gate
- * thresholds come from gate_settings, loaded once per run.
+ * audit entry -- migration 0004 refuses to commit that anyway. Only
+ * status='active' rules are matched (learned rules start 'proposed'), and
+ * gate thresholds come from gate_settings, loaded once per run.
  * Postings a human already categorized are never touched: this only ever
  * selects postings whose category_id IS NULL, and a human decision always
  * sets one (PLAN.md §5.2 Tier 3: the AI never overturns a human choice).
@@ -54,6 +55,7 @@ async function findBestRule(tenantId: string, text: string) {
     .where(
       and(
         eq(categorizationRules.tenantId, tenantId),
+        eq(categorizationRules.status, 'active'),
         sql`${text} ILIKE '%' || ${categorizationRules.pattern} || '%'`,
       ),
     )
@@ -125,7 +127,7 @@ async function applyOrQueue(
 }
 
 /** Categorizes every uncategorized posting for a tenant through 2 tiers:
- * (1) deterministic rule match (applies directly, no gate --
+ * (1) deterministic active-rule match (applies directly, no gate --
  * already deterministic, and cheap enough to run per-row), (2) Jev,
  * batched into as few HTTP calls as Jev's token budget allows rather than
  * one call per posting. Each Jev match passes through the S1-4 gate before
