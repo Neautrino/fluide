@@ -151,3 +151,54 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
 
   return rows.map((r) => ({ name: r.name, currency: r.currency, balance: Number(r.balance) }))
 }
+
+export type TransactionRow = {
+  date: string
+  description: string
+  merchant: string
+  amount: number
+  category: string
+}
+
+/** Raw, filterable transaction listing -- the one gap found comparing our
+ * tool surface against BankMCP's get_transactions / Ghostfolio's
+ * get_orders: those return a raw list for the calling model to reason
+ * over; our other tools are all pre-aggregated. Reuses the same
+ * join/shape as index.ts's GET /transactions route, narrowed to one
+ * account-type filter and an optional merchant/period filter, capped at
+ * 50 rows so a broad match doesn't dump the whole ledger into context. */
+export async function listRecentTransactions(
+  tenantId: string,
+  period: Period,
+  merchantQuery?: string,
+  limit = 20,
+): Promise<TransactionRow[]> {
+  const conditions = [bankPostingsFilter(tenantId, period)]
+  if (merchantQuery) {
+    conditions.push(sql`${postings.counterpartyRaw} ILIKE '%' || ${merchantQuery} || '%'`)
+  }
+
+  const rows = await db
+    .select({
+      date: transactions.date,
+      description: transactions.description,
+      merchant: sql<string>`coalesce(${postings.counterpartyRaw}, 'Unknown')`,
+      amount: postings.amount,
+      category: sql<string>`coalesce(${categories.label}, 'Uncategorized')`,
+    })
+    .from(postings)
+    .innerJoin(transactions, eq(transactions.id, postings.transactionId))
+    .innerJoin(accounts, eq(accounts.id, postings.accountId))
+    .leftJoin(categories, eq(categories.id, postings.categoryId))
+    .where(and(...conditions))
+    .orderBy(sql`${transactions.date} desc`)
+    .limit(Math.min(limit, 50))
+
+  return rows.map((r) => ({
+    date: r.date.toISOString().slice(0, 10),
+    description: r.description,
+    merchant: r.merchant,
+    amount: Number(r.amount),
+    category: r.category,
+  }))
+}

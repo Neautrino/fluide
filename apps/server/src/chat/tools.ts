@@ -17,6 +17,7 @@ import {
   incomeVsExpense,
   topMerchants,
   listAccountBalances,
+  listRecentTransactions,
   type Period,
 } from '../queries.js'
 
@@ -87,6 +88,24 @@ export const chatTools = [
       name: 'list_account_balances',
       description: "List the user's connected bank accounts with their current balances.",
       schema: z.object({}),
+    },
+  ),
+  tool(
+    async ({ period, merchant, limit }: { period: Period; merchant?: string; limit?: number }) => {
+      const rows = await listRecentTransactions(LOCAL_TENANT_ID, period, merchant, limit ?? 20)
+      return JSON.stringify(rows)
+    },
+    {
+      name: 'list_recent_transactions',
+      description:
+        'List individual transactions (date, description, merchant, amount, category), newest first -- ' +
+        'for specific/non-aggregate questions the other tools can\'t answer, e.g. "show me my Uber ' +
+        'transactions" or "what did I buy last week". Optionally filtered to one merchant.',
+      schema: z.object({
+        period: periodSchema,
+        merchant: z.string().optional().describe('Filter to transactions matching this merchant/vendor name, e.g. "Uber". Omit to list all.'),
+        limit: z.number().int().positive().max(50).optional().describe('Max transactions to return, default 20, capped at 50.'),
+      }),
     },
   ),
 ]
