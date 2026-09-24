@@ -10,7 +10,7 @@
  * categorization lives in categorization/, review resolution lives in
  * review.ts, guardrail enforcement lives in packages/ledger's migrations.
  */
-import { Hono } from 'hono'
+import { Hono, type MiddlewareHandler } from 'hono'
 import { createPlaidLinkToken, exchangePlaidPublicToken } from '@repo/connectors'
 import {
   listAccounts,
@@ -27,12 +27,24 @@ import {
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorization/categorize.js'
-import { createCategorizationRule, decideProposedRule } from './categorization/rules.js'
+import { createUserRule, decideProposedRule } from './categorization/rules.js'
 import { resolveReviewItem, recategorizePosting } from './review.js'
 import { saveGateSettings, type GateSettingsInput } from './settings.js'
 import { askAgent } from './chat/agent.js'
 
 const app = new Hono()
+
+const UUID_RE = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+const isUuid = (value: unknown): value is string => typeof value === 'string' && UUID_RE.test(value)
+
+/** Rejects a malformed id with a 400 before the handler runs; without it the
+ * id reaches Postgres, which fails the uuid cast and the route returns 500. */
+const uuidParam =
+  (name: string): MiddlewareHandler =>
+  async (c, next) => {
+    if (!isUuid(c.req.param(name))) return c.json({ error: `${name} must be a UUID` }, 400)
+    await next()
+  }
 
 app.get('/', (c) => {
   return c.text('Hello Hono!')
@@ -109,27 +121,24 @@ app.get('/api/categorization-rules', async (c) => {
 })
 
 app.post('/api/categorization-rules', async (c) => {
-  const body = await c.req.json<{ pattern: string; categoryId: string }>()
-  if (!body?.pattern?.trim() || !body?.categoryId) {
+  const body = await c.req.json<{ pattern?: string; categoryId?: string }>().catch(() => null)
+  if (!body) return c.json({ error: 'body must be JSON' }, 400)
+  if (!body.pattern?.trim() || !body.categoryId) {
     return c.json({ error: 'pattern and categoryId are required' }, 400)
   }
-  const rule = await createCategorizationRule({
-    tenantId: LOCAL_TENANT_ID,
-    pattern: body.pattern.trim(),
-    categoryId: body.categoryId,
-    isUserCustom: true,
-    status: 'active',
-  })
-  return c.json({ rule })
+  if (!isUuid(body.categoryId)) return c.json({ error: 'categoryId must be a UUID' }, 400)
+  const result = await createUserRule(LOCAL_TENANT_ID, body.pattern.trim(), body.categoryId)
+  if (!result.ok) return c.json({ error: result.error }, result.status)
+  return c.json({ rule: result.rule })
 })
 
-app.post('/api/categorization-rules/:id/activate', async (c) => {
+app.post('/api/categorization-rules/:id/activate', uuidParam('id'), async (c) => {
   const result = await decideProposedRule(c.req.param('id'), 'active')
   if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ rule: result.rule })
 })
 
-app.post('/api/categorization-rules/:id/reject', async (c) => {
+app.post('/api/categorization-rules/:id/reject', uuidParam('id'), async (c) => {
   const result = await decideProposedRule(c.req.param('id'), 'rejected')
   if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ rule: result.rule })
@@ -144,24 +153,25 @@ app.get('/api/review-queue', async (c) => {
   return c.json({ items: await listPendingReviewItems() })
 })
 
-app.post('/api/review-queue/:id/approve', async (c) => {
+app.post('/api/review-queue/:id/approve', uuidParam('id'), async (c) => {
   const id = c.req.param('id')
   const result = await resolveReviewItem(id, 'approve')
   if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ approved: id, proposedRuleId: result.proposedRuleId })
 })
 
-app.post('/api/review-queue/:id/reject', async (c) => {
+app.post('/api/review-queue/:id/reject', uuidParam('id'), async (c) => {
   const id = c.req.param('id')
   const result = await resolveReviewItem(id, 'reject')
   if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ rejected: id })
 })
 
-app.post('/api/postings/:id/category', async (c) => {
+app.post('/api/postings/:id/category', uuidParam('id'), async (c) => {
   const postingId = c.req.param('id')
   const body = await c.req.json<{ categoryId?: string }>().catch(() => ({}) as { categoryId?: string })
   if (!body.categoryId) return c.json({ error: 'categoryId is required' }, 400)
+  if (!isUuid(body.categoryId)) return c.json({ error: 'categoryId must be a UUID' }, 400)
   const result = await recategorizePosting(postingId, body.categoryId)
   if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ postingId, categoryId: body.categoryId, proposedRuleId: result.proposedRuleId })
@@ -185,7 +195,8 @@ app.get('/api/summary', async (c) => {
 })
 
 app.post('/api/chat', async (c) => {
-  const body = await c.req.json<{ message: string; threadId: string }>()
+  const body = await c.req.json<{ message: string; threadId: string }>().catch(() => null)
+  if (!body) return c.json({ error: 'body must be JSON' }, 400)
   if (!body?.message?.trim() || !body?.threadId) {
     return c.json({ error: 'message and threadId are required' }, 400)
   }
@@ -198,7 +209,7 @@ app.post('/api/chat', async (c) => {
   }
 })
 
-app.get('/api/audit-log/:postingId', async (c) => {
+app.get('/api/audit-log/:postingId', uuidParam('postingId'), async (c) => {
   return c.json({ entries: await listAuditLogForPosting(c.req.param('postingId')) })
 })
 

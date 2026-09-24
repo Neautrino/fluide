@@ -13,7 +13,7 @@
  * WHERE: owns rule inserts + status changes only. Matching lives in
  * categorize.ts; reads live in @repo/ledger's queries.ts.
  */
-import { db, categorizationRules, postings, transactions, type DbExecutor } from '@repo/ledger'
+import { db, categories, categorizationRules, postings, transactions, type DbExecutor } from '@repo/ledger'
 import { and, eq, sql } from 'drizzle-orm'
 
 export async function createCategorizationRule(
@@ -39,6 +39,29 @@ export async function createCategorizationRule(
     })
     .returning()
   return created!
+}
+
+export type CreateUserRuleResult =
+  | { ok: true; rule: typeof categorizationRules.$inferSelect }
+  | { ok: false; status: 400; error: string }
+
+/** A rule the user typed (POST /api/categorization-rules), active
+ * immediately. Checks the category exists first so an unknown categoryId is
+ * a 400, not a foreign-key error surfacing as a 500. */
+export async function createUserRule(
+  tenantId: string,
+  pattern: string,
+  categoryId: string,
+): Promise<CreateUserRuleResult> {
+  return db.transaction(async (tx) => {
+    const [category] = await tx.select({ id: categories.id }).from(categories).where(eq(categories.id, categoryId))
+    if (!category) return { ok: false, status: 400, error: 'unknown categoryId' }
+    const rule = await createCategorizationRule(
+      { tenantId, pattern, categoryId, isUserCustom: true, status: 'active' },
+      tx,
+    )
+    return { ok: true, rule }
+  })
 }
 
 /** Proposes a Tier 1 rule keyed on the posting's counterparty text after a
