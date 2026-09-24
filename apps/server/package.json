@@ -5,11 +5,16 @@
     "dev": "bun run --hot src/index.ts"
   },
   "dependencies": {
+    "@langchain/core": "^1.2.12",
+    "@langchain/langgraph": "^1.4.17",
+    "@langchain/openai": "^1.5.13",
     "@repo/connectors": "workspace:*",
     "@repo/ledger": "workspace:*",
     "drizzle-orm": "^0.45.3",
     "hono": "^4.13.8",
-    "plaid": "^47.0.0"
+    "langchain": "^1.5.12",
+    "plaid": "^47.0.0",
+    "zod": "^4.6.5"
   },
   "devDependencies": {
     "@repo/typescript-config": "workspace:*",
