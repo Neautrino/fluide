@@ -1,14 +1,14 @@
-/** SOURCE OF TRUTH: the double-entry ledger's schema — accounts, transactions,
- * postings, balance_assertions.
- * WHAT: Drizzle table definitions for Slice 0's ledger core (PLAN.md §2).
- * Later-slice tables (documents/matches/categorization_rules/review_queue/
- * audit_log/connectors/watches) are deliberately not modeled yet.
+/** SOURCE OF TRUTH: the ledger's schema — the double-entry core (accounts,
+ * transactions, postings, balance_assertions) plus Slice 1's categorization
+ * tables (categories, categorization_rules, review_queue, audit_log).
+ * WHAT: Drizzle table definitions (PLAN.md §2). Later-slice tables
+ * (documents/matches/connectors/watches) are deliberately not modeled yet.
  * WHY: `postings` is the only writable source of truth for money movement.
  * Balances are NEVER stored as ground truth — always derived by replaying
  * postings, reconciled against the bank via balance_assertions.
- * WHERE: this file owns table SHAPE only. The sum-to-zero CHECK and the
- * immutability REVOKE are hand-written SQL in migrations/ — Drizzle's schema
- * DSL can't express them, and schema alone does not stop bad writes.
+ * WHERE: this file owns table SHAPE only. The sum-to-zero rule and posting
+ * immutability are hand-written trigger SQL in migrations/0001 — Drizzle's
+ * schema DSL can't express them, and schema alone does not stop bad writes.
  */
 import {
   pgTable,
@@ -126,10 +126,10 @@ export const transactions = pgTable(
 
 /**
  * postings — the actual double-entry rows. N per transaction; every set of
- * postings sharing a transaction_id + currency must sum to zero. This table
- * is append-only: migrations/0000_ledger_guardrails.sql revokes UPDATE and
- * DELETE on it entirely. To correct a mistake, post a reversing entry —
- * never edit or remove a row.
+ * postings sharing a transaction_id + currency must sum to zero. Money
+ * columns are append-only: migrations/0001_ledger_guardrails.sql rejects
+ * DELETE and any UPDATE except category_id/tags. To correct a money
+ * mistake, post a reversing entry — never edit or remove a row.
  */
 export const postings = pgTable(
   'postings',
