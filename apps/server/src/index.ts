@@ -7,16 +7,14 @@
  * WHERE: this file owns HTTP routing only. Plaid calls + normalization live
  * in packages/connectors, ledger writes live in ingest.ts, all ledger reads
  * live in @repo/ledger's queries.ts (shared with chat/tools.ts),
- * categorization lives in categorization/, guardrail enforcement lives
- * in packages/ledger's migrations.
+ * categorization lives in categorization/, review resolution lives in
+ * review.ts, guardrail enforcement lives in packages/ledger's migrations.
  */
 import { Hono } from 'hono'
 import { createPlaidLinkToken, exchangePlaidPublicToken } from '@repo/connectors'
 import {
   db,
-  postings,
   categorizationRules,
-  reviewQueue,
   listAccounts,
   listTransactionsWithPostings,
   listCategories,
@@ -24,11 +22,10 @@ import {
   listPendingReviewItems,
   listAuditLogForPosting,
 } from '@repo/ledger'
-import { eq } from 'drizzle-orm'
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorization/categorize.js'
-import { writeAuditLog } from './audit.js'
+import { resolveReviewItem } from './review.js'
 import { askAgent } from './chat/agent.js'
 
 const app = new Hono()
@@ -135,54 +132,15 @@ app.get('/api/review-queue', async (c) => {
 
 app.post('/api/review-queue/:id/approve', async (c) => {
   const id = c.req.param('id')
-  const [item] = await db.select().from(reviewQueue).where(eq(reviewQueue.id, id))
-  if (!item) return c.json({ error: 'not found' }, 404)
-  if (item.status !== 'pending') return c.json({ error: `already ${item.status}` }, 409)
-  if (!item.suggestedCategoryId) {
-    return c.json({ error: 'this item has no suggested category (low-confidence, Jev < 0.50) -- nothing to approve, pick a category manually instead' }, 400)
-  }
-
-  await db
-    .update(postings)
-    .set({ categoryId: item.suggestedCategoryId })
-    .where(eq(postings.id, item.postingId))
-  await db
-    .update(reviewQueue)
-    .set({ status: 'approved', resolvedAt: new Date() })
-    .where(eq(reviewQueue.id, id))
-  await writeAuditLog({
-    postingId: item.postingId,
-    action: 'approved',
-    categoryId: item.suggestedCategoryId,
-    source: item.source,
-    confidence: Number(item.confidence),
-    reason: `human approved review_queue suggestion (original reason: ${item.reason})`,
-    actor: 'human',
-  })
-
+  const result = await resolveReviewItem(id, 'approve')
+  if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ approved: id })
 })
 
 app.post('/api/review-queue/:id/reject', async (c) => {
   const id = c.req.param('id')
-  const [item] = await db.select().from(reviewQueue).where(eq(reviewQueue.id, id))
-  if (!item) return c.json({ error: 'not found' }, 404)
-  if (item.status !== 'pending') return c.json({ error: `already ${item.status}` }, 409)
-
-  await db
-    .update(reviewQueue)
-    .set({ status: 'rejected', resolvedAt: new Date() })
-    .where(eq(reviewQueue.id, id))
-  await writeAuditLog({
-    postingId: item.postingId,
-    action: 'rejected',
-    categoryId: item.suggestedCategoryId,
-    source: item.source,
-    confidence: Number(item.confidence),
-    reason: `human rejected review_queue suggestion (original reason: ${item.reason})`,
-    actor: 'human',
-  })
-
+  const result = await resolveReviewItem(id, 'reject')
+  if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ rejected: id })
 })
 

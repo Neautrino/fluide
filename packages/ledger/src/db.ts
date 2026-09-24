@@ -21,3 +21,8 @@ if (!connectionString) {
 
 const client = postgres(connectionString)
 export const db = drizzle(client, { schema })
+
+/** Either the pool or an open transaction handle. Write helpers that must
+ * commit together with other writes (e.g. a category change + its audit_log
+ * row) take this, so the caller decides the transaction boundary. */
+export type DbExecutor = typeof db | Parameters<Parameters<typeof db.transaction>[0]>[0]

@@ -8,10 +8,9 @@
  * model only ever picks which function to call and narrates the result;
  * it never computes a number itself (Tier 1, no gate needed).
  * WHERE: owns reads only. Writes live with their owning engine in
- * apps/server (ingest.ts, categorize.ts, index.ts's review routes).
- * Aggregates filter to accounts.type = 'asset' to exclude the equity
- * suspense leg every transaction also has; listTransactionsWithPostings
- * deliberately does not.
+ * apps/server (ingest.ts, categorization/, review.ts). Aggregates filter to
+ * accounts.type = 'asset' to exclude the equity suspense leg every
+ * transaction also has; listTransactionsWithPostings deliberately does not.
  */
 import { and, desc, eq, gte, sql } from 'drizzle-orm'
 import { db } from './db.js'
