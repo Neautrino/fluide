@@ -20,11 +20,19 @@
  * before it finished. Fixed to batch every Tier-1-unmatched posting into
  * one categorizeByJevBatch() call (~11s for 200 items in earlier testing,
  * chunked under Jev's token ceiling) instead of N sequential calls.
+ * WHAT CHANGED (Slice 1 gap fixes): every per-posting write (category
+ * update + rule counter + audit row, or queue row + audit row) now runs in
+ * its own db.transaction, so a crash can't leave a category without its
+ * audit entry.
+ * Postings a human already categorized are never touched: this only ever
+ * selects postings whose category_id IS NULL, and a human decision always
+ * sets one (PLAN.md §5.2 Tier 3: the AI never overturns a human choice).
  * WHERE: owns rule matching + posting updates + tier orchestration. Rule
  * creation lives in rules.ts; Jev call lives in jev.ts; the confidence
- * gate lives in gate.ts; human approve/reject lives in ../review.ts.
+ * gate lives in gate.ts; human approve/reject/recategorize lives in
+ * ../review.ts.
  */
-import { db, postings, transactions, categorizationRules, reviewQueue, auditLog } from '@repo/ledger'
+import { db, postings, transactions, categorizationRules, reviewQueue } from '@repo/ledger'
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 import { categorizeByJevBatch, type CategorizationMatch } from './jev.js'
 import { evaluateGate, queueForReview } from './gate.js'
@@ -58,16 +66,16 @@ async function findBestRule(tenantId: string, text: string) {
   return matches[0]
 }
 
-/** Runs a Jev match through the gate and writes the outcome. Three
- * possible results, matching the user's exact rule:
+/** Runs a Jev match through the gate and writes the outcome, all in one
+ * transaction. Three possible results, matching the user's exact rule:
  *  - auto_apply: postings.categoryId is set directly.
  *  - queue_with_suggestion: postings.categoryId stays NULL, but
  *    review_queue gets a row with the suggested category so a human sees
- *    what Jev thinks it is (0.50-0.75 confidence band, or a high-band
- *    match that didn't clear the vendor/amount checklist).
+ *    what Jev thinks it is (review band, or a high-band match that didn't
+ *    clear the vendor/amount checklist).
  *  - queue_uncategorized: postings.categoryId stays NULL, review_queue
- *    gets a row with NO suggested category (< 0.50 confidence) -- the
- *    posting shows as plain uncategorized in the UI, but it's still
+ *    gets a row with NO suggested category (below the low threshold) --
+ *    the posting shows as plain uncategorized in the UI, but it's still
  *    flagged for review, not silently dropped with zero record. */
 async function applyOrQueue(
   tenantId: string,
@@ -78,39 +86,47 @@ async function applyOrQueue(
 ): Promise<'applied' | 'queued'> {
   const outcome = await evaluateGate(tenantId, counterpartyRaw, amount, match)
 
-  if (outcome.action === 'auto_apply') {
-    await db.update(postings).set({ categoryId: match.categoryId }).where(eq(postings.id, postingId))
-    await writeAuditLog({
-      postingId,
-      action: 'auto_applied',
-      categoryId: match.categoryId,
-      source: match.source,
-      confidence: match.confidence,
-      reason: `gate passed: confidence band '${match.band}' + vendor history + amount range checks satisfied`,
-      actor: 'system',
-    })
-    return 'applied'
-  }
+  return db.transaction(async (tx) => {
+    if (outcome.action === 'auto_apply') {
+      await tx.update(postings).set({ categoryId: match.categoryId }).where(eq(postings.id, postingId))
+      await writeAuditLog(
+        {
+          postingId,
+          action: 'auto_applied',
+          categoryId: match.categoryId,
+          source: match.source,
+          confidence: match.confidence,
+          reason: `gate passed: confidence band '${match.band}' + vendor history + amount range checks satisfied`,
+          actor: 'system',
+        },
+        tx,
+      )
+      return 'applied'
+    }
 
-  const suggestedCategoryId = outcome.action === 'queue_with_suggestion' ? match.categoryId : null
-  await queueForReview(postingId, match, outcome.reason, suggestedCategoryId)
-  await writeAuditLog({
-    postingId,
-    action: 'queued_for_review',
-    categoryId: suggestedCategoryId,
-    source: match.source,
-    confidence: match.confidence,
-    reason: outcome.reason,
-    actor: 'system',
+    const suggestedCategoryId = outcome.action === 'queue_with_suggestion' ? match.categoryId : null
+    await queueForReview(postingId, match, outcome.reason, suggestedCategoryId, tx)
+    await writeAuditLog(
+      {
+        postingId,
+        action: 'queued_for_review',
+        categoryId: suggestedCategoryId,
+        source: match.source,
+        confidence: match.confidence,
+        reason: outcome.reason,
+        actor: 'system',
+      },
+      tx,
+    )
+    return 'queued'
   })
-  return 'queued'
 }
 
 /** Categorizes every uncategorized posting for a tenant through 2 tiers:
- * (1) deterministic rule match (applies directly, no gate -- already
- * deterministic, and cheap enough to run per-row), (2) Jev LLM, batched
- * into as few HTTP calls as Jev's token budget allows rather than one
- * call per posting. Each Jev match passes through the S1-4 gate before
+ * (1) deterministic rule match (applies directly, no gate --
+ * already deterministic, and cheap enough to run per-row), (2) Jev,
+ * batched into as few HTTP calls as Jev's token budget allows rather than
+ * one call per posting. Each Jev match passes through the S1-4 gate before
  * writing -- auto-apply if confidence is high AND the vendor has enough
  * history AND the amount fits, else queued to review_queue (with or
  * without a suggestion depending on confidence band). A posting where a
@@ -151,19 +167,24 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
 
     const rule = await findBestRule(tenantId, text)
     if (rule) {
-      await db.update(postings).set({ categoryId: rule.categoryId }).where(eq(postings.id, posting.id))
-      await db
-        .update(categorizationRules)
-        .set({ timesMatched: rule.timesMatched + 1, updatedAt: new Date() })
-        .where(eq(categorizationRules.id, rule.id))
-      await writeAuditLog({
-        postingId: posting.id,
-        action: 'auto_applied',
-        categoryId: rule.categoryId,
-        source: 'rule',
-        confidence: rule.confidenceLearned ? Number(rule.confidenceLearned) : null,
-        reason: `matched categorization_rules pattern "${rule.pattern}"`,
-        actor: 'system',
+      await db.transaction(async (tx) => {
+        await tx.update(postings).set({ categoryId: rule.categoryId }).where(eq(postings.id, posting.id))
+        await tx
+          .update(categorizationRules)
+          .set({ timesMatched: sql`${categorizationRules.timesMatched} + 1`, updatedAt: new Date() })
+          .where(eq(categorizationRules.id, rule.id))
+        await writeAuditLog(
+          {
+            postingId: posting.id,
+            action: 'auto_applied',
+            categoryId: rule.categoryId,
+            source: 'rule',
+            confidence: rule.confidenceLearned ? Number(rule.confidenceLearned) : null,
+            reason: `matched categorization_rules pattern "${rule.pattern}"`,
+            actor: 'system',
+          },
+          tx,
+        )
       })
       byTier.rule++
       categorized++

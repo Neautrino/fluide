@@ -21,7 +21,7 @@
  * review_queue (with a suggestion), or leave the posting untouched and
  * flagged. Does not touch Tier 1's write path.
  */
-import { db, postings, transactions, reviewQueue } from '@repo/ledger'
+import { db, postings, transactions, reviewQueue, type DbExecutor } from '@repo/ledger'
 import { and, eq } from 'drizzle-orm'
 import type { CategorizationMatch } from './jev.js'
 
@@ -107,8 +107,9 @@ export async function queueForReview(
   match: CategorizationMatch,
   reason: string,
   suggestedCategoryId: string | null,
+  executor: DbExecutor,
 ): Promise<void> {
-  await db.insert(reviewQueue).values([
+  await executor.insert(reviewQueue).values([
     {
       postingId,
       suggestedCategoryId,
