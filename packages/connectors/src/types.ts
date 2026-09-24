@@ -22,6 +22,9 @@ export type NormalizedTransaction = {
   // Provider's own category guess — reference/audit only, never write straight
   // into postings.category_id. Must go through categorization_rules first.
   providerCategory?: string
+  // true when the provider gave no stable id and the adapter derived one from
+  // the transaction's content — ingest tags these so they stay auditable.
+  syntheticId?: boolean
 }
 
 export type NormalizedAccount = {
