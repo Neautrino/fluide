@@ -1,7 +1,7 @@
 /** SOURCE OF TRUTH: the Jev API client for transaction categorization.
  * WHAT: called from categorize.ts only after Tier 1 (categorization_rules)
  * finds no match. Sends the posting text + full category criteria to Jev
- * and classifies the answer into one of three confidence bands.
+ * and returns its chosen category with the raw confidence.
  * WHY: empirical testing (see project history) compared this against local
  * embedding-similarity (both generic MiniLM anchors and a fine-tuned
  * FinBERT variant) and two open-source alternative decision models
@@ -15,29 +15,19 @@
  * discarded any answer below it -- a real bug, since Jev often answers
  * correctly at 0.50-0.94 confidence and that signal was being thrown away
  * instead of surfaced for review. This file no longer discards anything;
- * every Jev answer is classified into a band and returned. gate.ts /
- * categorize.ts decide what each band does (auto-apply vs queue vs plain
- * uncategorized) per the user's explicit 3-tier rule.
+ * every Jev answer is returned with its raw confidence. gate.ts classifies
+ * it into a band using the tenant's saved thresholds (gate_settings) and
+ * decides what each band does (auto-apply vs queue vs plain uncategorized).
  * WHERE: categorize.ts owns tier orchestration + posting writes; this file
  * only returns a decision, it never writes to the DB itself.
  */
 import { db, categories } from '@repo/ledger'
 
-export type JevConfidenceBand = 'high' | 'medium' | 'low'
-
 export type CategorizationMatch = {
   categoryId: string
   confidence: number
-  band: JevConfidenceBand
   source: 'jev'
 }
-
-/** >= this: auto-apply eligible (still subject to gate.ts's vendor/amount
- * checklist). 0.50-0.75: show the suggestion, always queue for review.
- * < 0.50: no suggestion returned at all -- posting stays plain
- * uncategorized, and is separately flagged for review by categorize.ts. */
-const JEV_HIGH_CONFIDENCE = 0.75
-const JEV_LOW_CONFIDENCE = 0.5
 
 type JevSystemOneResponse = {
   answers: {
@@ -49,19 +39,11 @@ type JevSystemOneResponse = {
   }
 }
 
-function bandFor(confidence: number): JevConfidenceBand {
-  if (confidence >= JEV_HIGH_CONFIDENCE) return 'high'
-  if (confidence >= JEV_LOW_CONFIDENCE) return 'medium'
-  return 'low'
-}
-
-/** Sends one posting's text to Jev and classifies the answer. Never
- * discards a low-confidence answer -- 'low' band is returned with its
- * categoryId so categorize.ts can decide what a human sees (per the user's
- * rule: low band shows as uncategorized-and-flagged, not silently dropped
- * with no record at all). Returns undefined only on a hard failure (no API
- * key, network/API error, or an answer that doesn't match a known
- * category) -- those really are "nothing to act on" cases. */
+/** Sends one posting's text to Jev and returns its answer. Never discards
+ * a low-confidence answer -- the gate decides what a human sees. Returns
+ * undefined only on a hard failure (no API key, network/API error, or an
+ * answer that doesn't match a known category) -- those really are "nothing
+ * to act on" cases. */
 export async function categorizeByJev(text: string): Promise<CategorizationMatch | undefined> {
   const apiKey = process.env.OPENCODE_API_KEY
   if (!apiKey) return undefined
@@ -99,7 +81,6 @@ export async function categorizeByJev(text: string): Promise<CategorizationMatch
   return {
     categoryId: matched.id,
     confidence: answer.confidence,
-    band: bandFor(answer.confidence),
     source: 'jev',
   }
 }
@@ -109,9 +90,8 @@ export async function categorizeByJev(text: string): Promise<CategorizationMatch
  * documented per-request token budget. Empirically ~25 questions/call at
  * this taxonomy's criteria size keeps requests well under the ceiling --
  * see project history for the real HTTP 400 max_tokens_exceeded that a
- * single 200-question call produced before this was chunked. Falls back to
- * the same per-item bandFor() classification as categorizeByJev, so
- * callers get identical CategorizationMatch shapes either way. */
+ * single 200-question call produced before this was chunked. Returns the
+ * same CategorizationMatch shape as categorizeByJev. */
 export async function categorizeByJevBatch(
   items: { id: string; text: string }[],
   batchSize = 25,
@@ -158,7 +138,6 @@ export async function categorizeByJevBatch(
       results.set(item.id, {
         categoryId: matched.id,
         confidence: answer.confidence,
-        band: bandFor(answer.confidence),
         source: 'jev',
       })
     }

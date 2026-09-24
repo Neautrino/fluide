@@ -14,7 +14,17 @@
  */
 import { and, desc, eq, gte, sql } from 'drizzle-orm'
 import { db } from './db.js'
-import { accounts, transactions, postings, categories, categorizationRules, reviewQueue, auditLog } from './schema.js'
+import {
+  accounts,
+  transactions,
+  postings,
+  categories,
+  categorizationRules,
+  reviewQueue,
+  auditLog,
+  gateSettings,
+  GATE_SETTINGS_DEFAULTS,
+} from './schema.js'
 
 export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' | 'all_time'
 
@@ -258,4 +268,26 @@ export async function listPendingReviewItems() {
 
 export async function listAuditLogForPosting(postingId: string) {
   return db.select().from(auditLog).where(eq(auditLog.postingId, postingId)).orderBy(desc(auditLog.createdAt))
+}
+
+export type GateSettings = {
+  highConfidence: number
+  lowConfidence: number
+  minVendorOccurrences: number
+  amountRangeTolerance: number
+  updatedAt: Date | null
+}
+
+/** The tenant's saved gate thresholds, or GATE_SETTINGS_DEFAULTS
+ * (updatedAt null) when none were ever saved. */
+export async function getGateSettings(tenantId: string): Promise<GateSettings> {
+  const [row] = await db.select().from(gateSettings).where(eq(gateSettings.tenantId, tenantId))
+  if (!row) return { ...GATE_SETTINGS_DEFAULTS, updatedAt: null }
+  return {
+    highConfidence: Number(row.highConfidence),
+    lowConfidence: Number(row.lowConfidence),
+    minVendorOccurrences: row.minVendorOccurrences,
+    amountRangeTolerance: Number(row.amountRangeTolerance),
+    updatedAt: row.updatedAt,
+  }
 }

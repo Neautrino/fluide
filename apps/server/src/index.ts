@@ -19,12 +19,14 @@ import {
   listCategorizationRules,
   listPendingReviewItems,
   listAuditLogForPosting,
+  getGateSettings,
 } from '@repo/ledger'
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorization/categorize.js'
 import { createCategorizationRule } from './categorization/rules.js'
 import { resolveReviewItem } from './review.js'
+import { saveGateSettings, type GateSettingsInput } from './settings.js'
 import { askAgent } from './chat/agent.js'
 
 const app = new Hono()
@@ -138,6 +140,17 @@ app.post('/api/review-queue/:id/reject', async (c) => {
   const result = await resolveReviewItem(id, 'reject')
   if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ rejected: id })
+})
+
+app.get('/api/settings/gate', async (c) => {
+  return c.json({ settings: await getGateSettings(LOCAL_TENANT_ID) })
+})
+
+app.put('/api/settings/gate', async (c) => {
+  const body = await c.req.json<Partial<GateSettingsInput>>().catch(() => ({}))
+  const result = await saveGateSettings(LOCAL_TENANT_ID, body)
+  if (!result.ok) return c.json({ error: result.error }, 400)
+  return c.json({ settings: result.settings })
 })
 
 app.post('/api/chat', async (c) => {

@@ -23,7 +23,8 @@
  * WHAT CHANGED (Slice 1 gap fixes): every per-posting write (category
  * update + rule counter + audit row, or queue row + audit row) now runs in
  * its own db.transaction, so a crash can't leave a category without its
- * audit entry.
+ * audit entry -- migration 0004 refuses to commit that anyway. Gate
+ * thresholds come from gate_settings, loaded once per run.
  * Postings a human already categorized are never touched: this only ever
  * selects postings whose category_id IS NULL, and a human decision always
  * sets one (PLAN.md §5.2 Tier 3: the AI never overturns a human choice).
@@ -32,7 +33,7 @@
  * gate lives in gate.ts; human approve/reject/recategorize lives in
  * ../review.ts.
  */
-import { db, postings, transactions, categorizationRules, reviewQueue } from '@repo/ledger'
+import { db, postings, transactions, categorizationRules, reviewQueue, getGateSettings, type GateSettings } from '@repo/ledger'
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 import { categorizeByJevBatch, type CategorizationMatch } from './jev.js'
 import { evaluateGate, queueForReview } from './gate.js'
@@ -83,8 +84,9 @@ async function applyOrQueue(
   counterpartyRaw: string,
   amount: number,
   match: CategorizationMatch,
+  settings: GateSettings,
 ): Promise<'applied' | 'queued'> {
-  const outcome = await evaluateGate(tenantId, counterpartyRaw, amount, match)
+  const outcome = await evaluateGate(tenantId, counterpartyRaw, amount, match, settings)
 
   return db.transaction(async (tx) => {
     if (outcome.action === 'auto_apply') {
@@ -96,7 +98,7 @@ async function applyOrQueue(
           categoryId: match.categoryId,
           source: match.source,
           confidence: match.confidence,
-          reason: `gate passed: confidence band '${match.band}' + vendor history + amount range checks satisfied`,
+          reason: `gate passed: confidence band '${outcome.band}' + vendor history + amount range checks satisfied`,
           actor: 'system',
         },
         tx,
@@ -105,7 +107,7 @@ async function applyOrQueue(
     }
 
     const suggestedCategoryId = outcome.action === 'queue_with_suggestion' ? match.categoryId : null
-    await queueForReview(postingId, match, outcome.reason, suggestedCategoryId, tx)
+    await queueForReview({ postingId, match, band: outcome.band, reason: outcome.reason, suggestedCategoryId }, tx)
     await writeAuditLog(
       {
         postingId,
@@ -134,6 +136,8 @@ async function applyOrQueue(
  * uncategorized and unflagged -- that is a hard failure case, not a
  * confidence judgment. */
 export async function categorizeUncategorizedPostings(tenantId: string): Promise<CategorizeResult> {
+  const settings = await getGateSettings(tenantId)
+
   const alreadyQueued = db
     .select({ postingId: reviewQueue.postingId })
     .from(reviewQueue)
@@ -203,7 +207,7 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
     const jevMatch = jevResults.get(posting.id)
     if (!jevMatch) continue // hard failure for this item -- left uncategorized, unflagged
 
-    const outcome = await applyOrQueue(tenantId, posting.id, posting.text, posting.amount, jevMatch)
+    const outcome = await applyOrQueue(tenantId, posting.id, posting.text, posting.amount, jevMatch, settings)
     byTier.jev++
     if (outcome === 'applied') categorized++
     else queuedForReview++

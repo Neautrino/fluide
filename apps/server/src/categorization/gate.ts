@@ -1,37 +1,38 @@
 /** SOURCE OF TRUTH: the confidence gate — the user's binding 3-tier rule.
- * WHAT: decides what happens to a Jev categorization match, based on its
- * confidence band (high/medium/low from jev.ts's bandFor()) AND the
- * existing vendor-history/amount checklist. Tier 1 (deterministic rule
- * match) never goes through this gate -- a rule match is already
- * deterministic, there is nothing to gate.
+ * WHAT: decides what happens to a Jev categorization match. It bands the
+ * raw confidence with the tenant's saved thresholds (gate_settings, edited
+ * on the Settings screen) and, for the high band, applies the
+ * vendor-history/amount checklist. Tier 1 (deterministic rule match) never
+ * goes through this gate -- a rule match is already deterministic, there
+ * is nothing to gate.
  * WHY: a single high-confidence-looking match on a brand-new vendor or an
  * unusual amount is exactly the case that should NOT auto-apply -- same
- * "never silently guess" principle as every other tier. This is also
- * where the S1-3 bug lived: the old code discarded anything below a hard
- * 0.95 cutoff with zero record. The user's rule, exactly as given:
- *   >= 0.75 confidence -> can auto-apply (still gated by vendor/amount
- *     history below -- confidence alone isn't enough on a brand-new
- *     vendor).
- *   0.50 <= confidence < 0.75 -> never auto-apply. Always show the
- *     suggested category, flagged for review.
- *   < 0.50 -> never auto-apply, no suggestion shown. Posting stays plain
- *     uncategorized, separately flagged for review.
+ * "never silently guess" principle as every other tier. The user's rule,
+ * with the defaults from GATE_SETTINGS_DEFAULTS:
+ *   >= highConfidence (0.75) -> can auto-apply, still gated by vendor
+ *     history (minVendorOccurrences) and amount range
+ *     (amountRangeTolerance) -- confidence alone isn't enough.
+ *   lowConfidence (0.50) <= confidence < highConfidence -> never
+ *     auto-apply. Always show the suggested category, flagged for review.
+ *   < lowConfidence -> never auto-apply, no suggestion shown. Posting stays
+ *     plain uncategorized, separately flagged for review.
+ * Thresholds are read from the DB, never hard-coded here (PLAN.md §5.2:
+ * visible and admin-configurable).
  * WHERE: categorize.ts calls this after a Jev match is found, before
  * deciding whether to write postings.categoryId, insert into
  * review_queue (with a suggestion), or leave the posting untouched and
  * flagged. Does not touch Tier 1's write path.
  */
-import { db, postings, transactions, reviewQueue, type DbExecutor } from '@repo/ledger'
+import { db, postings, transactions, reviewQueue, type DbExecutor, type GateSettings } from '@repo/ledger'
 import { and, eq } from 'drizzle-orm'
 import type { CategorizationMatch } from './jev.js'
 
-const MIN_VENDOR_OCCURRENCES = 3
-const AMOUNT_RANGE_TOLERANCE = 0.5
+export type ConfidenceBand = 'high' | 'medium' | 'low'
 
 export type GateOutcome =
-  | { action: 'auto_apply' }
-  | { action: 'queue_with_suggestion'; reason: string }
-  | { action: 'queue_uncategorized'; reason: string }
+  | { action: 'auto_apply'; band: ConfidenceBand }
+  | { action: 'queue_with_suggestion'; band: ConfidenceBand; reason: string }
+  | { action: 'queue_uncategorized'; band: ConfidenceBand; reason: string }
 
 async function vendorCategoryHistory(tenantId: string, counterpartyRaw: string, categoryId: string) {
   const rows = await db
@@ -53,25 +54,31 @@ async function vendorCategoryHistory(tenantId: string, counterpartyRaw: string, 
  * suggestion by confidence alone, per the rule as given. 'medium' band
  * also never auto-applies (always queued with the suggestion shown,
  * regardless of vendor history) -- that's the whole point of the band.
- * Only 'high' band is eligible for the existing vendor-history/amount
- * checklist to decide auto-apply vs queue. */
+ * Only 'high' band is eligible for the vendor-history/amount checklist to
+ * decide auto-apply vs queue. */
 export async function evaluateGate(
   tenantId: string,
   counterpartyRaw: string,
   candidateAmount: number,
   match: CategorizationMatch,
+  settings: GateSettings,
 ): Promise<GateOutcome> {
-  if (match.band === 'low') {
+  const { highConfidence, lowConfidence, minVendorOccurrences, amountRangeTolerance } = settings
+  const confidence = match.confidence.toFixed(2)
+
+  if (match.confidence < lowConfidence) {
     return {
       action: 'queue_uncategorized',
-      reason: `Jev confidence ${match.confidence.toFixed(2)} is below 0.50 -- no category suggested, flagged for review`,
+      band: 'low',
+      reason: `Jev confidence ${confidence} is below ${lowConfidence.toFixed(2)} -- no category suggested, flagged for review`,
     }
   }
 
-  if (match.band === 'medium') {
+  if (match.confidence < highConfidence) {
     return {
       action: 'queue_with_suggestion',
-      reason: `Jev confidence ${match.confidence.toFixed(2)} is in the 0.50-0.75 review band -- suggestion shown, needs human confirmation`,
+      band: 'medium',
+      reason: `Jev confidence ${confidence} is in the ${lowConfidence.toFixed(2)}-${highConfidence.toFixed(2)} review band -- suggestion shown, needs human confirmation`,
     }
   }
 
@@ -79,44 +86,49 @@ export async function evaluateGate(
   // confidence alone doesn't justify auto-applying to a brand-new vendor.
   const history = await vendorCategoryHistory(tenantId, counterpartyRaw, match.categoryId)
 
-  if (history.length < MIN_VENDOR_OCCURRENCES) {
+  if (history.length < minVendorOccurrences) {
     return {
       action: 'queue_with_suggestion',
-      reason: `vendor "${counterpartyRaw}" has only ${history.length} prior categorized posting(s) in this category, need ${MIN_VENDOR_OCCURRENCES}`,
+      band: 'high',
+      reason: `vendor "${counterpartyRaw}" has only ${history.length} prior categorized posting(s) in this category, need ${minVendorOccurrences}`,
     }
   }
 
   const min = Math.min(...history)
   const max = Math.max(...history)
-  const spread = Math.max(max - min, Math.abs(max) * AMOUNT_RANGE_TOLERANCE, 1)
+  const spread = Math.max(max - min, Math.abs(max) * amountRangeTolerance, 1)
   const lower = min - spread
   const upper = max + spread
 
   if (candidateAmount < lower || candidateAmount > upper) {
     return {
       action: 'queue_with_suggestion',
+      band: 'high',
       reason: `amount ${candidateAmount} is outside the historical range [${lower.toFixed(2)}, ${upper.toFixed(2)}] for this vendor/category`,
     }
   }
 
-  return { action: 'auto_apply' }
+  return { action: 'auto_apply', band: 'high' }
 }
 
 export async function queueForReview(
-  postingId: string,
-  match: CategorizationMatch,
-  reason: string,
-  suggestedCategoryId: string | null,
+  entry: {
+    postingId: string
+    match: CategorizationMatch
+    band: ConfidenceBand
+    reason: string
+    suggestedCategoryId: string | null
+  },
   executor: DbExecutor,
 ): Promise<void> {
   await executor.insert(reviewQueue).values([
     {
-      postingId,
-      suggestedCategoryId,
-      confidenceBand: match.band,
-      source: match.source,
-      confidence: match.confidence.toFixed(3),
-      reason,
+      postingId: entry.postingId,
+      suggestedCategoryId: entry.suggestedCategoryId,
+      confidenceBand: entry.band,
+      source: entry.match.source,
+      confidence: entry.match.confidence.toFixed(3),
+      reason: entry.reason,
     },
   ])
 }
