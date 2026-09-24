@@ -1,12 +1,21 @@
-/** SOURCE OF TRUTH: read-only ledger aggregates for the chat agent's tools.
- * WHAT: deterministic Drizzle aggregates -- no AI involved anywhere here.
- * WHY: the chat model only ever picks which function to call and narrates
- * the result; it never computes a number itself (Tier 1, no gate needed).
- * WHERE: owns aggregation only. Filters to accounts.type = 'asset' to
- * exclude the equity suspense leg every transaction also has.
+/** SOURCE OF TRUTH: every read-only ledger query — the one service layer
+ * both the HTTP routes and the chat agent's tools call (PLAN.md §3).
+ * WHAT: deterministic Drizzle reads and aggregates -- no AI involved
+ * anywhere here, and no writes.
+ * WHY: PLAN.md §3 requires the AI tool surface to be a thin wrapper over
+ * the same service layer the web UI uses, so a human and the chat model
+ * can never see two different answers for the same question. The chat
+ * model only ever picks which function to call and narrates the result;
+ * it never computes a number itself (Tier 1, no gate needed).
+ * WHERE: owns reads only. Writes live with their owning engine in
+ * apps/server (ingest.ts, categorize.ts, index.ts's review routes).
+ * Aggregates filter to accounts.type = 'asset' to exclude the equity
+ * suspense leg every transaction also has; listTransactionsWithPostings
+ * deliberately does not.
  */
-import { db, accounts, transactions, postings, categories } from '@repo/ledger'
-import { and, eq, gte, sql } from 'drizzle-orm'
+import { and, desc, eq, gte, sql } from 'drizzle-orm'
+import { db } from './db.js'
+import { accounts, transactions, postings, categories, categorizationRules, reviewQueue, auditLog } from './schema.js'
 
 export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' | 'all_time'
 
@@ -163,10 +172,10 @@ export type TransactionRow = {
 /** Raw, filterable transaction listing -- the one gap found comparing our
  * tool surface against BankMCP's get_transactions / Ghostfolio's
  * get_orders: those return a raw list for the calling model to reason
- * over; our other tools are all pre-aggregated. Reuses the same
- * join/shape as index.ts's GET /transactions route, narrowed to one
- * account-type filter and an optional merchant/period filter, capped at
- * 50 rows so a broad match doesn't dump the whole ledger into context. */
+ * over; our other tools are all pre-aggregated. Same join as
+ * listTransactionsWithPostings, narrowed to one account-type filter and an
+ * optional merchant/period filter, capped at 50 rows so a broad match
+ * doesn't dump the whole ledger into context. */
 export async function listRecentTransactions(
   tenantId: string,
   period: Period,
@@ -201,4 +210,53 @@ export async function listRecentTransactions(
     amount: Number(r.amount),
     category: r.category,
   }))
+}
+
+export async function listAccounts(tenantId: string) {
+  return db.select().from(accounts).where(eq(accounts.tenantId, tenantId))
+}
+
+/** One row per posting (both legs of every transaction), newest first --
+ * the web transaction table's shape. */
+export async function listTransactionsWithPostings(tenantId: string, limit = 100) {
+  return db
+    .select({
+      id: transactions.id,
+      date: transactions.date,
+      description: transactions.description,
+      status: transactions.status,
+      posting: {
+        accountId: postings.accountId,
+        amount: postings.amount,
+        currency: postings.currency,
+        categoryId: postings.categoryId,
+      },
+      category: {
+        label: categories.label,
+        detailed: categories.detailed,
+      },
+    })
+    .from(transactions)
+    .innerJoin(postings, eq(postings.transactionId, transactions.id))
+    .innerJoin(accounts, eq(accounts.id, postings.accountId))
+    .leftJoin(categories, eq(categories.id, postings.categoryId))
+    .where(eq(transactions.tenantId, tenantId))
+    .orderBy(desc(transactions.date))
+    .limit(limit)
+}
+
+export async function listCategories() {
+  return db.select().from(categories)
+}
+
+export async function listCategorizationRules(tenantId: string) {
+  return db.select().from(categorizationRules).where(eq(categorizationRules.tenantId, tenantId))
+}
+
+export async function listPendingReviewItems() {
+  return db.select().from(reviewQueue).where(eq(reviewQueue.status, 'pending'))
+}
+
+export async function listAuditLogForPosting(postingId: string) {
+  return db.select().from(auditLog).where(eq(auditLog.postingId, postingId)).orderBy(desc(auditLog.createdAt))
 }

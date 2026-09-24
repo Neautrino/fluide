@@ -5,13 +5,25 @@
  * ever sees link_token and public_token, never access_token. Do not add a
  * route that returns accessToken to the client.
  * WHERE: this file owns HTTP routing only. Plaid calls + normalization live
- * in packages/connectors, ledger writes live in ingest.ts, guardrail
+ * in packages/connectors, ledger writes live in ingest.ts, all ledger reads
+ * live in @repo/ledger's queries.ts (shared with chat/tools.ts), guardrail
  * enforcement lives in packages/ledger's migrations.
  */
 import { Hono } from 'hono'
 import { createPlaidLinkToken, exchangePlaidPublicToken } from '@repo/connectors'
-import { db, accounts, transactions, postings, categories, categorizationRules, reviewQueue, auditLog } from '@repo/ledger'
-import { eq, desc } from 'drizzle-orm'
+import {
+  db,
+  postings,
+  categorizationRules,
+  reviewQueue,
+  listAccounts,
+  listTransactionsWithPostings,
+  listCategories,
+  listCategorizationRules,
+  listPendingReviewItems,
+  listAuditLogForPosting,
+} from '@repo/ledger'
+import { eq } from 'drizzle-orm'
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorize.js'
@@ -79,50 +91,19 @@ app.post('/plaid/sync', async (c) => {
 })
 
 app.get('/accounts', async (c) => {
-  const rows = await db.select().from(accounts).where(eq(accounts.tenantId, LOCAL_TENANT_ID))
-  return c.json({ accounts: rows })
+  return c.json({ accounts: await listAccounts(LOCAL_TENANT_ID) })
 })
 
 app.get('/transactions', async (c) => {
-  const rows = await db
-    .select({
-      id: transactions.id,
-      date: transactions.date,
-      description: transactions.description,
-      status: transactions.status,
-      posting: {
-        accountId: postings.accountId,
-        amount: postings.amount,
-        currency: postings.currency,
-        categoryId: postings.categoryId,
-      },
-      category: {
-        label: categories.label,
-        detailed: categories.detailed,
-      },
-    })
-    .from(transactions)
-    .innerJoin(postings, eq(postings.transactionId, transactions.id))
-    .innerJoin(accounts, eq(accounts.id, postings.accountId))
-    .leftJoin(categories, eq(categories.id, postings.categoryId))
-    .where(eq(transactions.tenantId, LOCAL_TENANT_ID))
-    .orderBy(desc(transactions.date))
-    .limit(100)
-
-  return c.json({ transactions: rows })
+  return c.json({ transactions: await listTransactionsWithPostings(LOCAL_TENANT_ID) })
 })
 
 app.get('/api/categories', async (c) => {
-  const rows = await db.select().from(categories)
-  return c.json({ categories: rows })
+  return c.json({ categories: await listCategories() })
 })
 
 app.get('/api/categorization-rules', async (c) => {
-  const rows = await db
-    .select()
-    .from(categorizationRules)
-    .where(eq(categorizationRules.tenantId, LOCAL_TENANT_ID))
-  return c.json({ rules: rows })
+  return c.json({ rules: await listCategorizationRules(LOCAL_TENANT_ID) })
 })
 
 app.post('/api/categorization-rules', async (c) => {
@@ -148,8 +129,7 @@ app.post('/api/categorize', async (c) => {
 })
 
 app.get('/api/review-queue', async (c) => {
-  const rows = await db.select().from(reviewQueue).where(eq(reviewQueue.status, 'pending'))
-  return c.json({ items: rows })
+  return c.json({ items: await listPendingReviewItems() })
 })
 
 app.post('/api/review-queue/:id/approve', async (c) => {
@@ -220,13 +200,7 @@ app.post('/api/chat', async (c) => {
 })
 
 app.get('/api/audit-log/:postingId', async (c) => {
-  const postingId = c.req.param('postingId')
-  const rows = await db
-    .select()
-    .from(auditLog)
-    .where(eq(auditLog.postingId, postingId))
-    .orderBy(desc(auditLog.createdAt))
-  return c.json({ entries: rows })
+  return c.json({ entries: await listAuditLogForPosting(c.req.param('postingId')) })
 })
 
 export default {

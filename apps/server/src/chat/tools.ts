@@ -1,16 +1,16 @@
 /** SOURCE OF TRUTH: the chat agent's tool surface.
- * WHAT: wraps each queries.ts function as a LangChain tool the model can
- * call.
+ * WHAT: wraps each @repo/ledger read query as a LangChain tool the model
+ * can call.
  * WHY: the model picks which tool to call and narrates the result; it
  * never computes or states a number itself -- same "never let the model
  * guess a fact it could get wrong" principle as jev.ts/gate.ts, applied to
  * chat instead of categorization.
- * WHERE: owns tool schemas + binding to LOCAL_TENANT_ID only. Aggregation
- * lives in queries.ts; the agent loop lives in agent.ts.
+ * WHERE: owns tool schemas + binding to LOCAL_TENANT_ID only. Queries live
+ * in packages/ledger/src/queries.ts (shared with the HTTP routes); the
+ * agent loop lives in agent.ts.
  */
 import { tool } from '@langchain/core/tools'
 import { z } from 'zod'
-import { LOCAL_TENANT_ID } from '../ingest.js'
 import {
   topExpenseCategories,
   spendingInCategory,
@@ -19,7 +19,8 @@ import {
   listAccountBalances,
   listRecentTransactions,
   type Period,
-} from '../queries.js'
+} from '@repo/ledger'
+import { LOCAL_TENANT_ID } from '../ingest.js'
 
 const periodSchema = z
   .enum(['this_week', 'this_month', 'last_30_days', 'this_year', 'all_time'])
