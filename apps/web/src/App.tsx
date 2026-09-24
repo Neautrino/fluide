@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { ConnectBank } from './components/ConnectBank'
 import { TransactionList } from './components/TransactionList'
 import { ReviewQueue } from './components/ReviewQueue'
+import { Chat } from './components/Chat'
 
 const PRINCIPLES = [
   {
@@ -81,6 +82,13 @@ function App() {
           style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)' }}
         >
           <ReviewQueue />
+        </section>
+
+        <section
+          className="mb-10 rounded-2xl p-6 sm:p-8"
+          style={{ background: 'var(--bg-panel)', border: '1px solid var(--border-subtle)' }}
+        >
+          <Chat />
         </section>
 
         <section className="grid grid-cols-1 gap-4 sm:grid-cols-3">
