@@ -28,7 +28,7 @@ import { db, postings, transactions, categorizationRules, reviewQueue, auditLog 
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 import { categorizeByJevBatch, type CategorizationMatch } from './jev.js'
 import { evaluateGate, queueForReview } from './gate.js'
-import { writeAuditLog } from './audit.js'
+import { writeAuditLog } from '../audit.js'
 
 export type CategorizeResult = {
   checked: number

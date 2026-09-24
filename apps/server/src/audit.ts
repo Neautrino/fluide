@@ -6,9 +6,9 @@
  * WHY: postings.categoryId alone is end state, not a decision trail. If a
  * category is later found wrong, this is the only way to answer "why was
  * this assigned, by what tier, at what confidence, by whom."
- * WHERE: called from categorize.ts (tier decisions) and index.ts (human
- * approve/reject routes). Never called from gate.ts directly -- the
- * caller already has the full context (postingId, tier, confidence).
+ * WHERE: called from categorization/categorize.ts (tier decisions) and
+ * index.ts (human approve/reject routes). Never called from gate.ts
+ * directly -- the caller already has the full context (postingId, tier, confidence).
  */
 import { db, auditLog } from '@repo/ledger'
 

@@ -6,8 +6,9 @@
  * route that returns accessToken to the client.
  * WHERE: this file owns HTTP routing only. Plaid calls + normalization live
  * in packages/connectors, ledger writes live in ingest.ts, all ledger reads
- * live in @repo/ledger's queries.ts (shared with chat/tools.ts), guardrail
- * enforcement lives in packages/ledger's migrations.
+ * live in @repo/ledger's queries.ts (shared with chat/tools.ts),
+ * categorization lives in categorization/, guardrail enforcement lives
+ * in packages/ledger's migrations.
  */
 import { Hono } from 'hono'
 import { createPlaidLinkToken, exchangePlaidPublicToken } from '@repo/connectors'
@@ -26,7 +27,7 @@ import {
 import { eq } from 'drizzle-orm'
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
-import { categorizeUncategorizedPostings } from './categorize.js'
+import { categorizeUncategorizedPostings } from './categorization/categorize.js'
 import { writeAuditLog } from './audit.js'
 import { askAgent } from './chat/agent.js'
 
