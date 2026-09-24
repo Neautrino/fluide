@@ -1,48 +1,116 @@
 @import "tailwindcss";
+@import "@fontsource-variable/newsreader/opsz.css";
+@import "@fontsource-variable/newsreader/opsz-italic.css";
+@import "@fontsource-variable/ibm-plex-sans/wght.css";
+@import "@fontsource/ibm-plex-mono/400.css";
 
-:root {
-  --bg-canvas: #08090a;
-  --bg-panel: #0f1011;
-  --bg-surface: #16171a;
-  --bg-elevated: #1c1d21;
+/* Fluide design tokens — "editorial banking": warm paper, ink type, one
+ * deep green accent. Every colour in the UI comes from this block; Tailwind
+ * exposes each as a utility (bg-paper, text-ink-3, border-rule, …) and as a
+ * CSS variable (var(--color-paper)). */
+@theme {
+  --color-paper: #f6f3ec;
+  --color-paper-raised: #fbfaf6;
+  --color-paper-sunk: #eeeae0;
+  --color-ink: #1b1a17;
+  --color-ink-2: #45433d;
+  --color-ink-3: #6b675e;
+  --color-rule: #ddd6c8;
+  --color-rule-strong: #bdb3a0;
 
-  --border-subtle: rgba(255, 255, 255, 0.06);
-  --border-standard: rgba(255, 255, 255, 0.09);
+  --color-green: #1d5a42;
+  --color-green-deep: #143f2e;
+  --color-green-wash: #e3ebe2;
 
-  --text-primary: #f7f8f8;
-  --text-secondary: #a8adb8;
-  --text-tertiary: #6b7080;
+  --color-red: #983a2c;
+  --color-red-wash: #f5e6e0;
+  --color-amber: #7f5b10;
+  --color-amber-wash: #f3eacf;
 
-  --accent: #6366f1;
-  --accent-hover: #818cf8;
-  --accent-soft: rgba(99, 102, 241, 0.12);
+  --font-display: "Newsreader Variable", "Iowan Old Style", "Palatino Linotype", Georgia, serif;
+  --font-sans: "IBM Plex Sans Variable", "Helvetica Neue", Helvetica, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
 
-  --success: #10b981;
-  --success-soft: rgba(16, 185, 129, 0.12);
-  --danger: #f43f5e;
-  --danger-soft: rgba(244, 63, 94, 0.12);
-  --warning: #f59e0b;
+  --animate-rise: rise 360ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
+  --animate-drawer: drawer-in 220ms cubic-bezier(0.2, 0.7, 0.2, 1) both;
 }
 
-body {
-  font-family:
-    'Inter',
-    system-ui,
-    -apple-system,
-    'Segoe UI',
-    Roboto,
-    sans-serif;
-  background: var(--bg-canvas);
-  color: var(--text-primary);
-  font-feature-settings: 'cv01', 'ss03';
-  -webkit-font-smoothing: antialiased;
+@keyframes rise {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
 }
 
-.font-mono {
-  font-family:
-    'JetBrains Mono',
-    ui-monospace,
-    SFMono-Regular,
-    Menlo,
-    monospace;
+@keyframes drawer-in {
+  from {
+    transform: translateX(24px);
+    opacity: 0;
+  }
+}
+
+@layer base {
+  html {
+    background: var(--color-paper);
+    color: var(--color-ink);
+    -webkit-font-smoothing: antialiased;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    font-family: var(--font-sans);
+    font-size: 15px;
+    line-height: 1.5;
+  }
+
+  ::selection {
+    background: var(--color-green-wash);
+    color: var(--color-green-deep);
+  }
+
+  :focus-visible {
+    outline: 2px solid var(--color-green);
+    outline-offset: 2px;
+    border-radius: 2px;
+  }
+
+  button:not(:disabled),
+  [role="tab"],
+  summary {
+    cursor: pointer;
+  }
+
+  h1,
+  h2,
+  h3 {
+    font-family: var(--font-display);
+    font-weight: 450;
+    letter-spacing: -0.01em;
+    font-variant-numeric: lining-nums;
+  }
+}
+
+/* Money and counts: always lining, tabular figures so columns align. */
+@utility figures {
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+/* Small-caps style label used above sections and KPI figures. */
+@utility eyebrow {
+  font-family: var(--font-sans);
+  font-size: 11px;
+  font-weight: 550;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--color-ink-3);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    transition-duration: 0.01ms !important;
+  }
 }
