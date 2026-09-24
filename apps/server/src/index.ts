@@ -13,8 +13,6 @@
 import { Hono } from 'hono'
 import { createPlaidLinkToken, exchangePlaidPublicToken } from '@repo/connectors'
 import {
-  db,
-  categorizationRules,
   listAccounts,
   listTransactionsWithPostings,
   listCategories,
@@ -25,6 +23,7 @@ import {
 import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorization/categorize.js'
+import { createCategorizationRule } from './categorization/rules.js'
 import { resolveReviewItem } from './review.js'
 import { askAgent } from './chat/agent.js'
 
@@ -109,16 +108,13 @@ app.post('/api/categorization-rules', async (c) => {
   if (!body?.pattern || !body?.categoryId) {
     return c.json({ error: 'pattern and categoryId are required' }, 400)
   }
-  const [created] = await db
-    .insert(categorizationRules)
-    .values({
-      tenantId: LOCAL_TENANT_ID,
-      pattern: body.pattern,
-      categoryId: body.categoryId,
-      isUserCustom: body.isUserCustom ?? true,
-    })
-    .returning()
-  return c.json({ rule: created })
+  const rule = await createCategorizationRule({
+    tenantId: LOCAL_TENANT_ID,
+    pattern: body.pattern,
+    categoryId: body.categoryId,
+    isUserCustom: body.isUserCustom ?? true,
+  })
+  return c.json({ rule })
 })
 
 app.post('/api/categorize', async (c) => {
@@ -134,7 +130,7 @@ app.post('/api/review-queue/:id/approve', async (c) => {
   const id = c.req.param('id')
   const result = await resolveReviewItem(id, 'approve')
   if (!result.ok) return c.json({ error: result.error }, result.status)
-  return c.json({ approved: id })
+  return c.json({ approved: id, learnedRuleId: result.learnedRuleId })
 })
 
 app.post('/api/review-queue/:id/reject', async (c) => {

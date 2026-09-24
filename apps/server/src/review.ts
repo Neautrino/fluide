@@ -1,8 +1,8 @@
 /** SOURCE OF TRUTH: a human's approve/reject decision on a review_queue item.
  * WHAT: resolves one pending review_queue row. Approve writes the suggested
- * category onto the posting, marks the row approved and writes the
- * audit_log entry. Reject marks the row rejected and writes the audit_log
- * entry; the posting is never touched.
+ * category onto the posting, marks the row approved, writes the audit_log
+ * entry, and learns a Tier 1 rule for the vendor. Reject marks the row
+ * rejected and writes the audit_log entry; the posting is never touched.
  * WHY: every step of a decision runs in one DB transaction. Before this,
  * the three writes were separate statements in the route handler, so a
  * crash between them could leave a category applied with no audit_log row
@@ -15,9 +15,10 @@
 import { db, postings, reviewQueue } from '@repo/ledger'
 import { eq } from 'drizzle-orm'
 import { writeAuditLog } from './audit.js'
+import { learnRuleFromApproval } from './categorization/rules.js'
 
 export type ReviewResult =
-  | { ok: true }
+  | { ok: true; learnedRuleId: string | null }
   | { ok: false; status: 400 | 404 | 409; error: string }
 
 export async function resolveReviewItem(id: string, decision: 'approve' | 'reject'): Promise<ReviewResult> {
@@ -27,6 +28,7 @@ export async function resolveReviewItem(id: string, decision: 'approve' | 'rejec
     if (item.status !== 'pending') return { ok: false, status: 409, error: `already ${item.status}` }
 
     const confidence = Number(item.confidence)
+    let learnedRuleId: string | null = null
 
     if (decision === 'approve') {
       if (!item.suggestedCategoryId) {
@@ -38,6 +40,11 @@ export async function resolveReviewItem(id: string, decision: 'approve' | 'rejec
         }
       }
       await tx.update(postings).set({ categoryId: item.suggestedCategoryId }).where(eq(postings.id, item.postingId))
+      const rule = await learnRuleFromApproval(
+        { postingId: item.postingId, categoryId: item.suggestedCategoryId, confidence },
+        tx,
+      )
+      learnedRuleId = rule?.id ?? null
     }
 
     await tx
@@ -51,12 +58,14 @@ export async function resolveReviewItem(id: string, decision: 'approve' | 'rejec
         categoryId: item.suggestedCategoryId,
         source: item.source,
         confidence,
-        reason: `human ${decision === 'approve' ? 'approved' : 'rejected'} review_queue suggestion (original reason: ${item.reason})`,
+        reason:
+          `human ${decision === 'approve' ? 'approved' : 'rejected'} review_queue suggestion (original reason: ${item.reason})` +
+          (learnedRuleId ? `; learned categorization_rules ${learnedRuleId}` : ''),
         actor: 'human',
       },
       tx,
     )
 
-    return { ok: true }
+    return { ok: true, learnedRuleId }
   })
 }

@@ -21,7 +21,7 @@
  * one categorizeByJevBatch() call (~11s for 200 items in earlier testing,
  * chunked under Jev's token ceiling) instead of N sequential calls.
  * WHERE: owns rule matching + posting updates + tier orchestration. Rule
- * CRUD lives in index.ts routes; Jev call lives in jev.ts; the confidence
+ * creation lives in rules.ts; Jev call lives in jev.ts; the confidence
  * gate lives in gate.ts; human approve/reject lives in ../review.ts.
  */
 import { db, postings, transactions, categorizationRules, reviewQueue, auditLog } from '@repo/ledger'
