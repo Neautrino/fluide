@@ -16,6 +16,7 @@ import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorize.js'
 import { writeAuditLog } from './audit.js'
+import { askAgent } from './chat/agent.js'
 
 const app = new Hono()
 
@@ -204,6 +205,20 @@ app.post('/api/review-queue/:id/reject', async (c) => {
   return c.json({ rejected: id })
 })
 
+app.post('/api/chat', async (c) => {
+  const body = await c.req.json<{ message: string; threadId: string }>()
+  if (!body?.message?.trim() || !body?.threadId) {
+    return c.json({ error: 'message and threadId are required' }, 400)
+  }
+  try {
+    const reply = await askAgent(body.message, body.threadId)
+    return c.json(reply)
+  } catch (err) {
+    console.error('chat error', err)
+    return c.json({ error: 'failed to get a reply' }, 500)
+  }
+})
+
 app.get('/api/audit-log/:postingId', async (c) => {
   const postingId = c.req.param('postingId')
   const rows = await db
@@ -216,9 +231,11 @@ app.get('/api/audit-log/:postingId', async (c) => {
 
 export default {
   port: 4000,
-  // /api/categorize batches Jev calls but can still legitimately take
-  // longer than Bun's 10s default on a large first sync -- widen the idle
-  // timeout so a real in-flight request isn't killed mid-response.
-  idleTimeout: 60,
+  // /api/categorize batches Jev calls, and /api/chat is a multi-hop
+  // tool-calling agent loop (decide tool -> run it -> final answer, and
+  // that can chain across more than one tool) -- both can legitimately
+  // take longer than Bun's 10s default. Widen the idle timeout so a real
+  // in-flight request isn't killed mid-response.
+  idleTimeout: 90,
   fetch: app.fetch,
 }
