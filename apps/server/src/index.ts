@@ -25,7 +25,7 @@ import { saveItem, listItems, updateItemCursor } from './plaid-store.js'
 import { ingestPlaidItem, LOCAL_TENANT_ID } from './ingest.js'
 import { categorizeUncategorizedPostings } from './categorization/categorize.js'
 import { createCategorizationRule, decideProposedRule } from './categorization/rules.js'
-import { resolveReviewItem } from './review.js'
+import { resolveReviewItem, recategorizePosting } from './review.js'
 import { saveGateSettings, type GateSettingsInput } from './settings.js'
 import { askAgent } from './chat/agent.js'
 
@@ -153,6 +153,15 @@ app.post('/api/review-queue/:id/reject', async (c) => {
   const result = await resolveReviewItem(id, 'reject')
   if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ rejected: id })
+})
+
+app.post('/api/postings/:id/category', async (c) => {
+  const postingId = c.req.param('id')
+  const body = await c.req.json<{ categoryId?: string }>().catch(() => ({}) as { categoryId?: string })
+  if (!body.categoryId) return c.json({ error: 'categoryId is required' }, 400)
+  const result = await recategorizePosting(postingId, body.categoryId)
+  if (!result.ok) return c.json({ error: result.error }, result.status)
+  return c.json({ postingId, categoryId: body.categoryId, proposedRuleId: result.proposedRuleId })
 })
 
 app.get('/api/settings/gate', async (c) => {

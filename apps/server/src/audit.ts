@@ -1,7 +1,8 @@
 /** SOURCE OF TRUTH: the S1-6 audit log writer.
  * WHAT: one function, called from every path that decides a posting's
  * category (or decides not to) -- Tier 1 rule apply, gate auto-apply, gate
- * reject-to-queue, and a human's approve/reject on a queued item.
+ * reject-to-queue, a human's approve/reject on a queued item, and a
+ * human's manual recategorize.
  * WHY: postings.categoryId alone is end state, not a decision trail. If a
  * category is later found wrong, this is the only way to answer "why was
  * this assigned, by what tier, at what confidence, by whom."
