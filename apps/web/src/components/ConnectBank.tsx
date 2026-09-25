@@ -27,7 +27,7 @@ export function ConnectBank({ onConnected, variant = 'primary', showSandboxHint 
   const fetchLinkToken = useCallback(async () => {
     setStatus('loading')
     try {
-      const res = await fetch('/plaid/link-token', { method: 'POST' })
+      const res = await fetch('/api/providers/plaid/link-token', { method: 'POST' })
       if (!res.ok) throw new Error('link-token request failed')
       const data = await res.json()
       setLinkToken(data.link_token)
@@ -42,7 +42,7 @@ export function ConnectBank({ onConnected, variant = 'primary', showSandboxHint 
     onSuccess: async (public_token) => {
       setStatus('loading')
       try {
-        const res = await fetch('/plaid/exchange', {
+        const res = await fetch('/api/providers/plaid/exchange', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ public_token }),

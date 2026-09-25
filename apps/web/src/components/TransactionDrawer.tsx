@@ -34,7 +34,7 @@ export function TransactionDrawer({ row, onClose }: { row: DrawerRow; onClose: (
   const audit = useResource(
     (signal) =>
       postingId
-        ? getJson<{ entries: AuditEntry[] }>(`/api/audit-log/${postingId}`, signal).then((r) => r.entries)
+        ? getJson<{ entries: AuditEntry[] }>(`/api/ledger/audit-log/${postingId}`, signal).then((r) => r.entries)
         : Promise.reject(new Error('This row has no posting id, so its history cannot be looked up.')),
     `${postingId}:${version}`,
   )

@@ -46,7 +46,7 @@ export function Assistant() {
     setInput('')
     setLoading(true)
     try {
-      const data = await sendJson<{ answer: string }>('POST', '/api/chat', { message, threadId }, CHAT_TIMEOUT_MS)
+      const data = await sendJson<{ answer: string }>('POST', '/api/assistant/chat', { message, threadId }, CHAT_TIMEOUT_MS)
       setMessages((m) => [...m, { role: 'assistant', content: data.answer }])
     } catch (e) {
       setMessages((m) => [...m, { role: 'assistant', content: `I couldn't answer that: ${errorMessage(e)}`, failed: true }])

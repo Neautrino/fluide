@@ -14,7 +14,7 @@ let cached: Promise<Category[]> | null = null
 
 function loadCategories(): Promise<Category[]> {
   if (!cached) {
-    cached = getJson<{ categories: Category[] }>('/api/categories').then(
+    cached = getJson<{ categories: Category[] }>('/api/ledger/categories').then(
       (r) => r.categories ?? [],
       (e: unknown) => {
         cached = null

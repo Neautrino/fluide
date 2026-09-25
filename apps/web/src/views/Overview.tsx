@@ -12,8 +12,8 @@ import { formatMoney } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
 /** SOURCE OF TRUTH: the Overview screen.
- * WHAT: period-scoped GET /api/summary (KPIs, balances, top categories and
- * merchants) plus GET /accounts to decide whether to lead with "Connect a
+ * WHAT: period-scoped GET /api/ledger/summary (KPIs, balances, top categories and
+ * merchants) plus GET /api/ledger/accounts to decide whether to lead with "Connect a
  * bank", and the pending-review count from app context.
  * WHY: the first thing a person needs is where they stand; everything else
  * is one click away. Equity accounts are internal suspense legs and never
@@ -35,11 +35,11 @@ export function Overview() {
   const [period, setPeriod] = useState<Exclude<Period, 'this_week'>>('this_month')
 
   const accounts = useResource(
-    (signal) => getJson<{ accounts: Account[] }>('/accounts', signal).then((r) => r.accounts.filter((a) => a.type !== 'equity')),
+    (signal) => getJson<{ accounts: Account[] }>('/api/ledger/accounts', signal).then((r) => r.accounts.filter((a) => a.type !== 'equity')),
     version,
   )
   const summary = useResource(
-    (signal) => getJson<Summary>(`/api/summary?period=${period}`, signal),
+    (signal) => getJson<Summary>(`/api/ledger/summary?period=${period}`, signal),
     `${period}:${version}`,
   )
   const categories = useCategories()

@@ -53,7 +53,7 @@ export function ConnectEuropeanBank({ variant = 'primary' }: { variant?: 'primar
   const banks = useResource(
     (signal) =>
       country
-        ? getJson<{ aspsps: EnableBankingBank[] }>(`/enable-banking/aspsps?country=${country}`, signal).then(
+        ? getJson<{ aspsps: EnableBankingBank[] }>(`/api/providers/enable-banking/aspsps?country=${country}`, signal).then(
             (r) => r.aspsps,
           )
         : Promise.resolve([] as EnableBankingBank[]),

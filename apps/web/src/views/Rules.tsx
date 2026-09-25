@@ -41,7 +41,7 @@ export function Rules() {
   const { version, invalidate } = useApp()
   const categories = useCategories()
   const rules = useResource(
-    (signal) => getJson<{ rules: Rule[] }>('/api/categorization-rules', signal).then((r) => r.rules),
+    (signal) => getJson<{ rules: Rule[] }>('/api/assistant/rules', signal).then((r) => r.rules),
     version,
   )
   const [tab, setTab] = useState<RuleStatus>('proposed')
@@ -52,7 +52,7 @@ export function Rules() {
     setActingOn(rule.id)
     setActionError(null)
     try {
-      await sendJson('POST', `/api/categorization-rules/${rule.id}/${decision}`)
+      await sendJson('POST', `/api/assistant/rules/${rule.id}/${decision}`)
       invalidate()
     } catch (e) {
       setActionError(`“${rule.pattern}”: ${errorMessage(e)}`)
@@ -171,7 +171,7 @@ function AddRule({ onAdded, catalogue }: { onAdded: () => void; catalogue: Categ
     setError(null)
     setAdded(null)
     try {
-      const { rule } = await sendJson<{ rule: Rule }>('POST', '/api/categorization-rules', {
+      const { rule } = await sendJson<{ rule: Rule }>('POST', '/api/assistant/rules', {
         pattern: pattern.trim(),
         categoryId,
       })

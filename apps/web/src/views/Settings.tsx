@@ -86,7 +86,7 @@ function validate(d: Draft): Partial<Record<Key, string>> {
 }
 
 export function Settings() {
-  const settings = useResource((signal) => getJson<{ settings: GateSettings }>('/api/settings/gate', signal).then((r) => r.settings))
+  const settings = useResource((signal) => getJson<{ settings: GateSettings }>('/api/assistant/gate', signal).then((r) => r.settings))
 
   return (
     <div className="flex flex-col gap-10">
@@ -153,7 +153,7 @@ function GateForm({ initial }: { initial: GateSettings }) {
     setBusy(true)
     setServerError(null)
     try {
-      const { settings } = await sendJson<{ settings: GateSettings }>('PUT', '/api/settings/gate', {
+      const { settings } = await sendJson<{ settings: GateSettings }>('PUT', '/api/assistant/gate', {
         highConfidence: Number(draft.highConfidence),
         lowConfidence: Number(draft.lowConfidence),
         minVendorOccurrences: Number(draft.minVendorOccurrences),

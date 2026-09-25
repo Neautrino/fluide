@@ -39,7 +39,7 @@ function App() {
   }, [])
   const invalidate = useCallback(() => setVersion((v) => v + 1), [])
   const queue = useResource(
-    (signal) => getJson<{ items: ReviewItem[] }>('/api/review-queue', signal).then((r) => r.items.length),
+    (signal) => getJson<{ items: ReviewItem[] }>('/api/assistant/review-queue', signal).then((r) => r.items.length),
     version,
   )
   const reviewCount = queue.data ?? null

@@ -1,7 +1,7 @@
 import { sendJson, errorMessage } from './api'
 
 /** SOURCE OF TRUTH: the web half of the Enable Banking connect flow.
- * WHAT: the bank-redirect start (POST /enable-banking/auth, then leave the
+ * WHAT: the bank-redirect start (POST /api/providers/enable-banking/auth, then leave the
  * page for the bank) and the one-time callback consumer that forwards the
  * bank's `code` + `state` to the server.
  * WHY: the callback `code` is single-use. React StrictMode runs effects twice
@@ -30,7 +30,7 @@ export type CallbackOutcome = { ok: true; summary: ConnectedSummary } | { ok: fa
 const SESSION_TIMEOUT_MS = 180_000
 
 export async function startEnableBankingConnect(bank: EnableBankingBank) {
-  const { url } = await sendJson<{ url: string }>('POST', '/enable-banking/auth', {
+  const { url } = await sendJson<{ url: string }>('POST', '/api/providers/enable-banking/auth', {
     aspspName: bank.name,
     country: bank.country,
   })
@@ -59,7 +59,7 @@ export function consumeEnableBankingCallback(): Promise<CallbackOutcome> | null 
     return consumed
   }
 
-  consumed = sendJson<ConnectedSummary>('POST', '/enable-banking/session', { code, state }, SESSION_TIMEOUT_MS).then(
+  consumed = sendJson<ConnectedSummary>('POST', '/api/providers/enable-banking/session', { code, state }, SESSION_TIMEOUT_MS).then(
     (summary): CallbackOutcome => ({ ok: true, summary }),
     (e): CallbackOutcome => ({ ok: false, message: errorMessage(e) }),
   )

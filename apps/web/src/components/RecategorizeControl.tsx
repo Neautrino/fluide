@@ -41,7 +41,7 @@ export function RecategorizeControl({ postingId, currentCategoryId = null, submi
     setError(null)
     setResult(null)
     try {
-      const res = await sendJson<Result>('POST', `/api/postings/${postingId}/category`, { categoryId: choice })
+      const res = await sendJson<Result>('POST', `/api/ledger/postings/${postingId}/category`, { categoryId: choice })
       setResult(res)
       invalidate()
       onDone?.(res)

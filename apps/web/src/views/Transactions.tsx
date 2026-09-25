@@ -10,9 +10,9 @@ import { formatLedgerDate, toNumber } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
 /** SOURCE OF TRUTH: the ledger table.
- * WHAT: GET /transactions (+ /accounts for names/types), one row per bank
+ * WHAT: GET /api/ledger/transactions (+ /api/ledger/accounts for names/types), one row per bank
  * posting; filter by text and category; row → detail drawer. Also the two
- * explicit maintenance actions: POST /plaid/sync and POST /api/categorize.
+ * explicit maintenance actions: POST /api/providers/plaid/sync and POST /api/assistant/categorize.
  * WHY: the server returns one row per posting, so each transaction arrives
  * twice (bank leg + equity suspense leg). Equity legs are hidden — a
  * display filter only; the ledger still stores both balanced sides.
@@ -59,8 +59,8 @@ export function Transactions() {
 
   const ledger = useResource(async (signal) => {
     const [a, t] = await Promise.all([
-      getJson<{ accounts: Account[] }>('/accounts', signal),
-      getJson<{ transactions: LedgerRow[] }>('/transactions', signal),
+      getJson<{ accounts: Account[] }>('/api/ledger/accounts', signal),
+      getJson<{ transactions: LedgerRow[] }>('/api/ledger/transactions', signal),
     ])
     const accountsById: Record<string, Account> = {}
     for (const acct of a.accounts) accountsById[acct.id] = acct
@@ -102,7 +102,7 @@ export function Transactions() {
     setAction({ kind: 'busy', which })
     try {
       if (which === 'sync') {
-        const res = await sendJson<{ synced?: unknown[] }>('POST', '/plaid/sync', undefined, 120_000)
+        const res = await sendJson<{ synced?: unknown[] }>('POST', '/api/providers/plaid/sync', undefined, 120_000)
         const n = Array.isArray(res.synced) ? res.synced.length : null
         setAction({
           kind: 'done',
@@ -110,7 +110,7 @@ export function Transactions() {
           message: n === null ? 'Bank sync complete.' : `Bank sync complete — ${n} ${n === 1 ? 'connection' : 'connections'} updated.`,
         })
       } else {
-        const { result } = await sendJson<{ result: CategorizeResult }>('POST', '/api/categorize', undefined, 180_000)
+        const { result } = await sendJson<{ result: CategorizeResult }>('POST', '/api/assistant/categorize', undefined, 180_000)
         setAction({
           kind: 'done',
           tone: 'success',

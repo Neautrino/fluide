@@ -25,7 +25,7 @@ export function Review() {
   const { version, invalidate, navigate } = useApp()
   const categories = useCategories()
   const queue = useResource(
-    (signal) => getJson<{ items: ReviewItem[] }>('/api/review-queue', signal).then((r) => r.items),
+    (signal) => getJson<{ items: ReviewItem[] }>('/api/assistant/review-queue', signal).then((r) => r.items),
     version,
   )
   const [actingOn, setActingOn] = useState<string | null>(null)
@@ -40,11 +40,11 @@ export function Review() {
       if (decision === 'approve') {
         const res = await sendJson<{ approved: string; proposedRuleId: string | null }>(
           'POST',
-          `/api/review-queue/${item.id}/approve`,
+          `/api/assistant/review-queue/${item.id}/approve`,
         )
         record({ id: item.id, tone: 'success', text: `${who}: suggestion approved.`, proposedRule: !!res.proposedRuleId })
       } else {
-        await sendJson('POST', `/api/review-queue/${item.id}/reject`)
+        await sendJson('POST', `/api/assistant/review-queue/${item.id}/reject`)
         record({ id: item.id, tone: 'success', text: `${who}: suggestion rejected — it stays uncategorized.`, proposedRule: false })
       }
       invalidate()
