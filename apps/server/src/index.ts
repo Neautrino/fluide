@@ -8,13 +8,23 @@
  * returns a stored credential to the client.
  * WHERE: this file owns HTTP routing only. Provider calls + normalization live
  * in packages/connectors, the Enable Banking handshake in enable-banking-link.ts,
- * credentials in connection-store.ts, ledger writes in ingest.ts, all ledger
- * reads in @repo/ledger's queries.ts (shared with chat/tools.ts),
- * categorization in categorization/, review resolution in review.ts,
- * guardrail enforcement in packages/ledger's migrations.
+ * app-level provider credentials (Plaid client_id/secret, Enable Banking
+ * app_id/keyPath) in provider-credentials.ts, per-connection tokens in
+ * connection-store.ts, ledger writes in ingest.ts, all ledger reads in
+ * @repo/ledger's queries.ts (shared with chat/tools.ts), categorization in
+ * categorization/, review resolution in review.ts, guardrail enforcement in
+ * packages/ledger's migrations.
  */
 import { Hono, type MiddlewareHandler } from 'hono'
-import { createPlaidLinkToken, exchangePlaidPublicToken, listEnableBankingAspsps, plaidConnector } from '@repo/connectors'
+import {
+  createPlaidClient,
+  createPlaidConnector,
+  createPlaidLinkToken,
+  exchangePlaidPublicToken,
+  listEnableBankingAspsps,
+  type PlaidCredentials,
+  type EnableBankingCredentials,
+} from '@repo/connectors'
 import {
   listAccounts,
   listTransactionsWithPostings,
@@ -27,6 +37,13 @@ import {
   PERIODS,
   type Period,
 } from '@repo/ledger'
+import {
+  getProviderCredentialsStatus,
+  getPlaidCredentials,
+  getEnableBankingCredentials,
+  savePlaidCredentials,
+  saveEnableBankingCredentials,
+} from './provider-credentials.js'
 import { saveConnection, listConnections, updateConnectionCursor } from './connection-store.js'
 import { ingestConnection, LOCAL_TENANT_ID } from './ingest.js'
 import { startEnableBankingLink, completeEnableBankingLink } from './enable-banking-link.js'
@@ -55,8 +72,10 @@ app.get('/', (c) => {
 })
 
 app.post('/plaid/link-token', async (c) => {
+  const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
+  if (!credentials) return c.json({ error: 'Plaid is not configured — add a client id and secret in Settings first.' }, 409)
   try {
-    const link_token = await createPlaidLinkToken('fluide-local-user')
+    const link_token = await createPlaidLinkToken(createPlaidClient(credentials), 'fluide-local-user')
     return c.json({ link_token })
   } catch (err: any) {
     console.error('link-token error', err?.response?.data ?? err)
@@ -69,8 +88,11 @@ app.post('/plaid/exchange', async (c) => {
   if (!body?.public_token) {
     return c.json({ error: 'public_token required' }, 400)
   }
+  const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
+  if (!credentials) return c.json({ error: 'Plaid is not configured — add a client id and secret in Settings first.' }, 409)
   try {
-    const { itemId, accessToken } = await exchangePlaidPublicToken(body.public_token)
+    const client = createPlaidClient(credentials)
+    const { itemId, accessToken } = await exchangePlaidPublicToken(client, body.public_token)
     saveConnection({
       id: itemId,
       provider: 'plaid',
@@ -80,7 +102,7 @@ app.post('/plaid/exchange', async (c) => {
     })
 
     // ingest immediately so the ledger has data right after connecting
-    const result = await ingestConnection(plaidConnector, accessToken)
+    const result = await ingestConnection(createPlaidConnector(client), accessToken)
     if (result.nextCursor) updateConnectionCursor(itemId, result.nextCursor)
 
     return c.json({ item_id: itemId, ingest: result })
@@ -95,10 +117,13 @@ app.post('/plaid/sync', async (c) => {
   if (items.length === 0) {
     return c.json({ error: 'no connected accounts yet' }, 404)
   }
+  const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
+  if (!credentials) return c.json({ error: 'Plaid is not configured — add a client id and secret in Settings first.' }, 409)
   try {
+    const connector = createPlaidConnector(createPlaidClient(credentials))
     const results = []
     for (const item of items) {
-      const result = await ingestConnection(plaidConnector, item.credential, item.cursor)
+      const result = await ingestConnection(connector, item.credential, item.cursor)
       if (result.nextCursor) updateConnectionCursor(item.id, result.nextCursor)
       results.push({ item_id: item.id, ...result })
     }
@@ -114,8 +139,12 @@ const COUNTRY_RE = /^[A-Z]{2}$/
 app.get('/enable-banking/aspsps', async (c) => {
   const country = c.req.query('country')?.toUpperCase()
   if (!country || !COUNTRY_RE.test(country)) return c.json({ error: 'country must be a 2-letter ISO code' }, 400)
+  const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
+  if (!credentials) {
+    return c.json({ error: 'Enable Banking is not configured — add an app id and key path in Settings first.' }, 409)
+  }
   try {
-    const aspsps = await listEnableBankingAspsps(country)
+    const aspsps = await listEnableBankingAspsps(credentials, country)
     return c.json({
       aspsps: aspsps.map((a) => ({ name: a.name, country: a.country, logo: a.logo, beta: a.beta ?? false })),
     })
@@ -132,8 +161,12 @@ app.post('/enable-banking/auth', async (c) => {
   if (!body.aspspName?.trim() || !country || !COUNTRY_RE.test(country)) {
     return c.json({ error: 'aspspName and a 2-letter country are required' }, 400)
   }
+  const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
+  if (!credentials) {
+    return c.json({ error: 'Enable Banking is not configured — add an app id and key path in Settings first.' }, 409)
+  }
   try {
-    const result = await startEnableBankingLink(body.aspspName.trim(), country)
+    const result = await startEnableBankingLink(credentials, body.aspspName.trim(), country)
     if (!result.ok) return c.json({ error: result.error }, result.status)
     return c.json({ url: result.url })
   } catch (err) {
@@ -146,8 +179,12 @@ app.post('/enable-banking/session', async (c) => {
   const body = await c.req.json<{ code?: string; state?: string }>().catch(() => null)
   if (!body) return c.json({ error: 'body must be JSON' }, 400)
   if (!body.code || !body.state) return c.json({ error: 'code and state are required' }, 400)
+  const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
+  if (!credentials) {
+    return c.json({ error: 'Enable Banking is not configured — add an app id and key path in Settings first.' }, 409)
+  }
   try {
-    const result = await completeEnableBankingLink(body.code, body.state)
+    const result = await completeEnableBankingLink(credentials, body.code, body.state)
     if (!result.ok) return c.json({ error: result.error }, result.status)
     const { ok: _ok, ...summary } = result
     return c.json(summary)
@@ -239,6 +276,31 @@ app.put('/api/settings/gate', async (c) => {
   const result = await saveGateSettings(LOCAL_TENANT_ID, body)
   if (!result.ok) return c.json({ error: result.error }, 400)
   return c.json({ settings: result.settings })
+})
+
+const PROVIDERS = ['plaid', 'enable-banking'] as const
+type ProviderParam = (typeof PROVIDERS)[number]
+const isProvider = (value: unknown): value is ProviderParam =>
+  typeof value === 'string' && (PROVIDERS as readonly string[]).includes(value)
+
+app.get('/api/settings/provider-credentials/:provider', async (c) => {
+  const provider = c.req.param('provider')
+  if (!isProvider(provider)) return c.json({ error: `provider must be one of ${PROVIDERS.join(', ')}` }, 400)
+  return c.json(await getProviderCredentialsStatus(LOCAL_TENANT_ID, provider))
+})
+
+app.put('/api/settings/provider-credentials/:provider', async (c) => {
+  const provider = c.req.param('provider')
+  if (!isProvider(provider)) return c.json({ error: `provider must be one of ${PROVIDERS.join(', ')}` }, 400)
+  const result =
+    provider === 'plaid'
+      ? await savePlaidCredentials(LOCAL_TENANT_ID, await c.req.json<Partial<PlaidCredentials>>().catch(() => ({})))
+      : await saveEnableBankingCredentials(
+          LOCAL_TENANT_ID,
+          await c.req.json<Partial<EnableBankingCredentials>>().catch(() => ({})),
+        )
+  if (!result.ok) return c.json({ error: result.error }, 400)
+  return c.json({ ok: true })
 })
 
 app.get('/api/summary', async (c) => {
