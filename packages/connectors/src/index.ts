@@ -4,8 +4,12 @@ export type {
   NormalizedBalance,
   NormalizedTransaction,
 } from './types.js'
-export { createPlaidClient, type PlaidCredentials } from './plaid-client.js'
-export { createPlaidConnector, createPlaidLinkToken, exchangePlaidPublicToken } from './plaid.js'
+export {
+  createPlaidConnector,
+  createPlaidLinkToken,
+  exchangePlaidPublicToken,
+  type PlaidCredentials,
+} from './plaid.js'
 export {
   createEnableBankingConnector,
   listEnableBankingAspsps,

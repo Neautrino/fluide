@@ -17,7 +17,6 @@
  */
 import { Hono, type MiddlewareHandler } from 'hono'
 import {
-  createPlaidClient,
   createPlaidConnector,
   createPlaidLinkToken,
   exchangePlaidPublicToken,
@@ -75,7 +74,7 @@ app.post('/plaid/link-token', async (c) => {
   const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
   if (!credentials) return c.json({ error: 'Plaid is not configured — add a client id and secret in Settings first.' }, 409)
   try {
-    const link_token = await createPlaidLinkToken(createPlaidClient(credentials), 'fluide-local-user')
+    const link_token = await createPlaidLinkToken(credentials, 'fluide-local-user')
     return c.json({ link_token })
   } catch (err: any) {
     console.error('link-token error', err?.response?.data ?? err)
@@ -91,8 +90,7 @@ app.post('/plaid/exchange', async (c) => {
   const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
   if (!credentials) return c.json({ error: 'Plaid is not configured — add a client id and secret in Settings first.' }, 409)
   try {
-    const client = createPlaidClient(credentials)
-    const { itemId, accessToken } = await exchangePlaidPublicToken(client, body.public_token)
+    const { itemId, accessToken } = await exchangePlaidPublicToken(credentials, body.public_token)
     saveConnection({
       id: itemId,
       provider: 'plaid',
@@ -102,7 +100,7 @@ app.post('/plaid/exchange', async (c) => {
     })
 
     // ingest immediately so the ledger has data right after connecting
-    const result = await ingestConnection(createPlaidConnector(client), accessToken)
+    const result = await ingestConnection(createPlaidConnector(credentials), accessToken)
     if (result.nextCursor) updateConnectionCursor(itemId, result.nextCursor)
 
     return c.json({ item_id: itemId, ingest: result })
@@ -120,7 +118,7 @@ app.post('/plaid/sync', async (c) => {
   const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
   if (!credentials) return c.json({ error: 'Plaid is not configured — add a client id and secret in Settings first.' }, 409)
   try {
-    const connector = createPlaidConnector(createPlaidClient(credentials))
+    const connector = createPlaidConnector(credentials)
     const results = []
     for (const item of items) {
       const result = await ingestConnection(connector, item.credential, item.cursor)

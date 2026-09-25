@@ -12,7 +12,7 @@
  * consistency, not because clientId itself needs hiding.
  * WHERE: owns the DB read/write only. Encryption is vault.ts's job;
  * building an actual Plaid/Enable Banking client from these values is
- * @repo/connectors' job (createPlaidClient, and the *Credentials types
+ * @repo/connectors' job (createPlaidConnector, and the *Credentials types
  * this file re-exports rather than redefining).
  */
 import { accessSync, constants } from 'node:fs'

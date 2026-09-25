@@ -1,19 +1,23 @@
 /** SOURCE OF TRUTH: the Plaid implementation of the Connector interface.
- * WHAT: createPlaidConnector(client) returns listAccounts/getBalances/
+ * WHAT: createPlaidConnector(credentials) returns listAccounts/getBalances/
  * getTransactions against Plaid's API, normalized into Fluide's internal
  * shapes (types.ts). createPlaidLinkToken/exchangePlaidPublicToken take the
- * same client for the enrollment handshake.
+ * same credentials for the enrollment handshake. PLAID_ENV
+ * (sandbox/development/production) selects the base path — that's an
+ * environment choice, not a secret, so it stays an env var.
  * WHY: this is the ONE place Plaid's raw conventions get translated. Plaid's
  * amount is positive-for-spent (confirmed live: Uber +5.40) — the opposite
  * of Fluide's convention — so it's negated here, not assumed elsewhere.
  * providerCategory is reference-only; it must never be written straight into
  * postings.category_id (that needs the categorization_rules engine, later).
- * The client is a parameter, not an import, because credentials are now
- * per-tenant (Settings-entered, DB-stored) rather than a module singleton.
- * WHERE: owns Plaid-specific translation only. Interface shape lives in
- * types.ts; building the client from credentials lives in plaid-client.ts.
+ * `PlaidCredentials` (client_id/secret) is a parameter everywhere, never read
+ * from process.env — it's entered via Settings and stored encrypted
+ * (apps/server's provider-credentials.ts + vault.ts).
+ * WHERE: owns Plaid HTTP + translation only. Interface shape lives in
+ * types.ts; which credentials to use, and where they come from, is
+ * apps/server's job.
  */
-import { CountryCode, Products, type PlaidApi } from 'plaid'
+import { Configuration, CountryCode, PlaidApi, PlaidEnvironments, Products } from 'plaid'
 import type {
   Connector,
   NormalizedAccount,
@@ -21,7 +25,33 @@ import type {
   NormalizedTransaction,
 } from './types.js'
 
-export function createPlaidConnector(client: PlaidApi): Connector {
+export type PlaidCredentials = { clientId: string; secret: string }
+
+const env = process.env.PLAID_ENV ?? 'sandbox'
+
+const basePath =
+  env === 'production'
+    ? PlaidEnvironments.production
+    : env === 'development'
+      ? PlaidEnvironments.development
+      : PlaidEnvironments.sandbox
+
+function plaidClient(credentials: PlaidCredentials): PlaidApi {
+  return new PlaidApi(
+    new Configuration({
+      basePath,
+      baseOptions: {
+        headers: {
+          'PLAID-CLIENT-ID': credentials.clientId,
+          'PLAID-SECRET': credentials.secret,
+        },
+      },
+    }),
+  )
+}
+
+export function createPlaidConnector(credentials: PlaidCredentials): Connector {
+  const client = plaidClient(credentials)
   return {
     provider: 'plaid',
 
@@ -77,8 +107,8 @@ export function createPlaidConnector(client: PlaidApi): Connector {
 
 // Not part of Connector — link tokens have no provider-agnostic equivalent
 // (Teller uses a static app_id + widget, not a per-session token).
-export async function createPlaidLinkToken(client: PlaidApi, clientUserId: string) {
-  const response = await client.linkTokenCreate({
+export async function createPlaidLinkToken(credentials: PlaidCredentials, clientUserId: string) {
+  const response = await plaidClient(credentials).linkTokenCreate({
     user: { client_user_id: clientUserId },
     client_name: 'Fluide',
     products: [Products.Transactions],
@@ -88,7 +118,7 @@ export async function createPlaidLinkToken(client: PlaidApi, clientUserId: strin
   return response.data.link_token
 }
 
-export async function exchangePlaidPublicToken(client: PlaidApi, publicToken: string) {
-  const response = await client.itemPublicTokenExchange({ public_token: publicToken })
+export async function exchangePlaidPublicToken(credentials: PlaidCredentials, publicToken: string) {
+  const response = await plaidClient(credentials).itemPublicTokenExchange({ public_token: publicToken })
   return { itemId: response.data.item_id, accessToken: response.data.access_token }
 }
