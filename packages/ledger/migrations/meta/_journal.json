@@ -36,6 +36,13 @@
       "when": 1790259574626,
       "tag": "0004_category_change_requires_audit",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "7",
+      "when": 1790308841549,
+      "tag": "0005_bumpy_exodus",
+      "breakpoints": true
     }
   ]
 }

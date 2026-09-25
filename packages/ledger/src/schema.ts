@@ -1,8 +1,12 @@
 /** SOURCE OF TRUTH: the ledger's schema — the double-entry core (accounts,
  * transactions, postings, balance_assertions) plus Slice 1's categorization
  * tables (categories, categorization_rules, review_queue, audit_log).
- * WHAT: Drizzle table definitions (PLAN.md §2). Later-slice tables
- * (documents/matches/connectors/watches) are deliberately not modeled yet.
+ * WHAT: Drizzle table definitions (PLAN.md §2) plus provider_credentials —
+ * app-level connector API credentials (Plaid client_id/secret, Enable
+ * Banking app_id + key path), entered via Settings and AES-256-GCM-
+ * encrypted before they reach a row (apps/server's vault.ts). PLAN.md's
+ * own `connectors` table (per-connection OAuth tokens) is still not
+ * modeled — connection-store.ts still owns that (ADR 009).
  * WHY: `postings` is the only writable source of truth for money movement.
  * Balances are NEVER stored as ground truth — always derived by replaying
  * postings, reconciled against the bank via balance_assertions.
@@ -22,6 +26,7 @@ import {
   pgEnum,
   index,
   uniqueIndex,
+  primaryKey,
   check,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
@@ -74,6 +79,10 @@ export const auditLogAction = pgEnum('audit_log_action', [
 ])
 
 export const categorizationRuleStatus = pgEnum('categorization_rule_status', ['proposed', 'active', 'rejected'])
+
+export const connectorProvider = pgEnum('connector_provider', ['plaid', 'enable-banking'])
+
+export type ConnectorProvider = (typeof connectorProvider.enumValues)[number]
 
 /**
  * accounts — the chart of accounts. `path` follows hledger/beancount's
@@ -351,4 +360,25 @@ export const balanceAssertions = pgTable(
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
   },
   (table) => [index('balance_assertions_account_date_idx').on(table.accountId, table.date)],
+)
+
+/**
+ * provider_credentials — the API credentials Fluide needs to talk to a
+ * connector provider (Plaid client_id/secret, Enable Banking app_id + a
+ * private-key file path), entered once via Settings. One row per (tenant,
+ * provider); fieldsCiphertext/fieldsNonce hold an AES-256-GCM-encrypted
+ * JSON blob (apps/server's vault.ts) — the plaintext is never a column.
+ * Distinct from PLAN.md §2's `connectors` table (per-connection OAuth
+ * tokens), which is not modeled yet.
+ */
+export const providerCredentials = pgTable(
+  'provider_credentials',
+  {
+    tenantId: uuid('tenant_id').notNull(),
+    provider: connectorProvider('provider').notNull(),
+    fieldsCiphertext: text('fields_ciphertext').notNull(),
+    fieldsNonce: text('fields_nonce').notNull(),
+    updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [primaryKey({ columns: [table.tenantId, table.provider] })],
 )
