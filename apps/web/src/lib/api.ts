@@ -106,6 +106,8 @@ export type GateSettings = {
   updatedAt: string | null
 }
 
+export type ProviderCredentialsStatus = { configured: boolean; updatedAt?: string }
+
 export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' | 'all_time'
 
 export type Summary = {

@@ -3,18 +3,23 @@ import { Button } from '../components/ui/Button'
 import { Field, Input } from '../components/ui/Field'
 import { ErrorState, Loading, Notice } from '../components/ui/States'
 import { PageHeader, SectionTitle } from '../components/ui/Typography'
-import { errorMessage, getJson, sendJson, type GateSettings } from '../lib/api'
+import { errorMessage, getJson, sendJson, type GateSettings, type ProviderCredentialsStatus } from '../lib/api'
 import { formatTimestamp, toNumber } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
-/** SOURCE OF TRUTH: the confidence gate settings screen.
- * WHAT: GET/PUT /api/settings/gate — the four thresholds that decide when
- * a Jev suggestion may auto-apply, needs review, or is not shown at all.
- * Client validation mirrors the server's (0 ≤ low < high ≤ 1, whole
- * number ≥ 1, 0 ≤ tolerance ≤ 999); the server's 400 `error` is shown as-is.
+/** SOURCE OF TRUTH: the Settings screen — the confidence gate thresholds
+ * plus the connector provider credentials (Plaid, Enable Banking).
+ * WHAT: GET/PUT /api/settings/gate (gate thresholds — see GateForm) and
+ * GET/PUT /api/settings/provider-credentials/:provider (ProviderCredentialsForm).
+ * The server never returns saved credentials, only {configured, updatedAt}
+ * — every save re-enters both fields from scratch, there is no partial
+ * update or "leave blank to keep".
  * WHY: auto-categorization touches the ledger without asking — the person
- * must be able to see and tune exactly how cautious it is.
- * WHERE: form only; the gate itself is server-side (categorization/gate.ts).
+ * must be able to see and tune exactly how cautious it is. Connecting a
+ * bank needs Fluide's own API credentials for that provider first; this
+ * is where they're entered, once, instead of an env var + server restart.
+ * WHERE: forms only. Gate enforcement is categorization/gate.ts; credential
+ * storage/encryption is apps/server's provider-credentials.ts + vault.ts.
  */
 
 type Draft = { highConfidence: string; lowConfidence: string; minVendorOccurrences: string; amountRangeTolerance: string }
@@ -88,7 +93,7 @@ export function Settings() {
       <PageHeader
         eyebrow="Configuration"
         title="Settings"
-        lede="How cautious Fluide is when it categorizes transactions on its own."
+        lede="How cautious Fluide is when it categorizes transactions on its own, and which connector providers it can reach."
       />
       {settings.error ? (
         <ErrorState title="Couldn't load the gate settings" message={settings.error} onRetry={settings.reload} />
@@ -97,6 +102,28 @@ export function Settings() {
       ) : (
         <GateForm initial={settings.data} />
       )}
+      <ProviderCredentialsForm
+        provider="plaid"
+        title="Plaid credentials"
+        description="Needed to connect a US/CA sandbox bank. Get a client id and secret from your Plaid dashboard."
+        fields={[
+          { key: 'clientId', label: 'Client ID' },
+          { key: 'secret', label: 'Secret', type: 'password', help: 'Stored encrypted. Not shown again once saved.' },
+        ]}
+      />
+      <ProviderCredentialsForm
+        provider="enable-banking"
+        title="Enable Banking credentials"
+        description="Needed to connect an EU (PSD2) bank. Get an application id and a private key from your Enable Banking Control Panel."
+        fields={[
+          { key: 'appId', label: 'Application ID' },
+          {
+            key: 'keyPath',
+            label: 'Private key path',
+            help: "Absolute path to the .pem private key on the server's own filesystem — not the key's contents. Must be readable by the process running apps/server.",
+          },
+        ]}
+      />
     </div>
   )
 }
@@ -247,3 +274,86 @@ function GateDiagram({ low, high }: { low: number; high: number }) {
     </figure>
   )
 }
+
+type CredentialField = { key: string; label: string; type?: string; help?: string }
+
+function ProviderCredentialsForm({
+  provider,
+  title,
+  description,
+  fields,
+}: {
+  provider: 'plaid' | 'enable-banking'
+  title: string
+  description: string
+  fields: CredentialField[]
+}) {
+  const status = useResource((signal) =>
+    getJson<ProviderCredentialsStatus>(`/api/settings/provider-credentials/${provider}`, signal),
+  )
+  const emptyDraft = () => Object.fromEntries(fields.map((f) => [f.key, ''])) as Record<string, string>
+  const [draft, setDraft] = useState<Record<string, string>>(emptyDraft)
+  const [busy, setBusy] = useState(false)
+  const [serverError, setServerError] = useState<string | null>(null)
+  const [justSaved, setJustSaved] = useState(false)
+
+  const complete = fields.every((f) => draft[f.key]?.trim())
+
+  const update = (key: string, value: string) => {
+    setDraft((d) => ({ ...d, [key]: value }))
+    setJustSaved(false)
+    setServerError(null)
+  }
+
+  const save = async () => {
+    if (!complete) return
+    setBusy(true)
+    setServerError(null)
+    try {
+      await sendJson('PUT', `/api/settings/provider-credentials/${provider}`, draft)
+      setDraft(emptyDraft())
+      setJustSaved(true)
+      status.reload()
+    } catch (e) {
+      setServerError(errorMessage(e))
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-4 border-t border-rule pt-7">
+      <SectionTitle
+        aside={
+          status.data
+            ? status.data.configured
+              ? `Configured${status.data.updatedAt ? ` · saved ${formatTimestamp(status.data.updatedAt)}` : ''}`
+              : 'Not configured'
+            : undefined
+        }
+      >
+        {title}
+      </SectionTitle>
+      <p className="max-w-prose text-[13px] leading-relaxed text-ink-3">{description}</p>
+      {fields.map((f) => (
+        <Field key={f.key} id={`${provider}-${f.key}`} label={f.label} help={f.help}>
+          <Input
+            id={`${provider}-${f.key}`}
+            type={f.type ?? 'text'}
+            value={draft[f.key]}
+            onChange={(e) => update(f.key, e.target.value)}
+            className="max-w-md"
+          />
+        </Field>
+      ))}
+      {serverError && <Notice tone="error">{serverError}</Notice>}
+      {justSaved && <Notice tone="success">Saved.</Notice>}
+      <div className="flex flex-wrap gap-2">
+        <Button variant="primary" busy={busy} disabled={!complete} onClick={() => void save()}>
+          {busy ? 'Saving…' : 'Save'}
+        </Button>
+      </div>
+    </div>
+  )
+}
+
