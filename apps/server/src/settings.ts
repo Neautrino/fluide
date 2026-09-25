@@ -1,8 +1,9 @@
 /** SOURCE OF TRUTH: writes to gate_settings (the confidence gate's thresholds).
  * WHAT: validates a Settings-screen save and upserts the tenant's row.
- * WHY: the DB CHECKs in schema.ts are the real floor (a bad row can't
- * exist); this validation exists only to return a readable 400 instead of
- * a constraint-violation 500, so both must stay in agreement.
+ * WHY: the DB CHECKs in @repo/ledger's schema/categorization.ts are the
+ * real floor (a bad row can't exist); this validation exists only to
+ * return a readable 400 instead of a constraint-violation 500, so both
+ * must stay in agreement.
  * WHERE: owns the write only. Reads (with defaults) live in @repo/ledger's
  * getGateSettings; the gate that consumes them is categorization/gate.ts.
  */

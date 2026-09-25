@@ -11,7 +11,7 @@
  * the user activates it. Learned rules are isUserCustom=false, so a rule
  * the user typed always wins over one the system inferred.
  * WHERE: owns rule inserts + status changes only. Matching lives in
- * categorize.ts; reads live in @repo/ledger's queries.ts.
+ * categorize.ts; reads live in @repo/ledger's queries/.
  */
 import { db, categories, categorizationRules, postings, transactions, type DbExecutor } from '@repo/ledger'
 import { and, eq, sql } from 'drizzle-orm'

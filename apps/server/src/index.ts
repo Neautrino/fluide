@@ -11,7 +11,7 @@
  * app-level provider credentials (Plaid client_id/secret, Enable Banking
  * app_id/keyPath) in provider-credentials.ts, per-connection tokens in
  * connection-store.ts, ledger writes in ingest.ts, all ledger reads in
- * @repo/ledger's queries.ts (shared with chat/tools.ts), categorization in
+ * @repo/ledger's queries/ (shared with chat/tools.ts), categorization in
  * categorization/, review resolution in review.ts, guardrail enforcement in
  * packages/ledger's migrations.
  */

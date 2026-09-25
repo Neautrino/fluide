@@ -6,7 +6,7 @@
  * guess a fact it could get wrong" principle as categorization/jev.ts and
  * gate.ts, applied to chat instead of categorization.
  * WHERE: owns tool schemas + binding to LOCAL_TENANT_ID only. Queries live
- * in packages/ledger/src/queries.ts (shared with the HTTP routes); the
+ * in packages/ledger/src/queries/ (shared with the HTTP routes); the
  * agent loop lives in agent.ts.
  */
 import { tool } from '@langchain/core/tools'
