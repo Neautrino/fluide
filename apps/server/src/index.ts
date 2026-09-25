@@ -13,7 +13,8 @@
  * connection-store.ts, ledger writes in ingest.ts, all ledger reads in
  * @repo/ledger's queries/ (shared with chat/tools.ts), categorization in
  * categorization/, review resolution in review.ts, guardrail enforcement in
- * packages/ledger's migrations.
+ * packages/ledger's migrations, connector-failure responses in
+ * connector-errors.ts.
  */
 import { Hono, type MiddlewareHandler } from 'hono'
 import {
@@ -46,6 +47,7 @@ import {
 import { saveConnection, listConnections, updateConnectionCursor } from './connection-store.js'
 import { ingestConnection, LOCAL_TENANT_ID } from './ingest.js'
 import { startEnableBankingLink, completeEnableBankingLink } from './enable-banking-link.js'
+import { connectorErrorResponse } from './connector-errors.js'
 import { categorizeUncategorizedPostings } from './categorization/categorize.js'
 import { createUserRule, decideProposedRule } from './categorization/rules.js'
 import { resolveReviewItem, recategorizePosting } from './review.js'
@@ -76,9 +78,8 @@ app.post('/plaid/link-token', async (c) => {
   try {
     const link_token = await createPlaidLinkToken(credentials, 'fluide-local-user')
     return c.json({ link_token })
-  } catch (err: any) {
-    console.error('link-token error', err?.response?.data ?? err)
-    return c.json({ error: 'failed to create link token' }, 500)
+  } catch (err) {
+    return connectorErrorResponse(c, 'link-token error', err, 'failed to create link token')
   }
 })
 
@@ -104,9 +105,8 @@ app.post('/plaid/exchange', async (c) => {
     if (result.nextCursor) updateConnectionCursor(itemId, result.nextCursor)
 
     return c.json({ item_id: itemId, ingest: result })
-  } catch (err: any) {
-    console.error('exchange error', err?.response?.data ?? err)
-    return c.json({ error: 'failed to exchange public token' }, 500)
+  } catch (err) {
+    return connectorErrorResponse(c, 'exchange error', err, 'failed to exchange public token')
   }
 })
 
@@ -126,9 +126,8 @@ app.post('/plaid/sync', async (c) => {
       results.push({ item_id: item.id, ...result })
     }
     return c.json({ synced: results })
-  } catch (err: any) {
-    console.error('sync error', err?.response?.data ?? err)
-    return c.json({ error: 'failed to sync transactions' }, 500)
+  } catch (err) {
+    return connectorErrorResponse(c, 'sync error', err, 'failed to sync transactions')
   }
 })
 
@@ -147,8 +146,7 @@ app.get('/enable-banking/aspsps', async (c) => {
       aspsps: aspsps.map((a) => ({ name: a.name, country: a.country, logo: a.logo, beta: a.beta ?? false })),
     })
   } catch (err) {
-    console.error('enable-banking aspsps error', err)
-    return c.json({ error: 'failed to list banks' }, 500)
+    return connectorErrorResponse(c, 'enable-banking aspsps error', err, 'failed to list banks')
   }
 })
 
@@ -168,8 +166,7 @@ app.post('/enable-banking/auth', async (c) => {
     if (!result.ok) return c.json({ error: result.error }, result.status)
     return c.json({ url: result.url })
   } catch (err) {
-    console.error('enable-banking auth error', err)
-    return c.json({ error: 'failed to start bank authorization' }, 500)
+    return connectorErrorResponse(c, 'enable-banking auth error', err, 'failed to start bank authorization')
   }
 })
 
@@ -187,8 +184,7 @@ app.post('/enable-banking/session', async (c) => {
     const { ok: _ok, ...summary } = result
     return c.json(summary)
   } catch (err) {
-    console.error('enable-banking session error', err)
-    return c.json({ error: 'failed to complete bank connection' }, 500)
+    return connectorErrorResponse(c, 'enable-banking session error', err, 'failed to complete bank connection')
   }
 })
 

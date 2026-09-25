@@ -6,8 +6,9 @@
  * plaintext (the Settings screen's "configured: true/false, last updated").
  * WHY: Enable Banking's private key stays a file on disk (AGENTS.md — never
  * return a bank credential to apps/web); only appId and the keyPath string
- * are stored here, and keyPath is checked readable at save time so a
- * typo'd path fails now, not on the next sync. Plaid's clientId/secret are
+ * are stored here, and keyPath is loaded as the signing key at save time
+ * (loadEnableBankingKey) so a typo'd path, a directory or a non-PKCS#8 file
+ * fails now, not on the next sync. Plaid's clientId/secret are
  * the real secret and get the same encrypted-blob treatment for
  * consistency, not because clientId itself needs hiding.
  * WHERE: owns the DB read/write only. Encryption is vault.ts's job;
@@ -15,10 +16,9 @@
  * @repo/connectors' job (createPlaidConnector, and the *Credentials types
  * this file re-exports rather than redefining).
  */
-import { accessSync, constants } from 'node:fs'
 import { and, eq } from 'drizzle-orm'
 import { db, providerCredentials, type ConnectorProvider } from '@repo/ledger'
-import type { PlaidCredentials, EnableBankingCredentials } from '@repo/connectors'
+import { ConnectorError, loadEnableBankingKey, type PlaidCredentials, type EnableBankingCredentials } from '@repo/connectors'
 import { encrypt, decrypt } from './vault.js'
 
 function aad(tenantId: string, provider: ConnectorProvider) {
@@ -83,9 +83,10 @@ export async function saveEnableBankingCredentials(
   const keyPath = input.keyPath?.trim()
   if (!appId || !keyPath) return { ok: false, error: 'appId and keyPath are both required' }
   try {
-    accessSync(keyPath, constants.R_OK)
-  } catch {
-    return { ok: false, error: `keyPath ${keyPath} does not exist or is not readable by the server process` }
+    await loadEnableBankingKey(keyPath)
+  } catch (err) {
+    if (err instanceof ConnectorError) return { ok: false, error: err.message }
+    throw err
   }
   await save(tenantId, 'enable-banking', { appId, keyPath })
   return { ok: true }

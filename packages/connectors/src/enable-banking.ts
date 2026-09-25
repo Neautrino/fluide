@@ -20,6 +20,13 @@
  * stored encrypted (apps/server's provider-credentials.ts + vault.ts); the
  * key file itself stays on disk, only its path is stored. Signing-key and
  * JWT caches are keyed by keyPath/appId so multiple credentials can coexist.
+ * Failures leave this file as ConnectorError (errors.ts): Enable Banking's
+ * ErrorResponse `error` code decides the kind first (EXPIRED_SESSION etc. ->
+ * reauth_required), the HTTP status second. Messages carry the path with
+ * session/account ids replaced by {id}, and every request has a timeout so a
+ * stalled bank can't hang the connect callback. The normalizer rejects
+ * anything it would otherwise have to guess: an unknown credit/debit
+ * indicator, an empty or non-numeric amount, a non-ISO currency or date.
  * WHERE: owns Enable Banking HTTP + translation only. The private key and
  * session_id never leave the server (AGENTS.md); where session ids are
  * stored is apps/server's connection-store.ts. Balance-type fallback
@@ -27,11 +34,14 @@
  */
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
+import { ConnectorError, type ConnectorErrorKind } from './errors.js'
 import type { Connector, NormalizedAccount, NormalizedBalance, NormalizedTransaction } from './types.js'
 
+const PROVIDER = 'enable-banking'
 const API_BASE = 'https://api.enablebanking.com'
 const JWT_LIFETIME_SECONDS = 3600
 const MAX_TRANSACTION_PAGES = 500
+const REQUEST_TIMEOUT_MS = 30_000
 
 export type EnableBankingCredentials = { appId: string; keyPath: string }
 
@@ -103,14 +113,34 @@ function base64url(input: string | ArrayBuffer) {
   return Buffer.from(typeof input === 'string' ? Buffer.from(input) : new Uint8Array(input)).toString('base64url')
 }
 
-async function signingKey(keyPath: string) {
+/** Reads and imports the app's PKCS#8 signing key; also used by apps/server
+ * to reject a bad key path at save time. A failed load is not cached, so a
+ * fixed file works on the next call without a restart. */
+export async function loadEnableBankingKey(keyPath: string) {
   const cached = cachedKeys.get(keyPath)
   if (cached) return cached
-  const pem = readFileSync(keyPath, 'utf-8')
-  const der = Buffer.from(pem.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '').replace(/\s+/g, ''), 'base64')
-  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, [
-    'sign',
-  ])
+  let pem: string
+  try {
+    pem = readFileSync(keyPath, 'utf-8')
+  } catch (err) {
+    const code = (err as { code?: unknown }).code
+    throw new ConnectorError(
+      PROVIDER,
+      'invalid_credentials',
+      `Enable Banking private key at ${keyPath} is not readable (${typeof code === 'string' ? code : 'read failed'})`,
+    )
+  }
+  let key: CryptoKey
+  try {
+    const der = Buffer.from(pem.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '').replace(/\s+/g, ''), 'base64')
+    key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, ['sign'])
+  } catch {
+    throw new ConnectorError(
+      PROVIDER,
+      'invalid_credentials',
+      `Enable Banking private key at ${keyPath} is not an unencrypted PKCS#8 RSA key (expected "-----BEGIN PRIVATE KEY-----")`,
+    )
+  }
   cachedKeys.set(keyPath, key)
   return key
 }
@@ -125,13 +155,46 @@ async function jwt(credentials: EnableBankingCredentials) {
   )
   const signature = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
-    await signingKey(credentials.keyPath),
+    await loadEnableBankingKey(credentials.keyPath),
     Buffer.from(`${header}.${payload}`),
   )
   const token = `${header}.${payload}.${base64url(signature)}`
   cachedJwts.set(credentials.appId, { token, expiresAt: now + JWT_LIFETIME_SECONDS })
   return token
 }
+
+/** Error codes (ErrorResponse.error) that mean the user's consent/session is
+ * gone and only a new bank authorization fixes it. */
+const REAUTH_CODES = new Set([
+  'EXPIRED_SESSION',
+  'CLOSED_SESSION',
+  'REVOKED_SESSION',
+  'SESSION_DOES_NOT_EXIST',
+  'ASPSP_PSU_ACTION_REQUIRED',
+])
+
+function enableBankingErrorKind(status: number, code: string | undefined): ConnectorErrorKind {
+  if (code && REAUTH_CODES.has(code)) return 'reauth_required'
+  if (code === 'ASPSP_RATE_LIMIT_EXCEEDED' || status === 429) return 'rate_limited'
+  if (code === 'ASPSP_ERROR' || code === 'ASPSP_TIMEOUT' || status === 408 || status >= 500) return 'provider_unavailable'
+  if (status === 401 || status === 403) return 'invalid_credentials'
+  return 'invalid_input'
+}
+
+/** Session ids and account uids are credentials-adjacent; keep them out of messages. */
+function redactPath(path: string) {
+  return path.replace(/^\/(sessions|accounts)\/[^/]+/, '/$1/{id}')
+}
+
+function parseJson(text: string): unknown {
+  try {
+    return JSON.parse(text)
+  } catch {
+    return undefined
+  }
+}
+
+type EbErrorResponse = { message?: unknown; error?: unknown; detail?: unknown }
 
 async function call<T>(
   credentials: EnableBankingCredentials,
@@ -140,27 +203,83 @@ async function call<T>(
   options: { query?: Record<string, string | undefined>; body?: unknown } = {},
 ): Promise<T> {
   assertAllowedEnableBankingCall(method, path)
+  const where = `${method} ${redactPath(path)}`
   const url = new URL(path, API_BASE)
   for (const [key, value] of Object.entries(options.query ?? {})) {
     if (value !== undefined) url.searchParams.set(key, value)
   }
-  const response = await fetch(url, {
-    method,
-    headers: {
-      Authorization: `Bearer ${await jwt(credentials)}`,
-      Accept: 'application/json',
-      ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
-    },
-    body: options.body === undefined ? undefined : JSON.stringify(options.body),
-  })
-  if (!response.ok) {
-    const detail = await response.text().catch(() => '')
-    throw new Error(`Enable Banking ${method} ${path} failed: ${response.status} ${detail.slice(0, 300)}`)
+  const token = await jwt(credentials)
+
+  let status: number
+  let text: string
+  try {
+    const response = await fetch(url, {
+      method,
+      headers: {
+        Authorization: `Bearer ${token}`,
+        Accept: 'application/json',
+        ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
+      },
+      body: options.body === undefined ? undefined : JSON.stringify(options.body),
+      signal: AbortSignal.timeout(REQUEST_TIMEOUT_MS),
+    })
+    status = response.status
+    text = await response.text()
+  } catch (err) {
+    const code = (err as { code?: unknown } | null)?.code
+    const reason =
+      err instanceof Error && err.name === 'TimeoutError'
+        ? `timed out after ${REQUEST_TIMEOUT_MS / 1000}s`
+        : `network error${typeof code === 'string' ? ` (${code})` : ''}`
+    throw new ConnectorError(PROVIDER, 'provider_unavailable', `Enable Banking ${where} failed: ${reason}`)
   }
-  return (await response.json()) as T
+
+  const body = parseJson(text)
+  if (status < 200 || status >= 300) {
+    const error = (typeof body === 'object' && body !== null ? body : {}) as EbErrorResponse
+    const code = typeof error.error === 'string' ? error.error : undefined
+    const detail =
+      body === undefined
+        ? text.slice(0, 200)
+        : [code, error.message, error.detail].filter((part) => typeof part === 'string' && part).join(': ').slice(0, 300)
+    throw new ConnectorError(
+      PROVIDER,
+      enableBankingErrorKind(status, code),
+      `Enable Banking ${where} failed: ${status}${detail ? ` ${detail}` : ''}`,
+      { status, providerCode: code },
+    )
+  }
+  if (body === undefined) {
+    throw new ConnectorError(PROVIDER, 'bad_response', `Enable Banking ${where} returned a non-JSON body`, { status })
+  }
+  return body as T
 }
 
 // ---------------------------------------------------------------- normalization
+
+function badResponse(message: string) {
+  return new ConnectorError(PROVIDER, 'bad_response', message)
+}
+
+/** Exact decimal string + ISO 4217 code; anything else is refused, not coerced
+ * (Number('') is 0, which would post a zero-value transaction). */
+function parseAmount(subject: string, amount: Amount | null | undefined) {
+  const raw: unknown = amount?.amount
+  if (typeof raw !== 'string' || raw.trim() === '' || !Number.isFinite(Number(raw))) {
+    throw badResponse(`${subject} has a non-numeric amount: ${JSON.stringify(raw)}`)
+  }
+  const currency: unknown = amount?.currency
+  if (typeof currency !== 'string' || !/^[A-Z]{3}$/.test(currency)) {
+    throw badResponse(`${subject} has no ISO 4217 currency: ${JSON.stringify(currency)}`)
+  }
+  return { value: Number(raw), currency }
+}
+
+function isIsoDate(value: string) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(value)) return false
+  const parsed = new Date(`${value}T00:00:00Z`)
+  return !Number.isNaN(parsed.getTime()) && parsed.toISOString().startsWith(value)
+}
 
 /** A normalized booked transaction before its id is assigned. */
 export type UnidentifiedEbTransaction = Omit<NormalizedTransaction, 'providerTransactionId'> & {
@@ -173,12 +292,16 @@ export function normalizeEnableBankingTransaction(
   tx: EbTransaction,
   accountHash: string,
 ): UnidentifiedEbTransaction {
-  const magnitude = Math.abs(Number(tx.transaction_amount.amount))
-  if (!Number.isFinite(magnitude)) {
-    throw new Error(`Enable Banking transaction has a non-numeric amount: ${tx.transaction_amount.amount}`)
+  if (tx.credit_debit_indicator !== 'DBIT' && tx.credit_debit_indicator !== 'CRDT') {
+    throw badResponse(
+      `Enable Banking transaction has an unknown credit_debit_indicator: ${JSON.stringify(tx.credit_debit_indicator)}`,
+    )
   }
+  const { value, currency } = parseAmount('Enable Banking transaction', tx.transaction_amount)
+  const magnitude = Math.abs(value)
   const date = tx.booking_date ?? tx.value_date ?? tx.transaction_date
-  if (!date) throw new Error('Enable Banking transaction has no booking, value or transaction date')
+  if (!date) throw badResponse('Enable Banking transaction has no booking, value or transaction date')
+  if (!isIsoDate(date)) throw badResponse(`Enable Banking transaction has an invalid date: ${JSON.stringify(date)}`)
 
   const counterparty = tx.credit_debit_indicator === 'DBIT' ? tx.creditor?.name : tx.debtor?.name
   const remittance = (tx.remittance_information ?? []).join(' ').trim()
@@ -205,7 +328,7 @@ export function normalizeEnableBankingTransaction(
     date,
     description,
     amount,
-    currency: tx.transaction_amount.currency,
+    currency,
     pending: false,
     providerCategory: tx.merchant_category_code ?? tx.bank_transaction_code?.code ?? undefined,
     entryReference: tx.entry_reference ?? undefined,
@@ -255,7 +378,7 @@ async function bookedTransactions(credentials: EnableBankingCredentials, account
     if (!result.continuation_key) return all
     continuationKey = result.continuation_key
   }
-  throw new Error(`Enable Banking returned more than ${MAX_TRANSACTION_PAGES} transaction pages for one account`)
+  throw badResponse(`Enable Banking returned more than ${MAX_TRANSACTION_PAGES} transaction pages for one account`)
 }
 
 // ---------------------------------------------------------------- connector
@@ -265,14 +388,14 @@ async function bookedTransactions(credentials: EnableBankingCredentials, account
  * never needs to know Enable Banking has app-level credentials at all. */
 export function createEnableBankingConnector(credentials: EnableBankingCredentials): Connector {
   return {
-    provider: 'enable-banking',
+    provider: PROVIDER,
 
     // `accessToken` is the Enable Banking session_id.
     async listAccounts(sessionId) {
       const accounts: NormalizedAccount[] = []
       for (const { uid, identification_hash } of await sessionAccounts(credentials, sessionId)) {
         const details = await call<EbAccount>(credentials, 'GET', `/accounts/${encodeURIComponent(uid)}/details`)
-        if (!details.currency) throw new Error(`Enable Banking account ${uid} has no currency`)
+        if (!details.currency) throw badResponse(`Enable Banking account ${identification_hash} has no currency`)
         accounts.push({
           providerAccountId: identification_hash,
           name: details.name ?? details.product ?? details.details ?? 'Bank account',
@@ -300,8 +423,8 @@ export function createEnableBankingConnector(credentials: EnableBankingCredentia
         if (!currency) continue
         balances.push({
           providerAccountId: identification_hash,
-          current: booked ? Number(booked.balance_amount.amount) : null,
-          available: available ? Number(available.balance_amount.amount) : null,
+          current: booked ? parseAmount('Enable Banking CLBD balance', booked.balance_amount).value : null,
+          available: available ? parseAmount('Enable Banking CLAV balance', available.balance_amount).value : null,
           currency,
         })
       }

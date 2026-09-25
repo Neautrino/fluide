@@ -4,6 +4,7 @@ export type {
   NormalizedBalance,
   NormalizedTransaction,
 } from './types.js'
+export { ConnectorError, type ConnectorErrorKind } from './errors.js'
 export {
   createPlaidConnector,
   createPlaidLinkToken,
@@ -13,6 +14,7 @@ export {
 export {
   createEnableBankingConnector,
   listEnableBankingAspsps,
+  loadEnableBankingKey,
   startEnableBankingAuth,
   createEnableBankingSession,
   type EnableBankingAspsp,
