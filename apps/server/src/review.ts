@@ -13,7 +13,7 @@
  * Queue/posting rows are locked FOR UPDATE so two concurrent clicks cannot
  * both resolve the same item. Rules proposed here stay inactive until the
  * user activates them (categorization/rules.ts).
- * WHERE: owns human decisions only. HTTP mapping lives in index.ts; the
+ * WHERE: owns human decisions only. HTTP mapping lives in routes/assistant.ts; the
  * gate that fills the queue lives in categorization/gate.ts.
  */
 import { db, categories, postings, reviewQueue } from '@repo/ledger'

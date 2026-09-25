@@ -10,7 +10,7 @@
  * session header; OpenAI has no such requirement, so one shared agent
  * over one shared chatModel is correct now.
  * WHERE: owns the agent instance + invoke wrapper only. Model config lives
- * in model.ts, tool definitions in tools.ts, the HTTP route in index.ts.
+ * in model.ts, tool definitions in tools.ts, the HTTP route in routes/assistant.ts.
  */
 import { createAgent } from 'langchain'
 import { MemorySaver } from '@langchain/langgraph'

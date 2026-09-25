@@ -10,7 +10,7 @@
  * server restart between "connect" and the bank redirect makes the callback
  * fail with "unknown state" — the user just connects again. `credentials`
  * (appId + private-key path) come from provider-credentials.ts, not
- * process.env — the caller (index.ts) fetches them first and passes them in.
+ * process.env — the caller (routes/providers.ts) fetches them first and passes them in.
  * WHERE: owns the handshake only. HTTP calls/normalization live in
  * @repo/connectors' enable-banking.ts; ledger writes live in ingest.ts. The
  * session_id is never returned to the caller.
