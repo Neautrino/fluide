@@ -15,6 +15,11 @@
  * Sandbox applications get payment initiation switched on automatically; the
  * ALLOWED_CALLS list makes any non-read endpoint throw before a request is
  * sent (PLAN.md principle #1: read-only forever).
+ * `EnableBankingCredentials` (appId + a private-key file path) is a
+ * parameter everywhere, not process.env — it's entered via Settings and
+ * stored encrypted (apps/server's provider-credentials.ts + vault.ts); the
+ * key file itself stays on disk, only its path is stored. Signing-key and
+ * JWT caches are keyed by keyPath/appId so multiple credentials can coexist.
  * WHERE: owns Enable Banking HTTP + translation only. The private key and
  * session_id never leave the server (AGENTS.md); where session ids are
  * stored is apps/server's connection-store.ts. Balance-type fallback
@@ -27,6 +32,8 @@ import type { Connector, NormalizedAccount, NormalizedBalance, NormalizedTransac
 const API_BASE = 'https://api.enablebanking.com'
 const JWT_LIFETIME_SECONDS = 3600
 const MAX_TRANSACTION_PAGES = 500
+
+export type EnableBankingCredentials = { appId: string; keyPath: string }
 
 // Read endpoints only. Anything else (notably /payments) is refused locally.
 const ALLOWED_CALLS: ReadonlyArray<{ method: string; path: RegExp }> = [
@@ -89,50 +96,45 @@ export type EnableBankingAspsp = {
 
 // ---------------------------------------------------------------- auth + http
 
-let cachedKey: CryptoKey | undefined
-let cachedJwt: { token: string; expiresAt: number } | undefined
-
-function config() {
-  const appId = process.env.ENABLE_BANKING_APP_ID
-  const keyPath = process.env.ENABLE_BANKING_KEY_PATH
-  if (!appId || !keyPath) {
-    throw new Error('ENABLE_BANKING_APP_ID and ENABLE_BANKING_KEY_PATH must be set to use Enable Banking')
-  }
-  return { appId, keyPath }
-}
+const cachedKeys = new Map<string, CryptoKey>()
+const cachedJwts = new Map<string, { token: string; expiresAt: number }>()
 
 function base64url(input: string | ArrayBuffer) {
   return Buffer.from(typeof input === 'string' ? Buffer.from(input) : new Uint8Array(input)).toString('base64url')
 }
 
 async function signingKey(keyPath: string) {
-  if (cachedKey) return cachedKey
+  const cached = cachedKeys.get(keyPath)
+  if (cached) return cached
   const pem = readFileSync(keyPath, 'utf-8')
   const der = Buffer.from(pem.replace(/-----(BEGIN|END) PRIVATE KEY-----/g, '').replace(/\s+/g, ''), 'base64')
-  cachedKey = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, [
+  const key = await crypto.subtle.importKey('pkcs8', der, { name: 'RSASSA-PKCS1-v1_5', hash: 'SHA-256' }, false, [
     'sign',
   ])
-  return cachedKey
+  cachedKeys.set(keyPath, key)
+  return key
 }
 
-async function jwt() {
+async function jwt(credentials: EnableBankingCredentials) {
   const now = Math.floor(Date.now() / 1000)
-  if (cachedJwt && cachedJwt.expiresAt - 60 > now) return cachedJwt.token
-  const { appId, keyPath } = config()
-  const header = base64url(JSON.stringify({ typ: 'JWT', alg: 'RS256', kid: appId }))
+  const cached = cachedJwts.get(credentials.appId)
+  if (cached && cached.expiresAt - 60 > now) return cached.token
+  const header = base64url(JSON.stringify({ typ: 'JWT', alg: 'RS256', kid: credentials.appId }))
   const payload = base64url(
     JSON.stringify({ iss: 'enablebanking.com', aud: 'api.enablebanking.com', iat: now, exp: now + JWT_LIFETIME_SECONDS }),
   )
   const signature = await crypto.subtle.sign(
     'RSASSA-PKCS1-v1_5',
-    await signingKey(keyPath),
+    await signingKey(credentials.keyPath),
     Buffer.from(`${header}.${payload}`),
   )
-  cachedJwt = { token: `${header}.${payload}.${base64url(signature)}`, expiresAt: now + JWT_LIFETIME_SECONDS }
-  return cachedJwt.token
+  const token = `${header}.${payload}.${base64url(signature)}`
+  cachedJwts.set(credentials.appId, { token, expiresAt: now + JWT_LIFETIME_SECONDS })
+  return token
 }
 
 async function call<T>(
+  credentials: EnableBankingCredentials,
   method: 'GET' | 'POST' | 'DELETE',
   path: string,
   options: { query?: Record<string, string | undefined>; body?: unknown } = {},
@@ -145,7 +147,7 @@ async function call<T>(
   const response = await fetch(url, {
     method,
     headers: {
-      Authorization: `Bearer ${await jwt()}`,
+      Authorization: `Bearer ${await jwt(credentials)}`,
       Accept: 'application/json',
       ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
     },
@@ -230,19 +232,21 @@ export function assignEnableBankingIds(
 
 // ---------------------------------------------------------------- session helpers
 
-async function sessionAccounts(sessionId: string) {
+async function sessionAccounts(credentials: EnableBankingCredentials, sessionId: string) {
   const session = await call<{ accounts_data?: { uid: string; identification_hash: string }[] }>(
+    credentials,
     'GET',
     `/sessions/${encodeURIComponent(sessionId)}`,
   )
   return session.accounts_data ?? []
 }
 
-async function bookedTransactions(accountUid: string) {
+async function bookedTransactions(credentials: EnableBankingCredentials, accountUid: string) {
   const all: EbTransaction[] = []
   let continuationKey: string | undefined
   for (let page = 0; page < MAX_TRANSACTION_PAGES; page++) {
     const result = await call<{ transactions: EbTransaction[]; continuation_key?: string | null }>(
+      credentials,
       'GET',
       `/accounts/${encodeURIComponent(accountUid)}/transactions`,
       { query: { strategy: 'longest', transaction_status: 'BOOK', continuation_key: continuationKey } },
@@ -256,85 +260,94 @@ async function bookedTransactions(accountUid: string) {
 
 // ---------------------------------------------------------------- connector
 
-export const enableBankingConnector: Connector = {
-  provider: 'enable-banking',
+/** `credentials` are captured in a closure so the returned Connector still
+ * matches the provider-agnostic shape (accessToken/cursor only) — ingest.ts
+ * never needs to know Enable Banking has app-level credentials at all. */
+export function createEnableBankingConnector(credentials: EnableBankingCredentials): Connector {
+  return {
+    provider: 'enable-banking',
 
-  // `accessToken` is the Enable Banking session_id.
-  async listAccounts(sessionId) {
-    const accounts: NormalizedAccount[] = []
-    for (const { uid, identification_hash } of await sessionAccounts(sessionId)) {
-      const details = await call<EbAccount>('GET', `/accounts/${encodeURIComponent(uid)}/details`)
-      if (!details.currency) throw new Error(`Enable Banking account ${uid} has no currency`)
-      accounts.push({
-        providerAccountId: identification_hash,
-        name: details.name ?? details.product ?? details.details ?? 'Bank account',
-        type: details.cash_account_type ?? 'OTHR',
-        subtype: details.product,
-        currency: details.currency,
-      })
-    }
-    return accounts
-  },
+    // `accessToken` is the Enable Banking session_id.
+    async listAccounts(sessionId) {
+      const accounts: NormalizedAccount[] = []
+      for (const { uid, identification_hash } of await sessionAccounts(credentials, sessionId)) {
+        const details = await call<EbAccount>(credentials, 'GET', `/accounts/${encodeURIComponent(uid)}/details`)
+        if (!details.currency) throw new Error(`Enable Banking account ${uid} has no currency`)
+        accounts.push({
+          providerAccountId: identification_hash,
+          name: details.name ?? details.product ?? details.details ?? 'Bank account',
+          type: details.cash_account_type ?? 'OTHR',
+          subtype: details.product,
+          currency: details.currency,
+        })
+      }
+      return accounts
+    },
 
-  // Exact types only: CLBD (booked) -> current, CLAV (available) -> available,
-  // null when the bank did not report that type. No fallback guessing (S2-3).
-  async getBalances(sessionId) {
-    const balances: NormalizedBalance[] = []
-    for (const { uid, identification_hash } of await sessionAccounts(sessionId)) {
-      const { balances: raw } = await call<{ balances: EbBalance[] }>(
-        'GET',
-        `/accounts/${encodeURIComponent(uid)}/balances`,
-      )
-      const booked = raw.find((b) => b.balance_type === 'CLBD')
-      const available = raw.find((b) => b.balance_type === 'CLAV')
-      const currency = (booked ?? available ?? raw[0])?.balance_amount.currency
-      if (!currency) continue
-      balances.push({
-        providerAccountId: identification_hash,
-        current: booked ? Number(booked.balance_amount.amount) : null,
-        available: available ? Number(available.balance_amount.amount) : null,
-        currency,
-      })
-    }
-    return balances
-  },
+    // Exact types only: CLBD (booked) -> current, CLAV (available) -> available,
+    // null when the bank did not report that type. No fallback guessing (S2-3).
+    async getBalances(sessionId) {
+      const balances: NormalizedBalance[] = []
+      for (const { uid, identification_hash } of await sessionAccounts(credentials, sessionId)) {
+        const { balances: raw } = await call<{ balances: EbBalance[] }>(
+          credentials,
+          'GET',
+          `/accounts/${encodeURIComponent(uid)}/balances`,
+        )
+        const booked = raw.find((b) => b.balance_type === 'CLBD')
+        const available = raw.find((b) => b.balance_type === 'CLAV')
+        const currency = (booked ?? available ?? raw[0])?.balance_amount.currency
+        if (!currency) continue
+        balances.push({
+          providerAccountId: identification_hash,
+          current: booked ? Number(booked.balance_amount.amount) : null,
+          available: available ? Number(available.balance_amount.amount) : null,
+          currency,
+        })
+      }
+      return balances
+    },
 
-  // Full booked history on every call (strategy=longest); no cursor. Only
-  // BOOK transactions are requested, and non-BOOK rows are dropped if a bank
-  // returns them anyway.
-  async getTransactions(sessionId) {
-    const transactions: NormalizedTransaction[] = []
-    for (const { uid, identification_hash } of await sessionAccounts(sessionId)) {
-      const booked = (await bookedTransactions(uid)).filter((tx) => tx.status === 'BOOK')
-      transactions.push(
-        ...assignEnableBankingIds(
-          identification_hash,
-          booked.map((tx) => normalizeEnableBankingTransaction(tx, identification_hash)),
-        ),
-      )
-    }
-    return { transactions }
-  },
+    // Full booked history on every call (strategy=longest); no cursor. Only
+    // BOOK transactions are requested, and non-BOOK rows are dropped if a bank
+    // returns them anyway.
+    async getTransactions(sessionId) {
+      const transactions: NormalizedTransaction[] = []
+      for (const { uid, identification_hash } of await sessionAccounts(credentials, sessionId)) {
+        const booked = (await bookedTransactions(credentials, uid)).filter((tx) => tx.status === 'BOOK')
+        transactions.push(
+          ...assignEnableBankingIds(
+            identification_hash,
+            booked.map((tx) => normalizeEnableBankingTransaction(tx, identification_hash)),
+          ),
+        )
+      }
+      return { transactions }
+    },
+  }
 }
 
 // ---------------------------------------------------------------- handshake (not part of Connector)
 
-export async function listEnableBankingAspsps(country: string) {
-  const result = await call<{ aspsps: EnableBankingAspsp[] }>('GET', '/aspsps', {
+export async function listEnableBankingAspsps(credentials: EnableBankingCredentials, country: string) {
+  const result = await call<{ aspsps: EnableBankingAspsp[] }>(credentials, 'GET', '/aspsps', {
     query: { country, psu_type: 'personal', service: 'AIS' },
   })
   return result.aspsps
 }
 
 /** Starts bank authorization; the user is sent to the returned url. */
-export async function startEnableBankingAuth(input: {
-  aspspName: string
-  country: string
-  redirectUrl: string
-  state: string
-  validUntil: Date
-}) {
-  const result = await call<{ url: string; authorization_id: string }>('POST', '/auth', {
+export async function startEnableBankingAuth(
+  credentials: EnableBankingCredentials,
+  input: {
+    aspspName: string
+    country: string
+    redirectUrl: string
+    state: string
+    validUntil: Date
+  },
+) {
+  const result = await call<{ url: string; authorization_id: string }>(credentials, 'POST', '/auth', {
     body: {
       access: { valid_until: input.validUntil.toISOString() },
       aspsp: { name: input.aspspName, country: input.country },
@@ -347,13 +360,13 @@ export async function startEnableBankingAuth(input: {
 }
 
 /** Exchanges the one-time callback code for a session. */
-export async function createEnableBankingSession(code: string) {
+export async function createEnableBankingSession(credentials: EnableBankingCredentials, code: string) {
   const result = await call<{
     session_id: string
     aspsp: { name: string; country: string }
     access: { valid_until: string }
     accounts: EbAccount[]
-  }>('POST', '/sessions', { body: { code } })
+  }>(credentials, 'POST', '/sessions', { body: { code } })
   return {
     sessionId: result.session_id,
     aspspName: result.aspsp.name,

@@ -1,13 +1,17 @@
-/** SOURCE OF TRUTH: the one Plaid API client for connector-level data calls.
- * WHAT: builds a configured PlaidApi client from PLAID_ENV/PLAID_CLIENT_ID/
- * PLAID_SECRET. Shared by enrollment routes (apps/server) and the
- * data-fetching adapter (plaid.ts, this package).
- * WHY: centralizing construction means there is exactly one place
- * PLAID_SECRET is ever read, regardless of which app touches Plaid.
- * WHERE: owns "how do we talk to Plaid" only. Normalization lives in
- * plaid.ts; enrollment routing lives in apps/server/src/index.ts.
+/** SOURCE OF TRUTH: builds a Plaid API client from explicit credentials.
+ * WHAT: createPlaidClient({clientId, secret}) -> PlaidApi. PLAID_ENV
+ * (sandbox/development/production) still selects the base path — that's
+ * an environment choice, not a secret, so it stays an env var.
+ * WHY: client_id/secret are entered via the Settings screen and stored
+ * encrypted (apps/server's provider-credentials.ts + vault.ts), not in
+ * process.env anymore. This file never reads them from the environment,
+ * so there is exactly one place a caller supplies them.
+ * WHERE: owns "how do we build a Plaid client" only. Which credentials to
+ * use, and where they come from, is apps/server's job.
  */
 import { Configuration, PlaidApi, PlaidEnvironments } from 'plaid'
+
+export type PlaidCredentials = { clientId: string; secret: string }
 
 const env = process.env.PLAID_ENV ?? 'sandbox'
 
@@ -18,14 +22,16 @@ const basePath =
       ? PlaidEnvironments.development
       : PlaidEnvironments.sandbox
 
-const configuration = new Configuration({
-  basePath,
-  baseOptions: {
-    headers: {
-      'PLAID-CLIENT-ID': process.env.PLAID_CLIENT_ID ?? '',
-      'PLAID-SECRET': process.env.PLAID_SECRET ?? '',
-    },
-  },
-})
-
-export const plaidClient = new PlaidApi(configuration)
+export function createPlaidClient(credentials: PlaidCredentials): PlaidApi {
+  return new PlaidApi(
+    new Configuration({
+      basePath,
+      baseOptions: {
+        headers: {
+          'PLAID-CLIENT-ID': credentials.clientId,
+          'PLAID-SECRET': credentials.secret,
+        },
+      },
+    }),
+  )
+}
