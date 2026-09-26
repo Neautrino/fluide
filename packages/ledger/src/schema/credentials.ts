@@ -1,3 +1,4 @@
+import { sql } from 'drizzle-orm'
 import {
   pgTable,
   uuid,
@@ -5,6 +6,7 @@ import {
   timestamp,
   pgEnum,
   primaryKey,
+  uniqueIndex,
 } from 'drizzle-orm/pg-core'
 
 export const connectorProvider = pgEnum('connector_provider', ['plaid', 'enable-banking'])
@@ -17,8 +19,6 @@ export type ConnectorProvider = (typeof connectorProvider.enumValues)[number]
  * private-key file path), entered once via Settings. One row per (tenant,
  * provider); fieldsCiphertext/fieldsNonce hold an AES-256-GCM-encrypted
  * JSON blob (apps/server's vault.ts) — the plaintext is never a column.
- * Distinct from PLAN.md §2's `connectors` table (per-connection OAuth
- * tokens), which is not modeled yet.
  */
 export const providerCredentials = pgTable(
   'provider_credentials',
@@ -30,4 +30,32 @@ export const providerCredentials = pgTable(
     updatedAt: timestamp('updated_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [primaryKey({ columns: [table.tenantId, table.provider] })],
+)
+
+/**
+ * connectors — one row per linked bank connection. The per-connection token
+ * (Plaid access_token, Enable Banking session_id) is AES-256-GCM-encrypted by
+ * apps/server's vault.ts into credentialCiphertext/credentialNonce, with the
+ * row id in the AAD — the plaintext is never a column. externalId is the
+ * provider's own id for the connection (Plaid item_id), null when it has none.
+ */
+export const connectors = pgTable(
+  'connectors',
+  {
+    id: uuid('id').primaryKey(),
+    tenantId: uuid('tenant_id').notNull(),
+    provider: connectorProvider('provider').notNull(),
+    externalId: text('external_id'),
+    institutionName: text('institution_name'),
+    credentialCiphertext: text('credential_ciphertext').notNull(),
+    credentialNonce: text('credential_nonce').notNull(),
+    cursor: text('cursor'),
+    validUntil: timestamp('valid_until', { withTimezone: true }),
+    createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
+  },
+  (table) => [
+    uniqueIndex('connectors_tenant_provider_external_id_unique_idx')
+      .on(table.tenantId, table.provider, table.externalId)
+      .where(sql`${table.externalId} IS NOT NULL`),
+  ],
 )
