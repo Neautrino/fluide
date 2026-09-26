@@ -1,20 +1,6 @@
-/** SOURCE OF TRUTH: a human's categorization decisions -- approve/reject on
- * a review_queue item, and a manual recategorize of any posting.
- * WHAT: approve writes the suggested category onto the posting, marks the
- * queue row approved, writes the audit_log entry and proposes a Tier 1
- * rule for the vendor. Reject marks the row rejected and writes the
- * audit_log entry; the posting is never touched. Recategorize sets any
- * category the human picks (even over an automatic one), writes a
- * 'recategorized' audit entry, resolves a pending queue item for that
- * posting, and proposes a rule.
- * WHY: every step of a decision runs in one DB transaction, so a crash
- * can't leave a category applied with no audit_log row (S1-6) -- and
- * migration 0004 refuses to commit a category change without one anyway.
- * Queue/posting rows are locked FOR UPDATE so two concurrent clicks cannot
- * both resolve the same item. Rules proposed here stay inactive until the
- * user activates them (categorization/rules.ts).
- * WHERE: owns human decisions only. HTTP mapping lives in routes/assistant.ts; the
- * gate that fills the queue lives in categorization/gate.ts.
+/* SOURCE OF TRUTH: human categorization decisions (approve, reject, recategorize).
+ * Invariant: each decision runs in one db.transaction with its audit row. Enforced by: migration 0004 (category changes only).
+ * See: ADR 005 — an automatic run never overturns a human choice
  */
 import { db, categories, postings, reviewQueue } from '@repo/ledger'
 import { and, eq } from 'drizzle-orm'

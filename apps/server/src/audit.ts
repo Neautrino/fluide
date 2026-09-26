@@ -1,16 +1,6 @@
-/** SOURCE OF TRUTH: the S1-6 audit log writer.
- * WHAT: one function, called from every path that decides a posting's
- * category (or decides not to) -- Tier 1 rule apply, gate auto-apply, gate
- * reject-to-queue, a human's approve/reject on a queued item, and a
- * human's manual recategorize.
- * WHY: postings.categoryId alone is end state, not a decision trail. If a
- * category is later found wrong, this is the only way to answer "why was
- * this assigned, by what tier, at what confidence, by whom."
- * WHERE: called from categorization/categorize.ts (tier decisions) and
- * review.ts (human decisions). Never called from gate.ts directly -- the
- * caller already has the full context (postingId, tier, confidence).
- * Callers MUST pass their transaction handle: migration 0004 only accepts
- * a category change whose audit row was written in the same transaction.
+/* SOURCE OF TRUTH: the audit_log writer for every posting-category decision.
+ * Invariant: callers pass their transaction; a category change commits only with its audit row. Enforced by: migration 0004 postings_category_change_audited.
+ * See: ADR 004 — why the DB, not the code, enforces this
  */
 import { auditLog, auditLogAction, type DbExecutor } from '@repo/ledger'
 

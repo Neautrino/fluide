@@ -1,38 +1,6 @@
-/** SOURCE OF TRUTH: the deterministic categorization pipeline (S1-2),
- * revised to a 2-tier pipeline after removing the embedding tier.
- * WHAT: matches a posting's counterparty text against categorization_rules
- * before any AI involvement (Tier 1). Anything unmatched goes to Jev in a
- * single batched API call (jev.ts's categorizeByJevBatch), gated by
- * the user's 3-tier confidence rule (gate.ts).
- * WHY: a known vendor costs zero AI calls -- same guardrail principle as
- * S0-4. `isUserCustom` rules always win over system rules on a tied match.
- * The embedding-similarity tier (S1-3 Tier 2) was removed after empirical
- * testing showed it never topped ~14% accuracy on real bank-transaction
- * text (see project history: generic MiniLM anchors and a fine-tuned
- * FinBERT variant were both tested and both badly underperformed Jev,
- * which scored 92% on the same class of data). Jev is now the only AI
- * tier -- simpler pipeline, and it was already carrying the real accuracy.
- * WHAT CHANGED: originally called categorizeByJev() one posting at a time
- * in a sequential loop -- with real transaction counts (42 in a first
- * Plaid sync) that took 55-65+ seconds of sequential HTTP round-trips
- * (each one also redundantly re-fetching the categories table), blowing
- * past Bun.serve's default 10s idle timeout and killing the request
- * before it finished. Fixed to batch every Tier-1-unmatched posting into
- * one categorizeByJevBatch() call (~11s for 200 items in earlier testing,
- * chunked under Jev's token ceiling) instead of N sequential calls.
- * WHAT CHANGED (Slice 1 gap fixes): every per-posting write (category
- * update + rule counter + audit row, or queue row + audit row) now runs in
- * its own db.transaction, so a crash can't leave a category without its
- * audit entry -- migration 0004 refuses to commit that anyway. Only
- * status='active' rules are matched (learned rules start 'proposed'), and
- * gate thresholds come from gate_settings, loaded once per run.
- * Postings a human already categorized are never touched: this only ever
- * selects postings whose category_id IS NULL, and a human decision always
- * sets one (PLAN.md §5.2 Tier 3: the AI never overturns a human choice).
- * WHERE: owns rule matching + posting updates + tier orchestration. Rule
- * creation lives in rules.ts; Jev call lives in jev.ts; the confidence
- * gate lives in gate.ts; human approve/reject/recategorize lives in
- * ../review.ts.
+/* SOURCE OF TRUTH: the categorization pipeline: Tier 1 rule match, then one batched Jev call.
+ * Invariant: touches only postings with category_id IS NULL and only status='active' rules.
+ * See: ADR 005 (never overturn a human), ADR 016 (why Jev is the only AI tier)
  */
 import { db, postings, transactions, categorizationRules, reviewQueue, getGateSettings, type GateSettings } from '@repo/ledger'
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'

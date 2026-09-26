@@ -1,13 +1,7 @@
-/** SOURCE OF TRUTH: the chat agent's tool surface.
- * WHAT: wraps each @repo/ledger read query as a LangChain tool the model
- * can call.
- * WHY: the model picks which tool to call and narrates the result; it
- * never computes or states a number itself -- same "never let the model
- * guess a fact it could get wrong" principle as categorization/jev.ts and
- * gate.ts, applied to chat instead of categorization.
- * WHERE: owns tool schemas + binding to LOCAL_TENANT_ID only. Queries live
- * in packages/ledger/src/queries/ (shared with the HTTP routes); the
- * agent loop lives in agent.ts.
+/* SOURCE OF TRUTH: the chat model's tool surface.
+ * Invariant: every tool wraps a read-only @repo/ledger query bound to LOCAL_TENANT_ID; the model never computes a number.
+ * Never: add a write tool or return a credential to the model.
+ * See: ADR 001 — tools and HTTP routes share one read layer
  */
 import { tool } from '@langchain/core/tools'
 import { z } from 'zod'

@@ -1,17 +1,6 @@
-/** SOURCE OF TRUTH: the connector-to-ledger ingest job.
- * WHAT: pulls transactions from any Connector (Plaid, Enable Banking),
- * finds-or-creates the corresponding ledger `accounts` row, and inserts each
- * transaction as a BALANCED double-entry pair of postings.
- * WHY: a bank feed only tells you one side of the story. Until categorization
- * exists (later slice), the offsetting leg goes to a per-tenant "uncategorized"
- * suspense account — a standard accounting pattern, not a hack. Idempotency
- * is double-enforced: a persisted cursor (connection-store.ts) limits what a
- * cursor-capable provider resends, and transactions.external_ref
- * (`<provider>:<providerTransactionId>`) has a partial UNIQUE index so
- * Postgres itself rejects a duplicate insert either way.
- * WHERE: this file owns connector->ledger translation only. Connector calls
- * live in packages/connectors; guardrail enforcement lives in packages/ledger's
- * migrations — never write to postings without a balanced insert here.
+/* SOURCE OF TRUTH: connector -> ledger ingest; the only inserter of transactions and postings.
+ * Invariant: each transaction is a balanced bank + suspense posting pair; re-ingest never duplicates. Enforced by: migration 0001 postings_must_balance, transactions_external_ref_unique_idx.
+ * See: ADR 008 — provider-agnostic ingest and the externalRef format
  */
 import { db, accounts, transactions, postings } from '@repo/ledger'
 import type { Connector, NormalizedAccount, NormalizedTransaction } from '@repo/connectors'

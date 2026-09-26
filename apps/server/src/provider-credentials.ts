@@ -1,20 +1,7 @@
-/** SOURCE OF TRUTH: the API credentials Fluide needs to talk to each
- * connector provider (Plaid client_id/secret, Enable Banking app_id + a
- * private-key file path) — entered once via the Settings screen, encrypted
- * at rest (vault.ts), one row per (tenant, provider) in provider_credentials.
- * WHAT: save/get per provider, plus a status check that never touches the
- * plaintext (the Settings screen's "configured: true/false, last updated").
- * WHY: Enable Banking's private key stays a file on disk (AGENTS.md — never
- * return a bank credential to apps/web); only appId and the keyPath string
- * are stored here, and keyPath is loaded as the signing key at save time
- * (loadEnableBankingKey) so a typo'd path, a directory or a non-PKCS#8 file
- * fails now, not on the next sync. Plaid's clientId/secret are
- * the real secret and get the same encrypted-blob treatment for
- * consistency, not because clientId itself needs hiding.
- * WHERE: owns the DB read/write only. Encryption is vault.ts's job;
- * building an actual Plaid/Enable Banking client from these values is
- * @repo/connectors' job (createPlaidConnector, and the *Credentials types
- * this file re-exports rather than redefining).
+/* SOURCE OF TRUTH: the provider_credentials table (Plaid / Enable Banking app credentials).
+ * Invariant: Enable Banking stores only appId + keyPath; the private key stays a file on disk.
+ * Never: return decrypted credentials; the status check never decrypts.
+ * See: ADR 009 — vault design and full-replace saves
  */
 import { and, eq } from 'drizzle-orm'
 import { db, providerCredentials, type ConnectorProvider } from '@repo/ledger'

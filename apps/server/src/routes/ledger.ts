@@ -1,13 +1,3 @@
-/** SOURCE OF TRUTH: Ledger data read & correction HTTP endpoints.
- * WHAT: exposes accounts, transactions with balanced postings, period-scoped
- * spending summaries, category taxonomy, posting audit trails, and manual
- * recategorizations.
- * WHY: double-entry ledger is the immutable core — all balances and summaries
- * are views replayed or aggregated from postings.
- * WHERE: owns HTTP mapping for ledger reads and user corrections. Mounted
- * under /api/ledger by apps/server/src/index.ts. Queries live in @repo/ledger,
- * manual recategorization and audit trail logging in review.ts.
- */
 import { Hono } from 'hono'
 import {
   listAccounts,

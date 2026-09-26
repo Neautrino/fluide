@@ -1,17 +1,3 @@
-/** SOURCE OF TRUTH: the chat agent -- tool-calling loop + per-thread memory.
- * WHAT: one module-level createAgent() (LangChain's own agent runner, not
- * a hand-rolled loop) wired to chatModel + chatTools, with an in-memory
- * checkpointer keyed by thread_id.
- * WHY: MemorySaver is intentional, not a placeholder -- an open chat
- * remembers everything within itself, but nothing survives closing it or
- * a server restart. That's the user's explicit rule, not a gap. Built
- * once here (not per-call) -- the per-thread rebuild in an earlier
- * version existed only to give OpenCode Go's client a per-conversation
- * session header; OpenAI has no such requirement, so one shared agent
- * over one shared chatModel is correct now.
- * WHERE: owns the agent instance + invoke wrapper only. Model config lives
- * in model.ts, tool definitions in tools.ts, the HTTP route in routes/assistant.ts.
- */
 import { createAgent } from 'langchain'
 import { MemorySaver } from '@langchain/langgraph'
 import { chatModel } from './model.js'
@@ -34,6 +20,8 @@ const agent = createAgent({
 
 export type ChatReply = { answer: string }
 
+/** Memory is per threadId in process (MemorySaver) on purpose: by the user's
+ * rule, a chat never survives closing it or a server restart. */
 export async function askAgent(message: string, threadId: string): Promise<ChatReply> {
   const result = await agent.invoke(
     { messages: [{ role: 'user', content: message }] },

@@ -1,19 +1,7 @@
-/** SOURCE OF TRUTH: the Enable Banking connect handshake on the server side.
- * WHAT: starts bank authorization (one-time `state`, consent length taken
- * from the bank's own maximum) and completes it from the web callback's
- * code: exchanges it for a session, stores the session_id in
- * connection-store.ts, and runs the first ingest immediately.
- * WHY: `state` is checked so a forged or replayed callback cannot attach a
- * session to this install. The first ingest runs inside the callback because
- * many banks expose full history only for about an hour after authorization,
- * then just 90 days (Enable Banking FAQ). Pending `state`s live in memory: a
- * server restart between "connect" and the bank redirect makes the callback
- * fail with "unknown state" — the user just connects again. `credentials`
- * (appId + private-key path) come from provider-credentials.ts, not
- * process.env — the caller (routes/providers.ts) fetches them first and passes them in.
- * WHERE: owns the handshake only. HTTP calls/normalization live in
- * @repo/connectors' enable-banking.ts; ledger writes live in ingest.ts. The
- * session_id is never returned to the caller.
+/* SOURCE OF TRUTH: the server side of the Enable Banking connect handshake.
+ * Invariant: each `state` is single-use and checked, so a forged or replayed callback is refused.
+ * Never: return the session_id to the caller.
+ * See: ADR 008 — why the first ingest runs inside the callback
  */
 import { randomUUID } from 'node:crypto'
 import {

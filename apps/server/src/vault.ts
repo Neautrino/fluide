@@ -1,24 +1,7 @@
-/** SOURCE OF TRUTH: the one AES-256-GCM encrypt/decrypt boundary for every
- * secret this server persists (provider API credentials in
- * provider-credentials.ts; per-connection bank tokens in
- * connection-store.ts, unchanged for now).
- * WHAT: encrypt(plaintext, aad) -> {ciphertext, nonce} (base64 strings, DB-
- * column-friendly); decrypt reverses it and throws if the key, aad, or
- * ciphertext don't all match (GCM authentication failure — tampered or
- * mismatched data is refused, never silently returned garbage).
- * WHY: FLUIDE_VAULT_KEY is the single master key (32 random bytes, base64,
- * generated once via `openssl rand -base64 32`, kept outside the repo —
- * same shape as n8n's N8N_ENCRYPTION_KEY, the closest real precedent for a
- * self-hosted single-tenant tool). A fresh random 12-byte nonce is drawn
- * per encryption call — GCM nonce reuse under the same key leaks the
- * authentication subkey and breaks confidentiality, so nonces are never
- * cached, derived, or reused (OWASP Cryptographic Storage Cheat Sheet).
- * `aad` binds a ciphertext to the row it belongs to (callers pass e.g.
- * `${tenantId}:${provider}`) so one row's ciphertext can never be copied
- * into another row's column and still decrypt.
- * WHERE: owns encryption only. What gets encrypted and which table it
- * lands in is provider-credentials.ts's job. The key itself is never
- * logged, returned to apps/web, or read by anything but this file.
+/* SOURCE OF TRUTH: the AES-256-GCM encrypt/decrypt boundary for DB-stored secrets.
+ * Invariant: a fresh random nonce per encrypt(), never cached or derived; aad binds a ciphertext to its row.
+ * Never: log or return FLUIDE_VAULT_KEY; no other file reads it.
+ * See: ADR 009 — why one master key, not envelope encryption or an external vault
  */
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto'
 

@@ -1,12 +1,3 @@
-/** SOURCE OF TRUTH: External bank connector provider HTTP endpoints.
- * WHAT: wires Plaid Link (link-token -> exchange -> sync) and Enable Banking
- * connect flows (aspsps -> auth -> session) into the double-entry ledger.
- * WHY: credential boundary — apps/web only ever receives ephemeral public
- * tokens or callback codes, never an access_token, session_id, or private key.
- * WHERE: owns HTTP mapping for all providers. Mounted under /api/providers
- * by apps/server/src/index.ts. Provider logic in @repo/connectors, token
- * storage in connection-store.ts, ledger writes in ingest.ts.
- */
 import { Hono } from 'hono'
 import {
   createPlaidConnector,

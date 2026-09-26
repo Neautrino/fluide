@@ -1,14 +1,6 @@
-/** SOURCE OF TRUTH: connected-bank registry (TEMPORARY, pre-connectors-table).
- * WHAT: flat-file store of { id, provider, credential, institutionName,
- * cursor, validUntil } per connected bank, for every provider. `credential`
- * is Plaid's access_token or Enable Banking's session_id; `cursor` is
- * Plaid's sync pagination token; `validUntil` is the PSD2 consent expiry.
- * WHY: credentials are the one real secret a provider hands back after
- * enrollment. This file is the only place that reads/writes them, and none
- * of them is ever returned to apps/web. Stands in for the `connectors` table
- * (PLAN.md §2) until a vault for credentials_ref is decided.
- * WHERE: owns "which connections/credentials/cursors exist" only. Once the
- * `connectors` table exists, this whole file is deleted, not extended.
+/* SOURCE OF TRUTH: per-connection bank credentials (Plaid access_token, Enable Banking session_id).
+ * Never: return a credential to apps/web or an LLM tool call.
+ * See: ADR 009 — why this is a flat file, not PLAN.md's connectors table
  */
 import { mkdirSync, readFileSync, writeFileSync, existsSync } from 'node:fs'
 import { join } from 'node:path'

@@ -1,17 +1,6 @@
-/** SOURCE OF TRUTH: every write to categorization_rules.
- * WHAT: creates Tier 1 rules -- either typed by the user (POST
- * /api/categorization-rules, active immediately) or proposed from a human
- * approving a Jev suggestion / recategorizing a posting -- and moves a
- * proposed rule to active or rejected when the user decides.
- * WHY: without the learned path, approving "Uber -> Taxis" fixed one
- * posting and the next Uber charge went straight back to Jev and the
- * queue. But PLAN.md §5.2 says the loop that turns corrections into an
- * auto-rule must itself be reviewed before it changes future behavior, so
- * a learned rule is only ever 'proposed': categorize.ts ignores it until
- * the user activates it. Learned rules are isUserCustom=false, so a rule
- * the user typed always wins over one the system inferred.
- * WHERE: owns rule inserts + status changes only. Matching lives in
- * categorize.ts; reads live in @repo/ledger's queries/.
+/* SOURCE OF TRUTH: creating categorization_rules and changing their status.
+ * Invariant: learned rules start 'proposed' (isUserCustom=false); only the user activates them.
+ * See: ADR 003 — why learned rules need activation
  */
 import { db, categories, categorizationRules, postings, transactions, type DbExecutor } from '@repo/ledger'
 import { and, eq, sql } from 'drizzle-orm'

@@ -1,11 +1,3 @@
-/** SOURCE OF TRUTH: System settings & credential vault HTTP endpoints.
- * WHAT: exposes AES-256-GCM encrypted provider credential management.
- * WHY: never returns stored secrets to client — reads return configuration
- * status (set / not set) only.
- * WHERE: owns HTTP mapping for configuration. Mounted under /api/settings
- * by apps/server/src/index.ts. Vault encryption in vault.ts, credential
- * queries in provider-credentials.ts.
- */
 import { Hono } from 'hono'
 import type { PlaidCredentials, EnableBankingCredentials } from '@repo/connectors'
 import {

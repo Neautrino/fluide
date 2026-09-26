@@ -1,13 +1,3 @@
-/** SOURCE OF TRUTH: Assistant, AI categorization & human-in-the-loop HTTP endpoints.
- * WHAT: wires conversational chat agent, batch LLM categorization, learned
- * pattern rules, human-in-the-loop review queue, and confidence gate thresholds.
- * WHY: PLAN.md Section 5 guardrail contract — AI proposes, confidence gate
- * tiers (Tier 2 auto-apply vs Tier 3 human review), user approves/rejects,
- * learned rules remain inactive until user activation.
- * WHERE: owns HTTP mapping for AI and autonomy. Mounted under /api/assistant
- * by apps/server/src/index.ts. Chat agent in chat/, categorization logic in
- * categorization/, human reviews in review.ts, gate settings in settings.ts.
- */
 import { Hono } from 'hono'
 import { listCategorizationRules, listPendingReviewItems, getGateSettings } from '@repo/ledger'
 import { LOCAL_TENANT_ID } from '../ingest.js'
