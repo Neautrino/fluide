@@ -1,23 +1,6 @@
--- SOURCE OF TRUTH: the "no unaudited categorization" guardrail (S1-6, PLAN.md §5.1).
--- WHAT: a deferred constraint trigger on postings. At COMMIT, every change
--- to a posting's category_id must be matched by an audit_log row for that
--- posting, with the same category_id, written in the same DB transaction
--- (audit_log.tx_id = txid_current()). Otherwise the whole transaction is
--- rolled back.
--- WHY: before this, "every categorization is audited" held only because
--- every code path remembered to call writeAuditLog(). That is a behavioral
--- guardrail -- a future route, script or bug could skip it silently. This
--- makes an unaudited category change impossible to commit, the same way
--- 0001 makes an unbalanced transaction impossible. It is deferred (checked
--- at COMMIT, not per statement) so the normal "update posting, then insert
--- audit row" order inside one transaction works; a write outside an
--- explicit transaction commits immediately and therefore fails.
--- Consequence worth knowing: deleting a category that postings use would
--- null their category_id via the FK's ON DELETE SET NULL with no audit row,
--- so that delete is refused too -- intended, a category change must never
--- be silent.
--- WHERE: owns enforcement only. The audit_log.tx_id column lives in
--- schema.ts / 0003; the writer lives in apps/server/src/audit.ts.
+-- SOURCE OF TRUTH: the "no unaudited category change" guardrail on postings.
+-- Invariant: a category_id change commits only with a same-transaction audit_log row for that posting and category. Enforced by: postings_category_change_audited (below).
+-- See: ADR 004 — why deleting an in-use category is refused too
 
 CREATE OR REPLACE FUNCTION postings_category_change_requires_audit()
 RETURNS TRIGGER AS $$

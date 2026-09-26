@@ -1,22 +1,6 @@
--- SOURCE OF TRUTH: the architectural guardrails for the ledger (PLAN.md §5.1).
--- WHAT: two DB-enforced invariants — postings are append-only except for
--- category_id/tags (metadata, not money-movement), and every transaction's
--- postings must sum to zero per currency, checked at COMMIT time (deferred),
--- not per-row.
--- WHY: these are architectural guardrails, not behavioral ones — no
--- application bug, compromised credential, or AI-driven write can violate
--- them, because the database itself refuses the write. A plain CHECK
--- constraint cannot express "sum across a group of rows" in Postgres, so the
--- balance rule is a deferred constraint trigger, not a CHECK column. The
--- append-only rule allows UPDATE only when category_id and/or tags are the
--- sole changed columns (categorization needs to attach metadata after
--- insert) -- money-movement columns (transaction_id/account_id/amount/
--- currency/counterparty_*) stay immutable to protect the sum-to-zero
--- guardrail. This is the squashed/combined form of what was originally two
--- migrations (0001_ledger_guardrails.sql + 0007_romantic_groot.sql) before
--- the pgvector-era migration history was reset.
--- WHERE: this migration owns enforcement only. Table shape lives in
--- schema.ts / 0000_colorful_gorilla_man.sql — do not add columns here.
+-- SOURCE OF TRUTH: ledger guardrails on postings (append-only money, sum to zero).
+-- Invariant: money columns never change, no DELETE; each transaction sums to 0 per currency at COMMIT. Enforced by: postings_no_update, postings_no_delete, postings_must_balance (below).
+-- See: PLAN.md §5.1 — why guardrails live in the DB, not the app
 
 -- ============================================================================
 -- Guardrail 1: postings are append-only except category_id/tags

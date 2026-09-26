@@ -1,9 +1,3 @@
--- SOURCE OF TRUTH: seed data for the system categorization taxonomy (S1-1).
--- WHAT: 50 of Plaid's 104 PFCv2 detailed categories, across all 16 primaries.
--- WHY: tenant_id NULL / is_system true = shared base taxonomy every tenant
--- gets for free; user categories layer on top with tenant_id set.
--- WHERE: seed DATA only. Table shape lives in schema.ts / 0000_colorful_gorilla_man.sql.
-
 INSERT INTO "categories" ("tenant_id", "primary", "detailed", "label", "is_system") VALUES
   (NULL, 'INCOME', 'INCOME_WAGES', 'Salary & Wages', true),
   (NULL, 'INCOME', 'INCOME_INTEREST_EARNED', 'Interest Earned', true),
