@@ -1,36 +1,7 @@
-/** SOURCE OF TRUTH: the Enable Banking (EU PSD2) implementation of the Connector interface.
- * WHAT: signs every API call with an RS256 JWT built from the application's
- * private key, runs the bank-authorization handshake (POST /auth -> bank ->
- * POST /sessions), and normalizes accounts/balances/booked transactions into
- * Fluide's shapes (types.ts).
- * WHY: three Enable Banking rules drive the non-obvious parts (docs/faq):
- * - `transaction_id` "should not be used as a unique reference" (it can change
- *   between fetches); `entry_reference` is the matching key, unique only per
- *   account, and often missing -> key = account hash + entry_reference, else a
- *   content hash flagged as synthetic.
- * - pending (PDNG) items can change or vanish before booking and postings are
- *   immutable, so only BOOK transactions leave this file.
- * - account `uid` is per session; `identification_hash` is stable across
- *   sessions, so it is the providerAccountId (re-consent must not fork accounts).
- * Sandbox applications get payment initiation switched on automatically; the
- * ALLOWED_CALLS list makes any non-read endpoint throw before a request is
- * sent (PLAN.md principle #1: read-only forever).
- * `EnableBankingCredentials` (appId + a private-key file path) is a
- * parameter everywhere, not process.env — it's entered via Settings and
- * stored encrypted (apps/server's provider-credentials.ts + vault.ts); the
- * key file itself stays on disk, only its path is stored. Signing-key and
- * JWT caches are keyed by keyPath/appId so multiple credentials can coexist.
- * Failures leave this file as ConnectorError (errors.ts): Enable Banking's
- * ErrorResponse `error` code decides the kind first (EXPIRED_SESSION etc. ->
- * reauth_required), the HTTP status second. Messages carry the path with
- * session/account ids replaced by {id}, and every request has a timeout so a
- * stalled bank can't hang the connect callback. The normalizer rejects
- * anything it would otherwise have to guess: an unknown credit/debit
- * indicator, an empty or non-numeric amount, a non-ISO currency or date.
- * WHERE: owns Enable Banking HTTP + translation only. The private key and
- * session_id never leave the server (AGENTS.md); where session ids are
- * stored is apps/server's connection-store.ts. Balance-type fallback
- * (CLBD->ITBD->CLAV->ITAV->XPCD, flagged) is deliberately NOT here yet (S2-3).
+/* SOURCE OF TRUTH: the Enable Banking (EU PSD2) adapter.
+ * Invariant: only BOOK transactions; id = identification_hash:entry_reference, else a flagged content hash. Enforced by: test/enable-banking-{normalize,http}.test.ts.
+ * Never: add a non-read endpoint to ALLOWED_CALLS (sandbox apps have payments on). Enforced by: 'refuses %s %s' test.
+ * See: ADR 008 — the id/pending rules from Enable Banking's FAQ
  */
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'

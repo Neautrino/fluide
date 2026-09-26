@@ -1,12 +1,5 @@
-/** SOURCE OF TRUTH: the provider-agnostic connector interface.
- * WHAT: one shape every regional bank-data provider (Plaid, Teller, Enable
- * Banking, Mono, Pluggy) implements — listAccounts / getBalances /
- * getTransactions — plus the normalized types they all return.
- * WHY: PLAN.md's whole regional-expansion strategy (§6/§8) depends on the
- * ingest pipeline not caring which provider it's talking to. Normalization
- * (sign, category, etc.) happens INSIDE each adapter, never assumed by a caller.
- * WHERE: this file owns the interface shape only. Adapters (plaid.ts, and
- * future teller.ts/enable-banking.ts/etc.) own the actual provider calls.
+/* SOURCE OF TRUTH: the provider-agnostic Connector interface and its normalized shapes.
+ * Invariant: adapters normalize inside themselves (amount < 0 = money out); callers never re-flip. Enforced by: test/plaid.test.ts, test/enable-banking-normalize.test.ts.
  */
 
 export type NormalizedTransaction = {

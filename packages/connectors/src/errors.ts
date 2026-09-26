@@ -1,15 +1,7 @@
-/** SOURCE OF TRUTH: how a connector call fails — the one error type every
- * adapter throws for provider, network, credential and bad-data failures.
- * WHAT: ConnectorError carries a provider-agnostic `kind` (what the caller
- * should do about it), the HTTP status and the provider's own error code
- * when there is one, and a message built only from safe fields.
- * WHY: SDK/HTTP errors carry secrets — a Plaid AxiosError holds the
- * PLAID-SECRET header and the access_token request body — and each provider
- * reports "re-authorize", "rate limited" or "down" differently. Adapters
- * translate at the boundary and never attach the original error as `cause`,
- * so nothing secret can reach a log or apps/web through this type.
- * WHERE: owns the error shape only. Which provider codes map to which kind
- * lives in each adapter; which HTTP status a kind becomes is apps/server's job.
+/* SOURCE OF TRUTH: the one error type every connector adapter throws.
+ * Invariant: message built from safe fields only, no `cause`. Enforced by: test/plaid.test.ts (expectNoSecrets), test/enable-banking-http.test.ts.
+ * Never: attach the SDK/HTTP error (a Plaid AxiosError holds PLAID-SECRET and the access_token).
+ * See: ADR 012 — the kinds and the provider -> kind mapping
  */
 
 export type ConnectorErrorKind =

@@ -1,26 +1,7 @@
-/** SOURCE OF TRUTH: the Plaid implementation of the Connector interface.
- * WHAT: createPlaidConnector(credentials) returns listAccounts/getBalances/
- * getTransactions against Plaid's API, normalized into Fluide's internal
- * shapes (types.ts). createPlaidLinkToken/exchangePlaidPublicToken take the
- * same credentials for the enrollment handshake. PLAID_ENV (sandbox or
- * production) selects the base path — that's an environment choice, not a
- * secret, so it stays an env var; any other value throws, because the SDK
- * sends a request with no base path to production.
- * WHY: this is the ONE place Plaid's raw conventions get translated. Plaid's
- * amount is positive-for-spent (confirmed live: Uber +5.40) — the opposite
- * of Fluide's convention — so it's negated here, not assumed elsewhere.
- * Currency is iso_currency_code, else unofficial_currency_code, else the
- * call fails — never a guessed 'USD'.
- * providerCategory is reference-only; it must never be written straight into
- * postings.category_id (that needs the categorization_rules engine, later).
- * `PlaidCredentials` (client_id/secret) is a parameter everywhere, never read
- * from process.env — it's entered via Settings and stored encrypted
- * (apps/server's provider-credentials.ts + vault.ts). Every SDK call goes
- * through plaidCall, which replaces the SDK's AxiosError (it holds the
- * PLAID-SECRET header and the access_token body) with a ConnectorError.
- * WHERE: owns Plaid HTTP + translation only. Interface shape lives in
- * types.ts, the error shape in errors.ts; which credentials to use, and
- * where they come from, is apps/server's job.
+/* SOURCE OF TRUTH: the Plaid adapter; the only place Plaid's raw conventions are translated.
+ * Invariant: amount negated; currency iso ?? unofficial ?? throw; PLAID_ENV sandbox|production only. Enforced by: test/plaid.test.ts.
+ * Never: let an SDK error escape; every call goes through plaidCall.
+ * See: ADR 011 — one module that takes credentials
  */
 import { Configuration, CountryCode, PlaidApi, PlaidEnvironments, Products } from 'plaid'
 import { ConnectorError, type ConnectorErrorKind } from './errors.js'
