@@ -50,6 +50,13 @@
       "when": 1790410749291,
       "tag": "0006_connectors",
       "breakpoints": true
+    },
+    {
+      "idx": 7,
+      "version": "7",
+      "when": 1790432625265,
+      "tag": "0007_step0_account_truth",
+      "breakpoints": true
     }
   ]
 }

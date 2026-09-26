@@ -4,7 +4,7 @@
  * See: ADR 017 — why connection tokens live in Postgres, not a file
  */
 import { randomUUID } from 'node:crypto'
-import { and, eq } from 'drizzle-orm'
+import { and, eq, ne } from 'drizzle-orm'
 import { db, connectors, type ConnectorProvider } from '@repo/ledger'
 import { encrypt, decrypt } from './vault.js'
 
@@ -60,12 +60,18 @@ export async function listConnections(tenantId: string, provider?: ConnectorProv
   const rows = await db
     .select()
     .from(connectors)
-    .where(provider ? and(eq(connectors.tenantId, tenantId), eq(connectors.provider, provider)) : eq(connectors.tenantId, tenantId))
+    .where(
+      and(
+        eq(connectors.tenantId, tenantId),
+        ne(connectors.status, 'disconnected'),
+        provider ? eq(connectors.provider, provider) : undefined,
+      ),
+    )
     .orderBy(connectors.createdAt)
   return rows.map((row) => ({
     id: row.id,
     provider: row.provider,
-    credential: decrypt({ ciphertext: row.credentialCiphertext, nonce: row.credentialNonce }, aad(tenantId, row.provider, row.id)),
+    credential: decrypt({ ciphertext: row.credentialCiphertext!, nonce: row.credentialNonce! }, aad(tenantId, row.provider, row.id)),
     externalId: row.externalId ?? undefined,
     institutionName: row.institutionName ?? undefined,
     cursor: row.cursor ?? undefined,

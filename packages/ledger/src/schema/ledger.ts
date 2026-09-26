@@ -7,12 +7,16 @@ import {
   text,
   timestamp,
   numeric,
+  boolean,
   pgEnum,
   index,
   uniqueIndex,
+  check,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 import { sql } from 'drizzle-orm'
 import { categories } from './categories.js'
+import { connectors } from './credentials.js'
 
 export const accountType = pgEnum('account_type', [
   'asset',
@@ -21,6 +25,28 @@ export const accountType = pgEnum('account_type', [
   'expense',
   'equity',
 ])
+
+export const accountKind = pgEnum('account_kind', [
+  'cash',
+  'investment',
+  'property',
+  'vehicle',
+  'crypto',
+  'credit',
+  'loan',
+  'other',
+])
+
+export type AccountKind = (typeof accountKind.enumValues)[number]
+
+export const transactionVoidReason = pgEnum('transaction_void_reason', [
+  'pending_posted',
+  'provider_modified',
+  'provider_removed',
+  'duplicate',
+])
+
+export const balanceType = pgEnum('balance_type', ['current', 'available', 'limit'])
 
 export const transactionStatus = pgEnum('transaction_status', [
   'pending',
@@ -47,7 +73,7 @@ export const balanceAssertionSource = pgEnum('balance_assertion_source', [
 
 /**
  * accounts — the chart of accounts. `path` follows hledger/beancount's
- * colon-hierarchical convention, e.g. "assets:bank:plaid:checking".
+ * colon-hierarchical convention, e.g. "assets:cash:plaid:<account_id>".
  */
 export const accounts = pgTable(
   'accounts',
@@ -55,16 +81,34 @@ export const accounts = pgTable(
     id: uuid('id').primaryKey().defaultRandom(),
     tenantId: uuid('tenant_id').notNull(),
     type: accountType('type').notNull(),
+    kind: accountKind('kind'),
+    connectorId: uuid('connector_id').references(() => connectors.id, { onDelete: 'restrict' }),
     name: text('name').notNull(),
+    officialName: text('official_name'),
+    mask: text('mask'),
+    providerType: text('provider_type'),
+    providerSubtype: text('provider_subtype'),
     path: text('path').notNull(),
     currency: text('currency').notNull(), // ISO 4217, e.g. "USD"
     externalRef: text('external_ref'), // connector account uid (e.g. Plaid account_id)
+    excludeFromNetWorth: boolean('exclude_from_net_worth').notNull().default(false),
     openedAt: timestamp('opened_at', { withTimezone: true }).notNull().defaultNow(),
     closedAt: timestamp('closed_at', { withTimezone: true }),
   },
   (table) => [
     index('accounts_tenant_idx').on(table.tenantId),
     index('accounts_path_idx').on(table.path),
+    index('accounts_connector_idx').on(table.connectorId),
+    uniqueIndex('accounts_tenant_external_ref_unique_idx')
+      .on(table.tenantId, table.externalRef)
+      .where(sql`${table.externalRef} IS NOT NULL`),
+    check(
+      'accounts_kind_matches_type',
+      sql`${table.kind} IS NULL
+        OR (${table.kind} IN ('cash', 'investment', 'property', 'vehicle', 'crypto') AND ${table.type} = 'asset')
+        OR (${table.kind} IN ('credit', 'loan') AND ${table.type} = 'liability')
+        OR (${table.kind} = 'other' AND ${table.type} IN ('asset', 'liability'))`,
+    ),
   ],
 )
 
@@ -89,13 +133,23 @@ export const transactions = pgTable(
     status: transactionStatus('status').notNull().default('pending'),
     createdBy: transactionCreatedBy('created_by').notNull(),
     externalRef: text('external_ref'),
+    reversesTransactionId: uuid('reverses_transaction_id').references((): AnyPgColumn => transactions.id, {
+      onDelete: 'restrict',
+    }),
+    voidedAt: timestamp('voided_at', { withTimezone: true }),
+    voidReason: transactionVoidReason('void_reason'),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
     index('transactions_tenant_date_idx').on(table.tenantId, table.date),
     uniqueIndex('transactions_external_ref_unique_idx')
       .on(table.externalRef)
-      .where(sql`${table.externalRef} IS NOT NULL`),
+      .where(sql`${table.externalRef} IS NOT NULL AND ${table.voidedAt} IS NULL`),
+    uniqueIndex('transactions_reverses_unique_idx')
+      .on(table.reversesTransactionId)
+      .where(sql`${table.reversesTransactionId} IS NOT NULL`),
+    check('transactions_void_reason_iff_voided', sql`(${table.voidedAt} IS NULL) = (${table.voidReason} IS NULL)`),
+    check('transactions_not_self_reversing', sql`${table.reversesTransactionId} <> ${table.id}`),
   ],
 )
 
@@ -134,7 +188,8 @@ export const postings = pgTable(
  * balance_assertions — reconciliation checkpoints against bank-reported
  * balances. This table does not correct `postings` — it flags when the
  * replayed balance and the bank's own number disagree, for a human or a
- * later reconciliation engine to resolve.
+ * later reconciliation engine to resolve. `assertedAmount` is ledger-signed
+ * (money owed is negative); `limit` rows are non-negative.
  */
 export const balanceAssertions = pgTable(
   'balance_assertions',
@@ -143,10 +198,15 @@ export const balanceAssertions = pgTable(
     accountId: uuid('account_id')
       .notNull()
       .references(() => accounts.id, { onDelete: 'restrict' }),
+    balanceType: balanceType('balance_type').notNull(),
     date: timestamp('date', { withTimezone: true }).notNull(),
     assertedAmount: numeric('asserted_amount', { precision: 20, scale: 8 }).notNull(),
+    currency: text('currency').notNull(),
     source: balanceAssertionSource('source').notNull(),
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
   },
-  (table) => [index('balance_assertions_account_date_idx').on(table.accountId, table.date)],
+  (table) => [
+    index('balance_assertions_account_type_date_idx').on(table.accountId, table.balanceType, table.date),
+    check('balance_assertions_limit_non_negative', sql`${table.balanceType} <> 'limit' OR ${table.assertedAmount} >= 0`),
+  ],
 )
