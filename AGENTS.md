@@ -42,22 +42,28 @@ docs, git, memory files.
   read endpoints only — keep it that way.
 
 ## Source-of-truth file headers
-Files that own a source of truth, an architectural invariant, or a secret
-boundary get this header before the first import:
+A file gets a header only if it (1) is the single owner of a table, secret or
+decision (a second copy elsewhere would be a bug), (2) relies on a rule the code,
+types and DB constraints can't show, or (3) is a security boundary (credentials,
+tokens, keys, read-only-bank). Never on UI components, views, barrels, simple
+helpers, tests, seed data, or files whose name already says what they do.
+
+Put it before the first import, with `/*`, not `/**`: tsserver attaches a `/**`
+block to the next declaration, so the file header shows up as that symbol's hover.
 
 ```
-/** SOURCE OF TRUTH: <one line — what this file is the canonical owner of>
- * WHAT: <what this file does, concretely>
- * WHY: <the non-obvious reason it's built this way>
- * WHERE: <what this file owns vs. deliberately does NOT own>
+/* SOURCE OF TRUTH: <what this file owns, one line, <=100 chars>
+ * Invariant: <rule not visible in code>. Enforced by: <real migration/test/check>.
+ * Never: <security boundary>.
+ * See: <ADR id> — <why you'd read it>
  */
 ```
 
-Applies to `packages/ledger` (schema, migrations — guardrails live in its SQL
-migrations), connector adapters that touch access tokens/certs, and any file
-where "don't touch this without understanding why" matters. Skip boilerplate and
-pure UI components. Examples: `packages/connectors/src/plaid-client.ts`,
-`apps/server/src/connection-store.ts`, `apps/server/src/index.ts`.
+First line required; others only if true; max 4 content lines. SQL: same fields as
+`--` lines. No WHAT/WHY/WHERE, caller lists, history, status, dates or slice ids.
+A rule about one symbol → 1–3 line JSDoc on it; rationale → an ADR.
+Examples: `apps/server/src/vault.ts`, `packages/connectors/src/errors.ts`.
+Check: `bun scripts/check-headers.ts` (a new header file must be added to its list).
 
 ## Commands
 - Install: `bun install` (repo root)
