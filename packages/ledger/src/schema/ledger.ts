@@ -58,6 +58,7 @@ export const transactionSource = pgEnum('transaction_source', [
   'manual',
   'import',
   'receipt-match',
+  'opening-balance',
 ])
 
 export const transactionCreatedBy = pgEnum('transaction_created_by', [
@@ -203,6 +204,8 @@ export const balanceAssertions = pgTable(
     assertedAmount: numeric('asserted_amount', { precision: 20, scale: 8 }).notNull(),
     currency: text('currency').notNull(),
     source: balanceAssertionSource('source').notNull(),
+    providerBalanceType: text('provider_balance_type'),
+    isFallback: boolean('is_fallback').notNull().default(false),
     verifiedAt: timestamp('verified_at', { withTimezone: true }),
   },
   (table) => [
