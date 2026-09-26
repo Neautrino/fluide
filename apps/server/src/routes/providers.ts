@@ -37,17 +37,16 @@ providerRoutes.post('/plaid/exchange', async (c) => {
   if (!credentials) return c.json({ error: 'Plaid is not configured — add a client id and secret in Settings first.' }, 409)
   try {
     const { itemId, accessToken } = await exchangePlaidPublicToken(credentials, body.public_token)
-    saveConnection({
-      id: itemId,
+    const connectionId = await saveConnection(LOCAL_TENANT_ID, {
       provider: 'plaid',
       credential: accessToken,
+      externalId: itemId,
       institutionName: body.institution_name,
-      createdAt: new Date().toISOString(),
     })
 
     // ingest immediately so the ledger has data right after connecting
     const result = await ingestConnection(createPlaidConnector(credentials), accessToken)
-    if (result.nextCursor) updateConnectionCursor(itemId, result.nextCursor)
+    if (result.nextCursor) await updateConnectionCursor(LOCAL_TENANT_ID, connectionId, result.nextCursor)
 
     return c.json({ item_id: itemId, ingest: result })
   } catch (err) {
@@ -56,7 +55,7 @@ providerRoutes.post('/plaid/exchange', async (c) => {
 })
 
 providerRoutes.post('/plaid/sync', async (c) => {
-  const items = listConnections('plaid')
+  const items = await listConnections(LOCAL_TENANT_ID, 'plaid')
   if (items.length === 0) {
     return c.json({ error: 'no connected accounts yet' }, 404)
   }
@@ -67,8 +66,8 @@ providerRoutes.post('/plaid/sync', async (c) => {
     const results = []
     for (const item of items) {
       const result = await ingestConnection(connector, item.credential, item.cursor)
-      if (result.nextCursor) updateConnectionCursor(item.id, result.nextCursor)
-      results.push({ item_id: item.id, ...result })
+      if (result.nextCursor) await updateConnectionCursor(LOCAL_TENANT_ID, item.id, result.nextCursor)
+      results.push({ item_id: item.externalId, ...result })
     }
     return c.json({ synced: results })
   } catch (err) {

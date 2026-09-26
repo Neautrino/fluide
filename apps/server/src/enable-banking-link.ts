@@ -12,7 +12,7 @@ import {
   type EnableBankingCredentials,
 } from '@repo/connectors'
 import { saveConnection } from './connection-store.js'
-import { ingestConnection, type IngestResult } from './ingest.js'
+import { ingestConnection, LOCAL_TENANT_ID, type IngestResult } from './ingest.js'
 
 const STATE_TTL_MS = 15 * 60 * 1000
 const DEFAULT_CONSENT_SECONDS = 90 * 24 * 60 * 60
@@ -74,13 +74,10 @@ export async function completeEnableBankingLink(
   }
 
   const session = await createEnableBankingSession(credentials, code)
-  const connectionId = randomUUID()
-  saveConnection({
-    id: connectionId,
+  const connectionId = await saveConnection(LOCAL_TENANT_ID, {
     provider: 'enable-banking',
     credential: session.sessionId,
     institutionName: `${session.aspspName} (${session.country})`,
-    createdAt: new Date().toISOString(),
     validUntil: session.validUntil,
   })
 
