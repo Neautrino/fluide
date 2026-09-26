@@ -1,12 +1,5 @@
-/** SOURCE OF TRUTH: the double-entry core tables — accounts, transactions,
- * postings, balance_assertions.
- * WHAT: Drizzle table + enum definitions for money movement.
- * WHY: `postings` is the only writable source of truth for money movement.
- * Balances are NEVER stored as ground truth — always derived by replaying
- * postings, reconciled against the bank via balance_assertions.
- * WHERE: owns table SHAPE only. The sum-to-zero rule and posting
- * immutability are hand-written trigger SQL in migrations/0001 — Drizzle's
- * schema DSL can't express them, and schema alone does not stop bad writes.
+/* SOURCE OF TRUTH: the double-entry core: accounts, transactions, postings, balance_assertions.
+ * Invariant: balances are derived from postings, never stored; posting money columns are immutable and sum to zero. Enforced by: migration 0001 triggers.
  */
 import {
   pgTable,
