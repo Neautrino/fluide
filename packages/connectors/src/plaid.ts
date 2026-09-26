@@ -8,6 +8,7 @@ import { ConnectorError, type ConnectorErrorKind } from './errors.js'
 import type {
   Connector,
   NormalizedAccount,
+  NormalizedAccountKind,
   NormalizedBalance,
   NormalizedTransaction,
 } from './types.js'
@@ -91,6 +92,22 @@ function currencyOf(subject: string, iso: string | null | undefined, unofficial:
   return currency
 }
 
+export function plaidAccountKind(type: string): NormalizedAccountKind {
+  switch (type) {
+    case 'depository':
+      return 'cash'
+    case 'investment':
+    case 'brokerage':
+      return 'investment'
+    case 'credit':
+      return 'credit'
+    case 'loan':
+      return 'loan'
+    default:
+      return 'other'
+  }
+}
+
 // ---------------------------------------------------------------- connector
 
 export function createPlaidConnector(credentials: PlaidCredentials): Connector {
@@ -104,8 +121,11 @@ export function createPlaidConnector(credentials: PlaidCredentials): Connector {
         (acct): NormalizedAccount => ({
           providerAccountId: acct.account_id,
           name: acct.name,
+          officialName: acct.official_name ?? undefined,
+          mask: acct.mask ?? undefined,
           type: acct.type,
           subtype: acct.subtype ?? undefined,
+          kind: plaidAccountKind(acct.type),
           currency: currencyOf(`account ${acct.account_id}`, acct.balances.iso_currency_code, acct.balances.unofficial_currency_code),
         }),
       )

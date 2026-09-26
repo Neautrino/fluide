@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, spyOn, test, type Mock } from 'bun:test'
 import { Configuration, PlaidApi } from 'plaid'
 import { ConnectorError } from '../src/errors.ts'
-import { createPlaidConnector, createPlaidLinkToken, exchangePlaidPublicToken } from '../src/plaid.ts'
+import { createPlaidConnector, createPlaidLinkToken, exchangePlaidPublicToken, plaidAccountKind } from '../src/plaid.ts'
 
 const SECRET = 'secret-SHOULD-NOT-LEAK'
 const ACCESS_TOKEN = 'access-sandbox-SHOULD-NOT-LEAK'
@@ -172,6 +172,21 @@ describe('Plaid normalization', () => {
     const err = await rejection(createPlaidConnector(credentials).getBalances(ACCESS_TOKEN))
     expect(err.kind).toBe('bad_response')
     expect(err.message).toContain('acct-1')
+  })
+})
+
+describe('plaidAccountKind', () => {
+  test.each([
+    ['depository', 'cash'],
+    ['investment', 'investment'],
+    ['brokerage', 'investment'],
+    ['credit', 'credit'],
+    ['loan', 'loan'],
+    ['other', 'other'],
+    ['payroll', 'other'],
+    ['some-future-type', 'other'],
+  ] as const)('%s -> %s', (type, kind) => {
+    expect(plaidAccountKind(type)).toBe(kind)
   })
 })
 

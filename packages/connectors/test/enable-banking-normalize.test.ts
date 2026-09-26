@@ -2,6 +2,7 @@ import { describe, expect, test } from 'bun:test'
 import {
   assertAllowedEnableBankingCall,
   assignEnableBankingIds,
+  enableBankingAccountKind,
   normalizeEnableBankingTransaction,
   type EbTransaction,
 } from '../src/enable-banking.ts'
@@ -118,6 +119,20 @@ describe('assignEnableBankingIds', () => {
     const [a] = assignEnableBankingIds('acct-a', [normalizeEnableBankingTransaction(tx(), 'acct-a')])
     const [b] = assignEnableBankingIds('acct-b', [normalizeEnableBankingTransaction(tx(), 'acct-b')])
     expect(a?.providerTransactionId.split(':h:')[1]).not.toBe(b?.providerTransactionId.split(':h:')[1])
+  })
+})
+
+describe('enableBankingAccountKind', () => {
+  test.each([
+    ['CACC', 'cash'],
+    ['CASH', 'cash'],
+    ['SVGS', 'cash'],
+    ['CARD', 'credit'],
+    ['LOAN', 'loan'],
+    ['OTHR', 'other'],
+    ['MOMA', 'other'],
+  ] as const)('%s -> %s', (type, kind) => {
+    expect(enableBankingAccountKind(type)).toBe(kind)
   })
 })
 

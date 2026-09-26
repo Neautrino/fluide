@@ -6,7 +6,13 @@
 import { createHash } from 'node:crypto'
 import { readFileSync } from 'node:fs'
 import { ConnectorError, type ConnectorErrorKind } from './errors.js'
-import type { Connector, NormalizedAccount, NormalizedBalance, NormalizedTransaction } from './types.js'
+import type {
+  Connector,
+  NormalizedAccount,
+  NormalizedAccountKind,
+  NormalizedBalance,
+  NormalizedTransaction,
+} from './types.js'
 
 const PROVIDER = 'enable-banking'
 const API_BASE = 'https://api.enablebanking.com'
@@ -46,6 +52,21 @@ type EbAccount = {
   currency?: string
   cash_account_type?: string
   account_id?: { iban?: string }
+}
+
+export function enableBankingAccountKind(cashAccountType: string): NormalizedAccountKind {
+  switch (cashAccountType) {
+    case 'CACC':
+    case 'CASH':
+    case 'SVGS':
+      return 'cash'
+    case 'CARD':
+      return 'credit'
+    case 'LOAN':
+      return 'loan'
+    default:
+      return 'other'
+  }
 }
 
 export type EbTransaction = {
@@ -367,11 +388,13 @@ export function createEnableBankingConnector(credentials: EnableBankingCredentia
       for (const { uid, identification_hash } of await sessionAccounts(credentials, sessionId)) {
         const details = await call<EbAccount>(credentials, 'GET', `/accounts/${encodeURIComponent(uid)}/details`)
         if (!details.currency) throw badResponse(`Enable Banking account ${identification_hash} has no currency`)
+        const type = details.cash_account_type ?? 'OTHR'
         accounts.push({
           providerAccountId: identification_hash,
           name: details.name ?? details.product ?? details.details ?? 'Bank account',
-          type: details.cash_account_type ?? 'OTHR',
+          type,
           subtype: details.product,
+          kind: enableBankingAccountKind(type),
           currency: details.currency,
         })
       }

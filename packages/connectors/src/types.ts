@@ -20,11 +20,16 @@ export type NormalizedTransaction = {
   syntheticId?: boolean
 }
 
+export type NormalizedAccountKind = 'cash' | 'investment' | 'credit' | 'loan' | 'other'
+
 export type NormalizedAccount = {
   providerAccountId: string
   name: string
+  officialName?: string
+  mask?: string
   type: string
   subtype?: string
+  kind: NormalizedAccountKind
   currency: string
 }
 

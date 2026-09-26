@@ -1,6 +1,7 @@
 export type {
   Connector,
   NormalizedAccount,
+  NormalizedAccountKind,
   NormalizedBalance,
   NormalizedTransaction,
 } from './types.js'
@@ -9,10 +10,12 @@ export {
   createPlaidConnector,
   createPlaidLinkToken,
   exchangePlaidPublicToken,
+  plaidAccountKind,
   type PlaidCredentials,
 } from './plaid.js'
 export {
   createEnableBankingConnector,
+  enableBankingAccountKind,
   listEnableBankingAspsps,
   loadEnableBankingKey,
   startEnableBankingAuth,
