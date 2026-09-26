@@ -1,11 +1,3 @@
-/** SOURCE OF TRUTH: the category catalogue as the UI sees it.
- * WHAT: loads GET /api/categories once per page session (shared promise)
- * and exposes id lookup plus a primary-grouped list for <optgroup>s.
- * WHY: review cards, rules, the drawer and every recategorize control need
- * labels for category ids; fetching ~50–100 rows per component is waste.
- * WHERE: read-only cache; a failed load is retried on the next mount.
- */
-
 import { getJson, type Category } from './api'
 import { humanizeKey } from './format'
 import { useResource } from './useResource'

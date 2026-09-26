@@ -11,16 +11,6 @@ import { useCategories, categoryName } from '../lib/categories'
 import { formatMoney } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
-/** SOURCE OF TRUTH: the Overview screen.
- * WHAT: period-scoped GET /api/ledger/summary (KPIs, balances, top categories and
- * merchants) plus GET /api/ledger/accounts to decide whether to lead with "Connect a
- * bank", and the pending-review count from app context.
- * WHY: the first thing a person needs is where they stand; everything else
- * is one click away. Equity accounts are internal suspense legs and never
- * count as a bank account here.
- * WHERE: read-only rendering; bank connection is delegated to ConnectBank.
- */
-
 const PERIODS: { value: Exclude<Period, 'this_week'>; label: string }[] = [
   { value: 'this_month', label: 'This month' },
   { value: 'last_30_days', label: 'Last 30 days' },

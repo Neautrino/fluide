@@ -11,17 +11,6 @@ import { useCategories, type CategoryCatalogue } from '../lib/categories'
 import { bandFor, formatLedgerDate, toNumber } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
-/** SOURCE OF TRUTH: categorization rules management.
- * WHAT: GET /api/categorization-rules split into Proposed / Active /
- * Rejected; activate or reject proposed rules
- * (POST /api/categorization-rules/:id/activate|reject); add your own active
- * rule (POST /api/categorization-rules).
- * WHY: rules learned from approvals and recategorizations are only
- * *proposed* — they do nothing until a person activates them, so the
- * system never silently teaches itself.
- * WHERE: rendering + those three actions; matching happens server-side.
- */
-
 const STATUS_COPY: Record<RuleStatus, { empty: string; note: string }> = {
   proposed: {
     empty: 'Fluide proposes one when you approve a suggestion or recategorize a transaction.',

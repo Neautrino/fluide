@@ -1,14 +1,6 @@
 import { useState } from 'react'
 import type { View } from '../lib/app-context'
 
-/** SOURCE OF TRUTH: primary navigation.
- * WHAT: the left sidebar on desktop (wordmark, nav, read-only note) and a
- * top bar with a disclosure menu below the md breakpoint.
- * WHY: views are plain React state (no router) — this is the only place
- * that switches them from the chrome.
- * WHERE: presentation + menu open state only; App.tsx owns the view.
- */
-
 const NAV: { view: View; label: string }[] = [
   { view: 'overview', label: 'Overview' },
   { view: 'transactions', label: 'Transactions' },

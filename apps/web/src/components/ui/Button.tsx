@@ -1,11 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react'
 
-/** SOURCE OF TRUTH: the only button styles in apps/web.
- * WHAT: primary (green), secondary (hairline), ghost (text) and danger
- * variants in two sizes, with a `busy` state that keeps the width stable.
- * WHERE: presentation only — callers own the action.
- */
-
 type Variant = 'primary' | 'secondary' | 'ghost' | 'danger'
 type Size = 'sm' | 'md'
 

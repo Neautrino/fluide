@@ -1,11 +1,5 @@
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
 
-/** SOURCE OF TRUTH: text inputs, selects and labelled fields.
- * WHAT: hairline-bordered controls with hover/focus/invalid/disabled
- * states, and <Field> which wires label + help + error text to a control.
- * WHERE: presentation only.
- */
-
 const CONTROL =
   'h-10 w-full rounded-[3px] border border-rule-strong bg-paper-raised px-3 text-sm text-ink placeholder:text-ink-3 transition-colors hover:border-ink-3 focus-visible:border-green focus-visible:outline-green disabled:cursor-not-allowed disabled:bg-paper disabled:text-ink-3 aria-[invalid=true]:border-red'
 

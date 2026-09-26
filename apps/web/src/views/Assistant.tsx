@@ -3,18 +3,6 @@ import { Button } from '../components/ui/Button'
 import { PageHeader } from '../components/ui/Typography'
 import { errorMessage, sendJson } from '../lib/api'
 
-/** SOURCE OF TRUTH: the chat panel.
- * WHAT: calls POST /api/chat with a threadId generated once per
- * conversation, rendered as a conversation pane with suggested prompts.
- * WHY: threadId lives only in this component's state, never persisted to
- * localStorage/sessionStorage -- memory works within an open chat, but
- * nothing is recoverable after closing/reloading, per the user's rule.
- * App.tsx keeps this mounted while hidden so switching screens doesn't
- * drop the conversation.
- * WHERE: owns the message list + composer only. Aggregation and the agent
- * loop live server-side (chat/agent.ts).
- */
-
 type Message = { role: 'user' | 'assistant'; content: string; failed?: boolean }
 
 const SUGGESTIONS = [
@@ -27,6 +15,8 @@ const SUGGESTIONS = [
 
 const CHAT_TIMEOUT_MS = 90_000
 
+/** threadId lives only in component state, never localStorage/sessionStorage:
+ * a chat must not survive a reload. App keeps this mounted while hidden. */
 export function Assistant() {
   const [threadId, setThreadId] = useState(() => crypto.randomUUID())
   const [messages, setMessages] = useState<Message[]>([])

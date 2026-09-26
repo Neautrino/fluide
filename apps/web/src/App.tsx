@@ -11,16 +11,6 @@ import { Rules } from './views/Rules'
 import { Settings } from './views/Settings'
 import { Transactions } from './views/Transactions'
 
-/** SOURCE OF TRUTH: the Fluide app shell.
- * WHAT: sidebar + the active view, switched with React state (no router),
- * and the shared data `version` every view refetches on.
- * WHY: a read-only ledger has a handful of screens; a router dependency
- * would add URL state we don't need. The Assistant stays mounted while
- * hidden so an open conversation (threadId in React state only) survives
- * switching screens — but never a reload.
- * WHERE: composition only; each view owns its fetches.
- */
-
 const VIEWS: Record<Exclude<View, 'assistant'>, ComponentType> = {
   overview: Overview,
   transactions: Transactions,

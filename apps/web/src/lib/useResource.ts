@@ -1,15 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { errorMessage } from './api'
 
-/** SOURCE OF TRUTH: how views load server data.
- * WHAT: runs `load` on mount and whenever `key` changes or reload() is
- * called; exposes { data, error, loading }. Stale responses are dropped.
- * WHY: every screen needs the same loading/error/retry behaviour, and
- * keeping the previous data while refetching avoids layout flicker after
- * an action (approve, recategorize, sync).
- * WHERE: generic; knows nothing about specific endpoints.
- */
-
 export type Resource<T> = {
   data: T | undefined
   error: string | null

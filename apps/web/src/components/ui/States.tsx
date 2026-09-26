@@ -1,12 +1,6 @@
 import type { ReactNode } from 'react'
 import { Button } from './Button'
 
-/** SOURCE OF TRUTH: loading, error, empty and inline notice states.
- * WHAT: the shared visuals every fetch falls back to, so an endpoint that
- * is down or not deployed yet renders a calm, retryable message.
- * WHERE: presentation only.
- */
-
 export function Loading({ label = 'Loading…', rows = 3 }: { label?: string; rows?: number }) {
   return (
     <div role="status" aria-live="polite" className="flex flex-col gap-3 py-2">

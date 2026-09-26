@@ -1,10 +1,5 @@
 import type { ReactNode } from 'react'
 
-/** SOURCE OF TRUTH: the segmented toggle (periods, rule statuses).
- * WHAT: a row of mutually exclusive buttons; the active one is ink-filled.
- * WHERE: presentation only; value is controlled by the caller.
- */
-
 type Option<T extends string> = { value: T; label: ReactNode }
 
 type Props<T extends string> = {

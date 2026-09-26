@@ -9,14 +9,6 @@ import { Drawer } from './ui/Drawer'
 import { Empty, ErrorState, Loading } from './ui/States'
 import { Confidence, Money } from './ui/Typography'
 
-/** SOURCE OF TRUTH: the posting detail sheet.
- * WHAT: one posting's facts, a Recategorize control and its categorization
- * history from GET /api/audit-log/:postingId, rendered in plain English.
- * WHY: every automatic category decision must be explainable and
- * reversible by the person whose money it is.
- * WHERE: opened from the Transactions table; data refreshes on app version.
- */
-
 export type DrawerRow = LedgerRow & { accountName: string; merchant: string }
 
 const ACTION_LABEL: Record<AuditAction, string> = {

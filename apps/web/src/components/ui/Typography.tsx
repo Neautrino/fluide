@@ -2,13 +2,6 @@ import type { ReactNode } from 'react'
 import type { ConfidenceBand } from '../../lib/api'
 import { BAND_LABEL, formatConfidence, formatMoney, toNumber } from '../../lib/format'
 
-/** SOURCE OF TRUTH: page headings, money figures and confidence tiers.
- * WHAT: <PageHeader> (eyebrow + serif title + lede + actions),
- * <SectionTitle>, <Money> (tabular, true minus, inflows green) and
- * <Confidence> (High/Medium/Low label with the precise value secondary).
- * WHERE: presentation only.
- */
-
 export function PageHeader({
   eyebrow,
   title,

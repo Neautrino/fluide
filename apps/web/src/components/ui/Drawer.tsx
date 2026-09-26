@@ -1,13 +1,6 @@
 import { useEffect, useRef, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 
-/** SOURCE OF TRUTH: the right-hand side sheet.
- * WHAT: modal dialog sliding in from the right; Escape or the scrim closes
- * it, focus moves into it on open, Tab is kept inside, and focus returns to
- * the opener on close.
- * WHERE: layout + a11y only; content is the caller's.
- */
-
 type Props = {
   title: string
   onClose: () => void

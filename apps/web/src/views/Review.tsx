@@ -9,16 +9,6 @@ import { useCategories } from '../lib/categories'
 import { formatLedgerDate, sourceLabel } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
-/** SOURCE OF TRUTH: the review queue UI.
- * WHAT: lists pending review items (the confidence gate's output) with the
- * suggested category, a High/Medium/Low tier and the gate's reason; the
- * person approves or rejects via POST /api/review-queue/:id/approve|reject.
- * Items with no suggestion get an inline recategorize control instead.
- * WHY: a queued suggestion is a real decision waiting on a human — nothing
- * reaches the ledger from here without that click.
- * WHERE: rendering + approve/reject. It never calls /api/categorize.
- */
-
 type Outcome = { id: string; tone: 'success' | 'error'; text: string; proposedRule: boolean }
 
 export function Review() {

@@ -1,12 +1,3 @@
-/** SOURCE OF TRUTH: display formatting for money, dates and confidence.
- * WHAT: Intl-based currency/date formatters (cached per currency) and the
- * High/Medium/Low confidence tiering shown next to every AI suggestion.
- * WHY: amounts arrive as strings in each row's own currency; formatting in
- * one place keeps the minus sign, currency and rounding identical across
- * the ledger, overview and review screens.
- * WHERE: pure functions only.
- */
-
 import type { ConfidenceBand } from './api'
 
 const MINUS = '\u2212'

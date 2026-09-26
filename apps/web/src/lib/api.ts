@@ -1,12 +1,3 @@
-/** SOURCE OF TRUTH: the web ↔ server wire types and the one fetch wrapper.
- * WHAT: typed shapes for every endpoint apps/web calls, plus getJson/sendJson
- * which turn non-2xx responses into ApiError carrying the server's `error`.
- * WHY: numeric ledger columns arrive as strings and several endpoints are
- * still landing server-side — one wrapper keeps error messages consistent so
- * every view can render a clean error state instead of crashing.
- * WHERE: transport + types only. No caching, no React.
- */
-
 export type AccountType = 'asset' | 'liability' | 'income' | 'expense' | 'equity'
 
 export type Account = {

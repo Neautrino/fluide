@@ -1,11 +1,3 @@
-/** SOURCE OF TRUTH: app-wide navigation + data-version signal.
- * WHAT: `navigate(view)` switches the active screen (plain React state, no
- * router); `version` increments via `invalidate()` after anything that
- * changes ledger data (connect, sync, categorize, approve, recategorize) so
- * every mounted view refetches.
- * WHERE: provided once by App.tsx.
- */
-
 import { createContext, useContext } from 'react'
 
 export type View = 'overview' | 'transactions' | 'review' | 'rules' | 'assistant' | 'settings'

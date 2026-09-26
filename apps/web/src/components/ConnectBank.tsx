@@ -2,18 +2,6 @@ import { useState, useCallback } from 'react'
 import { usePlaidLink } from 'react-plaid-link'
 import { Button } from './ui/Button'
 
-/** SOURCE OF TRUTH: the Plaid Link enrollment widget trigger.
- * WHAT: fetches a link_token from the backend, opens Plaid's hosted widget,
- * and on success forwards the public_token to the backend for exchange.
- * WHY: this is the one place in apps/web that touches Plaid's enrollment
- * handshake — the component only ever holds link_token/public_token, both
- * short-lived and safe client-side. It never sees an access_token. The
- * connection is read-only: Fluide can never move money.
- * WHERE: owns the connect button + Link lifecycle only. Once exchange
- * succeeds it just calls onConnected(); rendering the result is the
- * parent's job (the Overview view).
- */
-
 type Props = {
   onConnected: () => void
   variant?: 'primary' | 'secondary'

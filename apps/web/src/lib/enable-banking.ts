@@ -1,17 +1,5 @@
 import { sendJson, errorMessage } from './api'
 
-/** SOURCE OF TRUTH: the web half of the Enable Banking connect flow.
- * WHAT: the bank-redirect start (POST /api/providers/enable-banking/auth, then leave the
- * page for the bank) and the one-time callback consumer that forwards the
- * bank's `code` + `state` to the server.
- * WHY: the callback `code` is single-use. React StrictMode runs effects twice
- * in dev, so the callback is consumed once per page load at module level and
- * the URL is cleaned immediately (the code must not linger in history). The
- * browser only ever holds the code, never a session_id.
- * WHERE: owns browser-side handshake state only; the server exchanges the
- * code and stores the session (apps/server/src/enable-banking-link.ts).
- */
-
 export const ENABLE_BANKING_CALLBACK_PATH = '/connect/enable-banking/callback'
 
 export type EnableBankingBank = { name: string; country: string; logo?: string; beta: boolean }
@@ -40,7 +28,9 @@ export async function startEnableBankingConnect(bank: EnableBankingBank) {
 let consumed: Promise<CallbackOutcome> | null = null
 
 /** Returns the outcome of this page load's bank callback, or null when the
- * page was not opened by a bank redirect. Safe to call more than once. */
+ * page was not opened by a bank redirect. Safe to call more than once.
+ * Runs at module level, not in an effect: the code is single-use and
+ * StrictMode runs effects twice. The URL is cleaned at once. */
 export function consumeEnableBankingCallback(): Promise<CallbackOutcome> | null {
   if (consumed) return consumed
   if (window.location.pathname !== ENABLE_BANKING_CALLBACK_PATH) return null

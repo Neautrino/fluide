@@ -2,12 +2,6 @@ import type { SelectHTMLAttributes } from 'react'
 import type { CategoryCatalogue } from '../lib/categories'
 import { Select } from './ui/Field'
 
-/** SOURCE OF TRUTH: the category picker.
- * WHAT: a <select> of every category, grouped by its `primary` family
- * ("Food & drink" › "Groceries"), showing labels, valued by category id.
- * WHERE: used by recategorize controls and the add-rule form.
- */
-
 type Props = Omit<SelectHTMLAttributes<HTMLSelectElement>, 'children'> & {
   catalogue: CategoryCatalogue | undefined
   placeholder?: string

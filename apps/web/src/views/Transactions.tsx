@@ -9,17 +9,6 @@ import { useApp } from '../lib/app-context'
 import { formatLedgerDate, toNumber } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
-/** SOURCE OF TRUTH: the ledger table.
- * WHAT: GET /api/ledger/transactions (+ /api/ledger/accounts for names/types), one row per bank
- * posting; filter by text and category; row → detail drawer. Also the two
- * explicit maintenance actions: POST /api/providers/plaid/sync and POST /api/assistant/categorize.
- * WHY: the server returns one row per posting, so each transaction arrives
- * twice (bank leg + equity suspense leg). Equity legs are hidden — a
- * display filter only; the ledger still stores both balanced sides.
- * Amounts use Fluide's sign (negative = out) — never re-flip them here.
- * WHERE: rendering + those two actions; categorization logic is server-side.
- */
-
 const UNCATEGORIZED = '__uncategorized'
 
 type Row = DrawerRow & { key: string }

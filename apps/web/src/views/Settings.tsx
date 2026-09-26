@@ -7,21 +7,6 @@ import { errorMessage, getJson, sendJson, type GateSettings, type ProviderCreden
 import { formatTimestamp, toNumber } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
-/** SOURCE OF TRUTH: the Settings screen — the confidence gate thresholds
- * plus the connector provider credentials (Plaid, Enable Banking).
- * WHAT: GET/PUT /api/settings/gate (gate thresholds — see GateForm) and
- * GET/PUT /api/settings/provider-credentials/:provider (ProviderCredentialsForm).
- * The server never returns saved credentials, only {configured, updatedAt}
- * — every save re-enters both fields from scratch, there is no partial
- * update or "leave blank to keep".
- * WHY: auto-categorization touches the ledger without asking — the person
- * must be able to see and tune exactly how cautious it is. Connecting a
- * bank needs Fluide's own API credentials for that provider first; this
- * is where they're entered, once, instead of an env var + server restart.
- * WHERE: forms only. Gate enforcement is categorization/gate.ts; credential
- * storage/encryption is apps/server's provider-credentials.ts + vault.ts.
- */
-
 type Draft = { highConfidence: string; lowConfidence: string; minVendorOccurrences: string; amountRangeTolerance: string }
 type Key = keyof Draft
 

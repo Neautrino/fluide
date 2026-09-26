@@ -6,15 +6,6 @@ import { CategorySelect } from './CategorySelect'
 import { Button } from './ui/Button'
 import { Notice } from './ui/States'
 
-/** SOURCE OF TRUTH: the human recategorize action.
- * WHAT: pick a category → POST /api/postings/:id/category. The server writes
- * an audit entry, resolves any pending review item for the posting and may
- * create a *proposed* rule; we surface that and invalidate app data.
- * WHY: a person correcting a category is the strongest signal Fluide gets —
- * it must be one obvious control wherever a posting is shown.
- * WHERE: used in the transaction drawer and on unsuggested review items.
- */
-
 type Result = { postingId: string; categoryId: string; proposedRuleId: string | null }
 
 type Props = {
