@@ -228,6 +228,7 @@ export async function createPlaidLinkToken(credentials: PlaidCredentials, client
       products: [Products.Transactions],
       country_codes: [CountryCode.Us],
       language: 'en',
+      transactions: { days_requested: 730 },
     }),
   )
   return data.link_token
