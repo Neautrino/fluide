@@ -2,7 +2,7 @@
  * Invariant: touches only postings with category_id IS NULL and only status='active' rules.
  * See: ADR 005 (never overturn a human), ADR 016 (why Jev is the only AI tier)
  */
-import { db, postings, transactions, categorizationRules, reviewQueue, getGateSettings, type GateSettings } from '@repo/ledger'
+import { db, postings, transactions, categorizationRules, reviewQueue, getGateSettings, liveTransaction, type GateSettings } from '@repo/ledger'
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 import { categorizeByJevBatch, type CategorizationMatch } from './jev.js'
 import { evaluateGate, queueForReview } from './gate.js'
@@ -123,6 +123,7 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
         isNull(postings.categoryId),
         sql`${postings.counterpartyRaw} IS NOT NULL`,
         notInArray(postings.id, alreadyQueued),
+        liveTransaction,
       ),
     )
 

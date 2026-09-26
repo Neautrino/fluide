@@ -1,5 +1,6 @@
 import { and, eq, gte, inArray, ne } from 'drizzle-orm'
 import { accounts, transactions } from '../schema/index.js'
+import { liveTransaction } from './live.js'
 
 export const PERIODS = ['this_week', 'this_month', 'last_30_days', 'this_year', 'all_time'] as const
 export type Period = (typeof PERIODS)[number]
@@ -30,6 +31,7 @@ export function bankPostingsFilter(tenantId: string, period: Period) {
     eq(transactions.tenantId, tenantId),
     inArray(accounts.type, ['asset', 'liability']),
     ne(transactions.source, 'opening-balance'),
+    liveTransaction,
   ]
   if (start) conditions.push(gte(transactions.date, start))
   return and(...conditions)

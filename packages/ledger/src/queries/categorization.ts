@@ -1,4 +1,4 @@
-import { desc, eq } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { db } from '../db.js'
 import {
   transactions,
@@ -10,6 +10,7 @@ import {
   gateSettings,
   GATE_SETTINGS_DEFAULTS,
 } from '../schema/index.js'
+import { liveTransaction } from './live.js'
 
 export async function listCategories() {
   return db.select().from(categories)
@@ -43,7 +44,7 @@ export async function listPendingReviewItems() {
     .from(reviewQueue)
     .innerJoin(postings, eq(postings.id, reviewQueue.postingId))
     .innerJoin(transactions, eq(transactions.id, postings.transactionId))
-    .where(eq(reviewQueue.status, 'pending'))
+    .where(and(eq(reviewQueue.status, 'pending'), liveTransaction))
     .orderBy(desc(transactions.date))
 }
 
