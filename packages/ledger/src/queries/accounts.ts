@@ -1,4 +1,4 @@
-import { and, eq, sql } from 'drizzle-orm'
+import { and, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../db.js'
 import { accounts, postings } from '../schema/index.js'
 
@@ -13,7 +13,7 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
     })
     .from(accounts)
     .leftJoin(postings, eq(postings.accountId, accounts.id))
-    .where(and(eq(accounts.tenantId, tenantId), eq(accounts.type, 'asset' as const)))
+    .where(and(eq(accounts.tenantId, tenantId), inArray(accounts.type, ['asset', 'liability'])))
     .groupBy(accounts.id, accounts.name, accounts.currency)
 
   return rows.map((r) => ({ name: r.name, currency: r.currency, balance: Number(r.balance) }))
