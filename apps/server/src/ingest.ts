@@ -4,33 +4,36 @@
  */
 import { db, accounts, transactions, postings } from '@repo/ledger'
 import type { Connector, NormalizedAccount, NormalizedTransaction } from '@repo/connectors'
-import { eq, and } from 'drizzle-orm'
+import { eq, and, sql } from 'drizzle-orm'
 
 // Single self-hosted tenant for now — replaced once a real tenant/user table exists.
 const LOCAL_TENANT_ID = '00000000-0000-0000-0000-000000000001'
 
-async function findOrCreateAccount(tenantId: string, provider: string, acct: NormalizedAccount) {
-  const [existing] = await db
-    .select()
-    .from(accounts)
-    .where(and(eq(accounts.tenantId, tenantId), eq(accounts.externalRef, acct.providerAccountId)))
-    .limit(1)
+async function upsertConnectorAccount(tenantId: string, provider: string, connectorId: string, acct: NormalizedAccount) {
+  const type = acct.kind === 'credit' || acct.kind === 'loan' ? ('liability' as const) : ('asset' as const)
+  const classification = {
+    type,
+    kind: acct.kind,
+    connectorId,
+    name: acct.name,
+    officialName: acct.officialName ?? null,
+    mask: acct.mask ?? null,
+    providerType: acct.type,
+    providerSubtype: acct.subtype ?? null,
+    path: `${type === 'liability' ? 'liabilities' : 'assets'}:${acct.kind}:${provider}:${acct.providerAccountId}`,
+  }
 
-  if (existing) return existing
-
-  const [created] = await db
+  const [account] = await db
     .insert(accounts)
-    .values({
-      tenantId,
-      type: 'asset', // provider account types simplified to 'asset' for now
-      name: acct.name,
-      path: `assets:bank:${provider}:${acct.providerAccountId}`,
-      currency: acct.currency,
-      externalRef: acct.providerAccountId,
+    .values({ tenantId, currency: acct.currency, externalRef: acct.providerAccountId, ...classification })
+    .onConflictDoUpdate({
+      target: [accounts.tenantId, accounts.externalRef],
+      targetWhere: sql`${accounts.externalRef} IS NOT NULL`,
+      set: classification,
     })
     .returning()
 
-  return created!
+  return account!
 }
 
 async function findOrCreateSuspenseAccount(tenantId: string, currency: string) {
@@ -59,6 +62,7 @@ async function findOrCreateSuspenseAccount(tenantId: string, currency: string) {
 
 export type IngestResult = {
   accountsSeen: number
+  unclassifiedAccounts: string[]
   transactionsInserted: number
   transactionsSkipped: number
   nextCursor?: string
@@ -77,15 +81,16 @@ function postingTags(provider: string, tx: NormalizedTransaction) {
  * Safe to call repeatedly — see idempotency notes in the file header. */
 export async function ingestConnection(
   connector: Connector,
+  connectorId: string,
   credential: string,
   cursor?: string,
 ): Promise<IngestResult> {
   const providerAccounts = await connector.listAccounts(credential)
-  const accountByProviderId = new Map<string, Awaited<ReturnType<typeof findOrCreateAccount>>>()
+  const accountByProviderId = new Map<string, typeof accounts.$inferSelect>()
   for (const acct of providerAccounts) {
     accountByProviderId.set(
       acct.providerAccountId,
-      await findOrCreateAccount(LOCAL_TENANT_ID, connector.provider, acct),
+      await upsertConnectorAccount(LOCAL_TENANT_ID, connector.provider, connectorId, acct),
     )
   }
 
@@ -152,6 +157,7 @@ export async function ingestConnection(
 
   return {
     accountsSeen: providerAccounts.length,
+    unclassifiedAccounts: providerAccounts.filter((acct) => acct.kind === 'other').map((acct) => acct.name),
     transactionsInserted: inserted,
     transactionsSkipped: skipped,
     nextCursor,

@@ -81,7 +81,7 @@ export async function completeEnableBankingLink(
     validUntil: session.validUntil,
   })
 
-  const ingest = await ingestConnection(createEnableBankingConnector(credentials), session.sessionId)
+  const ingest = await ingestConnection(createEnableBankingConnector(credentials), connectionId, session.sessionId)
   return {
     ok: true,
     connectionId,

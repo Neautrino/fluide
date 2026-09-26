@@ -45,7 +45,7 @@ providerRoutes.post('/plaid/exchange', async (c) => {
     })
 
     // ingest immediately so the ledger has data right after connecting
-    const result = await ingestConnection(createPlaidConnector(credentials), accessToken)
+    const result = await ingestConnection(createPlaidConnector(credentials), connectionId, accessToken)
     if (result.nextCursor) await updateConnectionCursor(LOCAL_TENANT_ID, connectionId, result.nextCursor)
 
     return c.json({ item_id: itemId, ingest: result })
@@ -65,7 +65,7 @@ providerRoutes.post('/plaid/sync', async (c) => {
     const connector = createPlaidConnector(credentials)
     const results = []
     for (const item of items) {
-      const result = await ingestConnection(connector, item.credential, item.cursor)
+      const result = await ingestConnection(connector, item.id, item.credential, item.cursor)
       if (result.nextCursor) await updateConnectionCursor(LOCAL_TENANT_ID, item.id, result.nextCursor)
       results.push({ item_id: item.externalId, ...result })
     }
