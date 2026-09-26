@@ -153,26 +153,47 @@ describe('getTransactions', () => {
 })
 
 describe('getBalances', () => {
-  test('CLBD is current and CLAV is available, exact types only', async () => {
+  const details = (cash_account_type: string) => () => json({ uid: 'uid-1', identification_hash: 'hash-1', currency: 'EUR', cash_account_type })
+  const balances = (...types: [string, string][]) => () =>
+    json({ balances: types.map(([balance_type, amount]) => ({ balance_type, balance_amount: { amount, currency: 'EUR' } })) })
+
+  test('CLBD is current and CLAV is available when the bank sends them, not flagged', async () => {
     stubFetch({
       [`GET /sessions/${SESSION_ID}`]: session,
-      'GET /accounts/uid-1/balances': () =>
-        json({
-          balances: [
-            { balance_type: 'ITAV', balance_amount: { amount: '1.00', currency: 'EUR' } },
-            { balance_type: 'CLBD', balance_amount: { amount: '10.50', currency: 'EUR' } },
-            { balance_type: 'CLAV', balance_amount: { amount: '9.00', currency: 'EUR' } },
-          ],
-        }),
+      'GET /accounts/uid-1/details': details('CACC'),
+      'GET /accounts/uid-1/balances': balances(['ITAV', '1.00'], ['CLBD', '10.50'], ['CLAV', '9.00'], ['XPCD', '2.00']),
     })
     expect(await createEnableBankingConnector(credentials).getBalances(SESSION_ID)).toEqual([
-      { providerAccountId: 'hash-1', current: 10.5, available: 9, currency: 'EUR' },
+      { providerAccountId: 'hash-1', balanceType: 'current', amount: 10.5, currency: 'EUR', providerBalanceType: 'CLBD', isFallback: false },
+      { providerAccountId: 'hash-1', balanceType: 'available', amount: 9, currency: 'EUR', providerBalanceType: 'CLAV', isFallback: false },
     ])
+  })
+
+  test('falls back CLBD -> ITBD -> XPCD and CLAV -> ITAV, always flagged', async () => {
+    stubFetch({
+      [`GET /sessions/${SESSION_ID}`]: session,
+      'GET /accounts/uid-1/details': details('SVGS'),
+      'GET /accounts/uid-1/balances': balances(['XPCD', '7.00'], ['ITAV', '6.00']),
+    })
+    const rows = await createEnableBankingConnector(credentials).getBalances(SESSION_ID)
+    expect(rows.map((b) => [b.balanceType, b.providerBalanceType, b.isFallback])).toEqual([
+      ['current', 'XPCD', true],
+      ['available', 'ITAV', true],
+    ])
+  })
+
+  test('cards and loans get no balance: their sign is unverified', async () => {
+    stubFetch({
+      [`GET /sessions/${SESSION_ID}`]: session,
+      'GET /accounts/uid-1/details': details('CARD'),
+    })
+    expect(await createEnableBankingConnector(credentials).getBalances(SESSION_ID)).toEqual([])
   })
 
   test('a non-numeric balance amount is refused, not reported as NaN', async () => {
     stubFetch({
       [`GET /sessions/${SESSION_ID}`]: session,
+      'GET /accounts/uid-1/details': details('CACC'),
       'GET /accounts/uid-1/balances': () =>
         json({ balances: [{ balance_type: 'CLBD', balance_amount: { amount: 'n/a', currency: 'EUR' } }] }),
     })

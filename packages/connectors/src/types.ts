@@ -35,9 +35,12 @@ export type NormalizedAccount = {
 
 export type NormalizedBalance = {
   providerAccountId: string
-  available: number | null
-  current: number | null
+  balanceType: 'current' | 'available' | 'limit'
+  amount: number
   currency: string
+  providerBalanceType: string
+  isFallback: boolean
+  asOf?: string
 }
 
 export interface Connector {
@@ -49,5 +52,5 @@ export interface Connector {
   getTransactions(
     accessToken: string,
     cursor?: string,
-  ): Promise<{ transactions: NormalizedTransaction[]; nextCursor?: string }>
+  ): Promise<{ transactions: NormalizedTransaction[]; nextCursor?: string; historyComplete: boolean }>
 }

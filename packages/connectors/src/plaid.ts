@@ -3,7 +3,7 @@
  * Never: let an SDK error escape; every call goes through plaidCall.
  * See: ADR 011 — one module that takes credentials
  */
-import { Configuration, CountryCode, PlaidApi, PlaidEnvironments, Products } from 'plaid'
+import { Configuration, CountryCode, PlaidApi, PlaidEnvironments, Products, TransactionsUpdateStatus } from 'plaid'
 import { ConnectorError, type ConnectorErrorKind } from './errors.js'
 import type {
   Connector,
@@ -132,15 +132,30 @@ export function createPlaidConnector(credentials: PlaidCredentials): Connector {
     },
 
     async getBalances(accessToken) {
-      const data = await plaidCall('accountsBalanceGet', () => client.accountsBalanceGet({ access_token: accessToken }))
-      return data.accounts.map(
-        (acct): NormalizedBalance => ({
+      const data = await plaidCall('accountsGet', () => client.accountsGet({ access_token: accessToken }))
+      const balances: NormalizedBalance[] = []
+      for (const acct of data.accounts) {
+        const kind = plaidAccountKind(acct.type)
+        if (kind === 'other') continue
+        const owed = kind === 'credit' || kind === 'loan'
+        const base = {
           providerAccountId: acct.account_id,
-          available: acct.balances.available,
-          current: acct.balances.current,
           currency: currencyOf(`balance for account ${acct.account_id}`, acct.balances.iso_currency_code, acct.balances.unofficial_currency_code),
-        }),
-      )
+          isFallback: false,
+          asOf: acct.balances.last_updated_datetime ?? undefined,
+        }
+        const { current, available, limit } = acct.balances
+        if (current !== null) {
+          balances.push({ ...base, balanceType: 'current', providerBalanceType: 'current', amount: owed ? -current : current })
+        }
+        if (kind === 'cash' && available !== null) {
+          balances.push({ ...base, balanceType: 'available', providerBalanceType: 'available', amount: available })
+        }
+        if (owed && limit !== null) {
+          balances.push({ ...base, balanceType: 'limit', providerBalanceType: 'limit', amount: limit })
+        }
+      }
+      return balances
     },
 
     async getTransactions(accessToken, cursor) {
@@ -160,6 +175,8 @@ export function createPlaidConnector(credentials: PlaidCredentials): Connector {
       return {
         transactions,
         nextCursor: data.has_more ? data.next_cursor : undefined,
+        historyComplete:
+          data.transactions_update_status === TransactionsUpdateStatus.HistoricalUpdateComplete && !data.has_more,
       }
     },
   }

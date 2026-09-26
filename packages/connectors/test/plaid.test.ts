@@ -157,6 +157,19 @@ describe('Plaid normalization', () => {
     ])
   })
 
+  test('history is complete only after the historical pull and with no pages left', async () => {
+    const sync = (transactions_update_status: string, has_more: boolean) => async () => ({
+      data: { added: [], modified: [], removed: [], has_more, next_cursor: 'c', transactions_update_status },
+    })
+    const connector = createPlaidConnector(credentials)
+    stub('transactionsSync', sync('INITIAL_UPDATE_COMPLETE', false))
+    expect((await connector.getTransactions(ACCESS_TOKEN)).historyComplete).toBe(false)
+    stub('transactionsSync', sync('HISTORICAL_UPDATE_COMPLETE', true))
+    expect((await connector.getTransactions(ACCESS_TOKEN)).historyComplete).toBe(false)
+    stub('transactionsSync', sync('HISTORICAL_UPDATE_COMPLETE', false))
+    expect((await connector.getTransactions(ACCESS_TOKEN)).historyComplete).toBe(true)
+  })
+
   test('a non-ISO currency uses unofficial_currency_code', async () => {
     stub('accountsGet', async () => ({
       data: { accounts: [account({ iso_currency_code: null, unofficial_currency_code: 'BTC' })] },
@@ -166,12 +179,44 @@ describe('Plaid normalization', () => {
   })
 
   test('no currency at all is refused instead of guessed as USD', async () => {
-    stub('accountsBalanceGet', async () => ({
+    stub('accountsGet', async () => ({
       data: { accounts: [account({ iso_currency_code: null, unofficial_currency_code: null })] },
     }))
     const err = await rejection(createPlaidConnector(credentials).getBalances(ACCESS_TOKEN))
     expect(err.kind).toBe('bad_response')
     expect(err.message).toContain('acct-1')
+  })
+
+  test('balances come from the free accountsGet, never the billed accountsBalanceGet', async () => {
+    stub('accountsGet', async () => ({ data: { accounts: [account({})] } }))
+    const billed = stub('accountsBalanceGet', async () => ({ data: { accounts: [] } }))
+    await createPlaidConnector(credentials).getBalances(ACCESS_TOKEN)
+    expect(billed).not.toHaveBeenCalled()
+  })
+
+  test('money owed is negative; available only for cash, limit only for debts; other types get no balance', async () => {
+    const acct = (id: string, type: string, balances: Record<string, unknown>) => ({ ...account(balances), account_id: id, type })
+    stub('accountsGet', async () => ({
+      data: {
+        accounts: [
+          acct('cash', 'depository', { current: 110, available: 100, limit: 500 }),
+          acct('card', 'credit', { current: 410, available: 1590, limit: 2000 }),
+          acct('heloc', 'loan', { current: 13500.5, available: 47647.5, limit: 61148 }),
+          acct('ira', 'investment', { current: 320.76, available: null }),
+          acct('mystery', 'other', { current: 50, available: 50 }),
+        ],
+      },
+    }))
+    const rows = await createPlaidConnector(credentials).getBalances(ACCESS_TOKEN)
+    expect(rows.map((b) => [b.providerAccountId, b.balanceType, b.amount])).toEqual([
+      ['cash', 'current', 110],
+      ['cash', 'available', 100],
+      ['card', 'current', -410],
+      ['card', 'limit', 2000],
+      ['heloc', 'current', -13500.5],
+      ['heloc', 'limit', 61148],
+      ['ira', 'current', 320.76],
+    ])
   })
 })
 

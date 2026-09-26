@@ -401,26 +401,32 @@ export function createEnableBankingConnector(credentials: EnableBankingCredentia
       return accounts
     },
 
-    // Exact types only: CLBD (booked) -> current, CLAV (available) -> available,
-    // null when the bank did not report that type. No fallback guessing (S2-3).
     async getBalances(sessionId) {
       const balances: NormalizedBalance[] = []
       for (const { uid, identification_hash } of await sessionAccounts(credentials, sessionId)) {
+        const details = await call<EbAccount>(credentials, 'GET', `/accounts/${encodeURIComponent(uid)}/details`)
+        if (enableBankingAccountKind(details.cash_account_type ?? 'OTHR') !== 'cash') continue
         const { balances: raw } = await call<{ balances: EbBalance[] }>(
           credentials,
           'GET',
           `/accounts/${encodeURIComponent(uid)}/balances`,
         )
-        const booked = raw.find((b) => b.balance_type === 'CLBD')
-        const available = raw.find((b) => b.balance_type === 'CLAV')
-        const currency = (booked ?? available ?? raw[0])?.balance_amount.currency
-        if (!currency) continue
-        balances.push({
-          providerAccountId: identification_hash,
-          current: booked ? parseAmount('Enable Banking CLBD balance', booked.balance_amount).value : null,
-          available: available ? parseAmount('Enable Banking CLAV balance', available.balance_amount).value : null,
-          currency,
-        })
+        for (const [balanceType, preference] of [
+          ['current', ['CLBD', 'ITBD', 'XPCD']],
+          ['available', ['CLAV', 'ITAV']],
+        ] as const) {
+          const chosen = preference.map((type) => raw.find((b) => b.balance_type === type)).find((b) => b !== undefined)
+          if (!chosen) continue
+          const { value, currency } = parseAmount(`Enable Banking ${chosen.balance_type} balance`, chosen.balance_amount)
+          balances.push({
+            providerAccountId: identification_hash,
+            balanceType,
+            amount: value,
+            currency,
+            providerBalanceType: chosen.balance_type,
+            isFallback: chosen.balance_type !== preference[0],
+          })
+        }
       }
       return balances
     },
@@ -439,7 +445,7 @@ export function createEnableBankingConnector(credentials: EnableBankingCredentia
           ),
         )
       }
-      return { transactions }
+      return { transactions, historyComplete: true }
     },
   }
 }
