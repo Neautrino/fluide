@@ -18,6 +18,17 @@ export type NormalizedTransaction = {
   // true when the provider gave no stable id and the adapter derived one from
   // the transaction's content — ingest tags these so they stay auditable.
   syntheticId?: boolean
+  pendingTransactionId?: string
+}
+
+export type RemovedTransaction = { providerTransactionId: string; accountId: string }
+
+export type TransactionChanges = {
+  added: NormalizedTransaction[]
+  modified: NormalizedTransaction[]
+  removed: RemovedTransaction[]
+  nextCursor?: string
+  historyComplete: boolean
 }
 
 export type NormalizedAccountKind = 'cash' | 'investment' | 'credit' | 'loan' | 'other'
@@ -49,8 +60,5 @@ export interface Connector {
   getBalances(accessToken: string): Promise<NormalizedBalance[]>
   // cursor: incremental sync (Plaid's transactionsSync model). Adapters
   // without native cursoring may ignore it and return the full window.
-  getTransactions(
-    accessToken: string,
-    cursor?: string,
-  ): Promise<{ transactions: NormalizedTransaction[]; nextCursor?: string; historyComplete: boolean }>
+  getTransactions(accessToken: string, cursor?: string): Promise<TransactionChanges>
 }

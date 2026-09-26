@@ -3,7 +3,15 @@
  * Never: let an SDK error escape; every call goes through plaidCall.
  * See: ADR 011 — one module that takes credentials
  */
-import { Configuration, CountryCode, PlaidApi, PlaidEnvironments, Products, TransactionsUpdateStatus } from 'plaid'
+import {
+  Configuration,
+  CountryCode,
+  PlaidApi,
+  PlaidEnvironments,
+  Products,
+  TransactionsUpdateStatus,
+  type Transaction as PlaidTransaction,
+} from 'plaid'
 import { ConnectorError, type ConnectorErrorKind } from './errors.js'
 import type {
   Connector,
@@ -11,6 +19,7 @@ import type {
   NormalizedAccountKind,
   NormalizedBalance,
   NormalizedTransaction,
+  TransactionChanges,
 } from './types.js'
 
 export type PlaidCredentials = { clientId: string; secret: string }
@@ -108,6 +117,52 @@ export function plaidAccountKind(type: string): NormalizedAccountKind {
   }
 }
 
+const SYNC_PAGE_SIZE = 500
+const MAX_SYNC_PAGES = 200
+const MAX_SYNC_RESTARTS = 3
+
+function normalizeTransaction(tx: PlaidTransaction): NormalizedTransaction {
+  return {
+    providerTransactionId: tx.transaction_id,
+    accountId: tx.account_id,
+    date: tx.date,
+    description: tx.merchant_name ?? tx.name,
+    amount: -tx.amount, // sign flip — see file header
+    currency: currencyOf(`transaction ${tx.transaction_id}`, tx.iso_currency_code, tx.unofficial_currency_code),
+    pending: tx.pending,
+    providerCategory: tx.personal_finance_category?.primary,
+    pendingTransactionId: tx.pending_transaction_id ?? undefined,
+  }
+}
+
+/** Pulls every page from `cursor`. Plaid requires restarting from the
+ * original cursor when the data changes mid-pagination. */
+async function syncAllPages(client: PlaidApi, accessToken: string, cursor: string | undefined): Promise<TransactionChanges> {
+  for (let restart = 0; restart < MAX_SYNC_RESTARTS; restart++) {
+    const changes: TransactionChanges = { added: [], modified: [], removed: [], nextCursor: cursor, historyComplete: false }
+    try {
+      for (let page = 0; page < MAX_SYNC_PAGES; page++) {
+        const data = await plaidCall('transactionsSync', () =>
+          client.transactionsSync({ access_token: accessToken, cursor: changes.nextCursor, count: SYNC_PAGE_SIZE }),
+        )
+        changes.added.push(...data.added.map(normalizeTransaction))
+        changes.modified.push(...data.modified.map(normalizeTransaction))
+        changes.removed.push(...data.removed.map((r) => ({ providerTransactionId: r.transaction_id, accountId: r.account_id })))
+        changes.nextCursor = data.next_cursor
+        if (!data.has_more) {
+          changes.historyComplete = data.transactions_update_status === TransactionsUpdateStatus.HistoricalUpdateComplete
+          return changes
+        }
+      }
+      throw new ConnectorError(PROVIDER, 'bad_response', `Plaid transactionsSync returned more than ${MAX_SYNC_PAGES} pages`)
+    } catch (err) {
+      if (err instanceof ConnectorError && err.details.providerCode === 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION') continue
+      throw err
+    }
+  }
+  throw new ConnectorError(PROVIDER, 'provider_unavailable', 'Plaid transactions kept changing during pagination; sync again later')
+}
+
 // ---------------------------------------------------------------- connector
 
 export function createPlaidConnector(credentials: PlaidCredentials): Connector {
@@ -158,27 +213,7 @@ export function createPlaidConnector(credentials: PlaidCredentials): Connector {
       return balances
     },
 
-    async getTransactions(accessToken, cursor) {
-      const data = await plaidCall('transactionsSync', () => client.transactionsSync({ access_token: accessToken, cursor }))
-
-      const transactions: NormalizedTransaction[] = data.added.map((tx) => ({
-        providerTransactionId: tx.transaction_id,
-        accountId: tx.account_id,
-        date: tx.date,
-        description: tx.merchant_name ?? tx.name,
-        amount: -tx.amount, // sign flip — see file header
-        currency: currencyOf(`transaction ${tx.transaction_id}`, tx.iso_currency_code, tx.unofficial_currency_code),
-        pending: tx.pending,
-        providerCategory: tx.personal_finance_category?.primary,
-      }))
-
-      return {
-        transactions,
-        nextCursor: data.has_more ? data.next_cursor : undefined,
-        historyComplete:
-          data.transactions_update_status === TransactionsUpdateStatus.HistoricalUpdateComplete && !data.has_more,
-      }
-    },
+    getTransactions: (accessToken, cursor) => syncAllPages(client, accessToken, cursor),
   }
 }
 

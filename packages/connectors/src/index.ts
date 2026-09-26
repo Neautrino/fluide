@@ -4,6 +4,8 @@ export type {
   NormalizedAccountKind,
   NormalizedBalance,
   NormalizedTransaction,
+  RemovedTransaction,
+  TransactionChanges,
 } from './types.js'
 export { ConnectorError, type ConnectorErrorKind } from './errors.js'
 export {

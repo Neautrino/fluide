@@ -445,7 +445,7 @@ export function createEnableBankingConnector(credentials: EnableBankingCredentia
           ),
         )
       }
-      return { transactions, historyComplete: true }
+      return { added: transactions, modified: [], removed: [], historyComplete: true }
     },
   }
 }

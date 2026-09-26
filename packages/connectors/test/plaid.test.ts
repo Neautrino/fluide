@@ -10,7 +10,7 @@ const credentials = { clientId: 'client-id', secret: SECRET }
 const spies: Mock<(...args: never[]) => unknown>[] = []
 function stub<K extends 'accountsGet' | 'accountsBalanceGet' | 'transactionsSync' | 'itemPublicTokenExchange' | 'linkTokenCreate'>(
   method: K,
-  impl: () => Promise<unknown>,
+  impl: (request: { cursor?: string }) => Promise<unknown>,
 ) {
   const spy = spyOn(PlaidApi.prototype, method).mockImplementation(impl as never)
   spies.push(spy as never)
@@ -150,24 +150,59 @@ describe('Plaid normalization', () => {
         next_cursor: 'cursor-1',
       },
     }))
-    const { transactions } = await createPlaidConnector(credentials).getTransactions(ACCESS_TOKEN)
-    expect(transactions.map((t) => [t.description, t.amount])).toEqual([
+    const { added } = await createPlaidConnector(credentials).getTransactions(ACCESS_TOKEN)
+    expect(added.map((t) => [t.description, t.amount])).toEqual([
       ['Uber', -5.4],
       ['Payroll', 1200],
     ])
   })
 
-  test('history is complete only after the historical pull and with no pages left', async () => {
-    const sync = (transactions_update_status: string, has_more: boolean) => async () => ({
-      data: { added: [], modified: [], removed: [], has_more, next_cursor: 'c', transactions_update_status },
+  const page = (overrides: Record<string, unknown>) => ({
+    data: { added: [], modified: [], removed: [], has_more: false, next_cursor: 'c', transactions_update_status: 'HISTORICAL_UPDATE_COMPLETE', ...overrides },
+  })
+  const plaidTx = (id: string, extra: Record<string, unknown> = {}) => ({
+    transaction_id: id, account_id: 'acct-1', date: '2026-09-01', name: id, merchant_name: null, amount: 1,
+    iso_currency_code: 'USD', unofficial_currency_code: null, pending: false, ...extra,
+  })
+
+  test('pulls every page, returns all three lists and the final cursor', async () => {
+    const cursors: (string | undefined)[] = []
+    const pages = [
+      page({ added: [plaidTx('p1')], has_more: true, next_cursor: 'c1' }),
+      page({ added: [plaidTx('posted', { pending_transaction_id: 'p0' })], removed: [{ transaction_id: 'p0', account_id: 'acct-1' }], modified: [plaidTx('m1')], next_cursor: 'c2' }),
+    ]
+    stub('transactionsSync', async ({ cursor }) => {
+      cursors.push(cursor)
+      return pages[cursors.length - 1]
     })
-    const connector = createPlaidConnector(credentials)
-    stub('transactionsSync', sync('INITIAL_UPDATE_COMPLETE', false))
-    expect((await connector.getTransactions(ACCESS_TOKEN)).historyComplete).toBe(false)
-    stub('transactionsSync', sync('HISTORICAL_UPDATE_COMPLETE', true))
-    expect((await connector.getTransactions(ACCESS_TOKEN)).historyComplete).toBe(false)
-    stub('transactionsSync', sync('HISTORICAL_UPDATE_COMPLETE', false))
-    expect((await connector.getTransactions(ACCESS_TOKEN)).historyComplete).toBe(true)
+    const changes = await createPlaidConnector(credentials).getTransactions(ACCESS_TOKEN, 'c0')
+    expect(cursors).toEqual(['c0', 'c1'])
+    expect(changes.added.map((t) => [t.providerTransactionId, t.pendingTransactionId])).toEqual([['p1', undefined], ['posted', 'p0']])
+    expect(changes.modified.map((t) => t.providerTransactionId)).toEqual(['m1'])
+    expect(changes.removed).toEqual([{ providerTransactionId: 'p0', accountId: 'acct-1' }])
+    expect(changes.nextCursor).toBe('c2')
+    expect(changes.historyComplete).toBe(true)
+  })
+
+  test('history is incomplete until the historical pull finishes', async () => {
+    stub('transactionsSync', async () => page({ transactions_update_status: 'INITIAL_UPDATE_COMPLETE' }))
+    expect((await createPlaidConnector(credentials).getTransactions(ACCESS_TOKEN)).historyComplete).toBe(false)
+  })
+
+  test('a mutation during pagination restarts from the original cursor without duplicating rows', async () => {
+    const cursors: (string | undefined)[] = []
+    stub('transactionsSync', async ({ cursor }) => {
+      cursors.push(cursor)
+      if (cursors.length === 1) return page({ added: [plaidTx('a')], has_more: true, next_cursor: 'c1' })
+      if (cursors.length === 2) {
+        throw plaidHttpError(400, { error_type: 'TRANSACTIONS_ERROR', error_code: 'TRANSACTIONS_SYNC_MUTATION_DURING_PAGINATION', error_message: 'retry' })
+      }
+      if (cursors.length === 3) return page({ added: [plaidTx('a')], has_more: true, next_cursor: 'c1' })
+      return page({ added: [plaidTx('b')], next_cursor: 'c2' })
+    })
+    const changes = await createPlaidConnector(credentials).getTransactions(ACCESS_TOKEN, 'c0')
+    expect(cursors).toEqual(['c0', 'c1', 'c0', 'c1'])
+    expect(changes.added.map((t) => t.providerTransactionId)).toEqual(['a', 'b'])
   })
 
   test('a non-ISO currency uses unofficial_currency_code', async () => {

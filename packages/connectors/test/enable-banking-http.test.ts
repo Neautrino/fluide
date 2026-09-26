@@ -136,9 +136,9 @@ describe('getTransactions', () => {
           : json({ transactions: [booked('R2'), booked('P1', 'PDNG')], continuation_key: null })
       },
     })
-    const { transactions } = await createEnableBankingConnector(credentials).getTransactions(SESSION_ID)
+    const { added } = await createEnableBankingConnector(credentials).getTransactions(SESSION_ID)
     expect(seenKeys).toEqual([null, 'page-2'])
-    expect(transactions.map((t) => t.providerTransactionId)).toEqual(['hash-1:R1', 'hash-1:R2'])
+    expect(added.map((t) => t.providerTransactionId)).toEqual(['hash-1:R1', 'hash-1:R2'])
   })
 
   test('a bank that never stops paging is refused instead of looping forever', async () => {

@@ -2,9 +2,10 @@
  * Invariant: each transaction is a balanced bank + equity (suspense or opening-balance) posting pair; re-ingest never duplicates. Enforced by: migration 0001 postings_must_balance, transactions_external_ref_unique_idx.
  * See: ADR 008 — provider-agnostic ingest and the externalRef format
  */
-import { db, accounts, transactions, postings, balanceAssertions } from '@repo/ledger'
+import { db, accounts, transactions, postings, balanceAssertions, type DbExecutor } from '@repo/ledger'
 import type { Connector, NormalizedAccount, NormalizedBalance, NormalizedTransaction } from '@repo/connectors'
-import { eq, and, sql } from 'drizzle-orm'
+import { eq, and, sql, inArray, isNull } from 'drizzle-orm'
+import { writeAuditLog } from './audit.js'
 
 type Account = typeof accounts.$inferSelect
 
@@ -121,6 +122,8 @@ export type IngestResult = {
   balanceFlags: BalanceFlag[]
   transactionsInserted: number
   transactionsSkipped: number
+  transactionsVoided: number
+  transactionsUpdated: number
   nextCursor?: string
 }
 
@@ -130,6 +133,127 @@ function postingTags(provider: string, tx: NormalizedTransaction) {
     ...(tx.syntheticId ? [`${provider}:synthetic-id`] : []),
   ]
   return tags.length > 0 ? tags : undefined
+}
+
+type VoidReason = NonNullable<(typeof transactions.$inferSelect)['voidReason']>
+type CarriedCategory = { categoryId: string; source: string; reason: string }
+
+async function findBankPosting(executor: DbExecutor, externalRef: string, liveOnly: boolean) {
+  const [row] = await executor
+    .select({
+      transactionId: transactions.id,
+      date: transactions.date,
+      description: transactions.description,
+      status: transactions.status,
+      accountId: postings.accountId,
+      amount: postings.amount,
+      categoryId: postings.categoryId,
+    })
+    .from(transactions)
+    .innerJoin(postings, eq(postings.transactionId, transactions.id))
+    .innerJoin(accounts, eq(accounts.id, postings.accountId))
+    .where(
+      and(
+        eq(transactions.externalRef, externalRef),
+        inArray(accounts.type, ['asset', 'liability']),
+        liveOnly ? isNull(transactions.voidedAt) : undefined,
+      ),
+    )
+    .limit(1)
+  return row
+}
+
+/** Postings are append-only: a void is a reversing transaction that negates
+ * every leg, plus voided_at/void_reason on the original. */
+async function voidTransaction(executor: DbExecutor, transactionId: string, reason: VoidReason) {
+  const [original] = await executor
+    .select({ tenantId: transactions.tenantId, date: transactions.date, description: transactions.description })
+    .from(transactions)
+    .where(eq(transactions.id, transactionId))
+  const legs = await executor
+    .select({ accountId: postings.accountId, amount: postings.amount, currency: postings.currency })
+    .from(postings)
+    .where(eq(postings.transactionId, transactionId))
+
+  const [reversal] = await executor
+    .insert(transactions)
+    .values({
+      tenantId: original!.tenantId,
+      date: original!.date,
+      description: `Reversal: ${original!.description}`,
+      source: 'import',
+      status: 'cleared',
+      createdBy: 'connector',
+      reversesTransactionId: transactionId,
+    })
+    .returning({ id: transactions.id })
+  if (legs.length > 0) {
+    await executor.insert(postings).values(
+      legs.map((leg) => ({
+        transactionId: reversal!.id,
+        accountId: leg.accountId,
+        amount: sql`-(${leg.amount}::numeric)`,
+        currency: leg.currency,
+      })),
+    )
+  }
+  await executor.update(transactions).set({ voidedAt: new Date(), voidReason: reason }).where(eq(transactions.id, transactionId))
+}
+
+async function insertProviderTransaction(
+  executor: DbExecutor,
+  provider: string,
+  bankAccount: Account,
+  suspenseAccount: Account,
+  tx: NormalizedTransaction,
+  carried?: CarriedCategory,
+) {
+  const [row] = await executor
+    .insert(transactions)
+    .values({
+      tenantId: LOCAL_TENANT_ID,
+      date: new Date(tx.date),
+      description: tx.description,
+      source: 'import',
+      status: tx.pending ? 'pending' : 'cleared',
+      createdBy: 'connector',
+      externalRef: `${provider}:${tx.providerTransactionId}`,
+    })
+    .returning({ id: transactions.id })
+
+  const [bankPosting] = await executor
+    .insert(postings)
+    .values({
+      transactionId: row!.id,
+      accountId: bankAccount.id,
+      amount: tx.amount.toFixed(8),
+      currency: tx.currency,
+      counterpartyRaw: tx.description,
+      categoryId: carried?.categoryId,
+      tags: postingTags(provider, tx),
+    })
+    .returning({ id: postings.id })
+  await executor.insert(postings).values({
+    transactionId: row!.id,
+    accountId: suspenseAccount.id,
+    amount: (-tx.amount).toFixed(8),
+    currency: tx.currency,
+  })
+
+  if (carried) {
+    await writeAuditLog(
+      {
+        postingId: bankPosting!.id,
+        action: 'auto_applied',
+        categoryId: carried.categoryId,
+        source: carried.source,
+        confidence: null,
+        reason: carried.reason,
+        actor: 'system',
+      },
+      executor,
+    )
+  }
 }
 
 /** Ingest all new transactions for one connection. `credential` is the
@@ -150,70 +274,93 @@ export async function ingestConnection(
     )
   }
 
-  const { transactions: normalizedTxs, nextCursor, historyComplete } = await connector.getTransactions(credential, cursor)
-  let inserted = 0
-  let skipped = 0
+  const changes = await connector.getTransactions(credential, cursor)
+  const { nextCursor, historyComplete } = changes
+  const ref = (providerTransactionId: string) => `${connector.provider}:${providerTransactionId}`
+  const counts = { inserted: 0, skipped: 0, voided: 0, updated: 0 }
 
-  for (const tx of normalizedTxs) {
+  const ledgerAccountsFor = async (tx: NormalizedTransaction) => {
     const bankAccount = accountByProviderId.get(tx.accountId)
-    if (!bankAccount) {
-      skipped++ // account listAccounts didn't return — skip, don't guess
-      continue
-    }
-
+    if (!bankAccount) return undefined // account listAccounts didn't return — skip, don't guess
     const suspenseAccount = await findOrCreateEquityAccount(
       LOCAL_TENANT_ID,
       `equity:uncategorized:${tx.currency.toLowerCase()}`,
       `Uncategorized (${tx.currency})`,
       tx.currency,
     )
-    const externalRef = `${connector.provider}:${tx.providerTransactionId}`
+    return { bankAccount, suspenseAccount }
+  }
 
-    const inserted_ = await db.transaction(async (tx_db) => {
-      const [existing] = await tx_db
-        .select({ id: transactions.id })
-        .from(transactions)
-        .where(eq(transactions.externalRef, externalRef))
-        .limit(1)
-      if (existing) return false
-
-      const [txnRow] = await tx_db
-        .insert(transactions)
-        .values({
-          tenantId: LOCAL_TENANT_ID,
-          date: new Date(tx.date),
-          description: tx.description,
-          source: 'import',
-          status: tx.pending ? 'pending' : 'cleared',
-          createdBy: 'connector',
-          externalRef,
-        })
-        .returning()
-
-      // two balanced postings: bank account moves by tx.amount, suspense
-      // account takes the exact offset
-      await tx_db.insert(postings).values([
-        {
-          transactionId: txnRow!.id,
-          accountId: bankAccount.id,
-          amount: tx.amount.toFixed(8),
-          currency: tx.currency,
-          counterpartyRaw: tx.description,
-          tags: postingTags(connector.provider, tx),
-        },
-        {
-          transactionId: txnRow!.id,
-          accountId: suspenseAccount.id,
-          amount: (-tx.amount).toFixed(8),
-          currency: tx.currency,
-        },
-      ])
-
+  const postedPendingIds = new Set(changes.added.flatMap((tx) => (tx.pendingTransactionId ? [tx.pendingTransactionId] : [])))
+  for (const removed of changes.removed) {
+    const voided = await db.transaction(async (tx_db) => {
+      const live = await findBankPosting(tx_db, ref(removed.providerTransactionId), true)
+      if (!live) return false
+      const reason = postedPendingIds.has(removed.providerTransactionId) ? 'pending_posted' : 'provider_removed'
+      await voidTransaction(tx_db, live.transactionId, reason)
       return true
     })
+    if (voided) counts.voided++
+  }
 
-    if (inserted_) inserted++
-    else skipped++
+  for (const tx of changes.added) {
+    const ledgerAccounts = await ledgerAccountsFor(tx)
+    if (!ledgerAccounts) {
+      counts.skipped++
+      continue
+    }
+    const insertedNow = await db.transaction(async (tx_db) => {
+      if (await findBankPosting(tx_db, ref(tx.providerTransactionId), true)) return false
+      const pending = tx.pendingTransactionId ? await findBankPosting(tx_db, ref(tx.pendingTransactionId), false) : undefined
+      const carried = pending?.categoryId
+        ? { categoryId: pending.categoryId, source: 'pending-carry', reason: `carried from pending transaction ${ref(tx.pendingTransactionId!)}` }
+        : undefined
+      await insertProviderTransaction(tx_db, connector.provider, ledgerAccounts.bankAccount, ledgerAccounts.suspenseAccount, tx, carried)
+      return true
+    })
+    if (insertedNow) counts.inserted++
+    else counts.skipped++
+  }
+
+  for (const tx of changes.modified) {
+    const ledgerAccounts = await ledgerAccountsFor(tx)
+    if (!ledgerAccounts) {
+      counts.skipped++
+      continue
+    }
+    const { bankAccount, suspenseAccount } = ledgerAccounts
+    const outcome = await db.transaction(async (tx_db) => {
+      const live = await findBankPosting(tx_db, ref(tx.providerTransactionId), true)
+      if (!live) {
+        await insertProviderTransaction(tx_db, connector.provider, bankAccount, suspenseAccount, tx)
+        return 'inserted'
+      }
+      if (live.accountId === bankAccount.id && Number(live.amount) === tx.amount) {
+        const next = {
+          date: new Date(tx.date),
+          description: tx.description,
+          status: live.status === 'reconciled' ? live.status : tx.pending ? ('pending' as const) : ('cleared' as const),
+        }
+        if (live.date.getTime() === next.date.getTime() && live.description === next.description && live.status === next.status) {
+          return 'unchanged'
+        }
+        await tx_db.update(transactions).set(next).where(eq(transactions.id, live.transactionId))
+        return 'updated'
+      }
+      await voidTransaction(tx_db, live.transactionId, 'provider_modified')
+      const carried = live.categoryId
+        ? { categoryId: live.categoryId, source: 'modified-carry', reason: `carried from ${ref(tx.providerTransactionId)} before the provider changed its amount or account` }
+        : undefined
+      await insertProviderTransaction(tx_db, connector.provider, bankAccount, suspenseAccount, tx, carried)
+      return 'replaced'
+    })
+    if (outcome === 'inserted') counts.inserted++
+    else if (outcome === 'updated') counts.updated++
+    else if (outcome === 'unchanged') counts.skipped++
+    else {
+      counts.voided++
+      counts.inserted++
+    }
   }
 
   const balances = await connector.getBalances(credential)
@@ -262,8 +409,10 @@ export async function ingestConnection(
     accountsSeen: providerAccounts.length,
     unclassifiedAccounts: providerAccounts.filter((acct) => acct.kind === 'other').map((acct) => acct.name),
     balanceFlags,
-    transactionsInserted: inserted,
-    transactionsSkipped: skipped,
+    transactionsInserted: counts.inserted,
+    transactionsSkipped: counts.skipped,
+    transactionsVoided: counts.voided,
+    transactionsUpdated: counts.updated,
     nextCursor,
   }
 }
