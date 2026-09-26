@@ -1,4 +1,4 @@
-import { and, eq, gte, inArray } from 'drizzle-orm'
+import { and, eq, gte, inArray, ne } from 'drizzle-orm'
 import { accounts, transactions } from '../schema/index.js'
 
 export const PERIODS = ['this_week', 'this_month', 'last_30_days', 'this_year', 'all_time'] as const
@@ -26,7 +26,11 @@ function periodStart(period: Period): Date | undefined {
 
 export function bankPostingsFilter(tenantId: string, period: Period) {
   const start = periodStart(period)
-  const conditions = [eq(transactions.tenantId, tenantId), inArray(accounts.type, ['asset', 'liability'])]
+  const conditions = [
+    eq(transactions.tenantId, tenantId),
+    inArray(accounts.type, ['asset', 'liability']),
+    ne(transactions.source, 'opening-balance'),
+  ]
   if (start) conditions.push(gte(transactions.date, start))
   return and(...conditions)
 }
