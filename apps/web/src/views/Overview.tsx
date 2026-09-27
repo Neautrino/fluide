@@ -5,10 +5,10 @@ import { Button } from '../components/ui/Button'
 import { Segmented } from '../components/ui/Segmented'
 import { Empty, ErrorState, Loading } from '../components/ui/States'
 import { Money, PageHeader, SectionTitle } from '../components/ui/Typography'
-import { getJson, type Account, type Period, type Summary } from '../lib/api'
+import { getJson, type Account, type AccountBalance, type Period, type Summary } from '../lib/api'
 import { useApp } from '../lib/app-context'
 import { useCategories, categoryName } from '../lib/categories'
-import { formatMoney } from '../lib/format'
+import { formatMoney, formatTimestamp } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
 const PERIODS: { value: Exclude<Period, 'this_week'>; label: string }[] = [
@@ -66,23 +66,15 @@ export function Overview() {
 
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
             <section className="lg:col-span-5">
-              <SectionTitle aside="Asset accounts">Accounts</SectionTitle>
+              <SectionTitle aside="Balances as your bank reports them">Accounts</SectionTitle>
               {summary.data ? (
                 summary.data.balances.length === 0 ? (
                   <Empty title="No balances yet">Balances appear once transactions have synced.</Empty>
                 ) : (
-                  <ul>
-                    {summary.data.balances.map((b) => (
-                      <li key={`${b.name}:${b.currency}`} className="flex items-baseline justify-between gap-4 border-b border-rule py-3">
-                        <span className="min-w-0 truncate text-[15px] text-ink">{b.name}</span>
-                        {b.balance === null ? (
-                          <span className="text-[13px] text-ink-3 italic">Balance unknown</span>
-                        ) : (
-                          <Money amount={b.balance} currency={b.currency} className="font-display text-[19px]" />
-                        )}
-                      </li>
-                    ))}
-                  </ul>
+                  <div className="flex flex-col gap-6">
+                    <AccountGroup title="Cash & investments" balances={summary.data.balances.filter((b) => !isDebt(b))} />
+                    <AccountGroup title="Cards & loans" balances={summary.data.balances.filter(isDebt)} />
+                  </div>
                 )
               ) : summary.error ? (
                 <p className="py-3 text-[13px] text-ink-3">Balances come from the summary, which is unavailable.</p>
@@ -175,9 +167,55 @@ function ConnectFirst({ onConnected }: { onConnected: () => void }) {
   )
 }
 
+const isDebt = (b: AccountBalance) => b.kind === 'credit' || b.kind === 'loan'
+
+function accountNotes(b: AccountBalance): string[] {
+  const notes: string[] = []
+  if (b.kind === 'other') notes.push('type not recognised')
+  if (b.bankBalanceIsFallback) notes.push('estimated by the bank')
+  if (Math.abs(b.pendingBalance) >= 0.005) {
+    notes.push(`${formatMoney(b.pendingBalance, b.currency)} pending${b.bankCountsPending ? ', included by the bank' : ''}`)
+  }
+  if (b.mismatch) notes.push(`ledger shows ${formatMoney(b.ledgerBalance, b.currency)}`)
+  if (b.bankBalanceAt) notes.push(`as of ${formatTimestamp(b.bankBalanceAt)}`)
+  return notes
+}
+
+function AccountGroup({ title, balances }: { title: string; balances: AccountBalance[] }) {
+  if (balances.length === 0) return null
+  return (
+    <div>
+      <p className="eyebrow">{title}</p>
+      <ul>
+        {balances.map((b) => {
+          const notes = accountNotes(b)
+          return (
+            <li key={b.id} className="flex items-baseline justify-between gap-4 border-b border-rule py-3">
+              <div className="min-w-0">
+                <p className="truncate text-[15px] text-ink">{b.name}</p>
+                {notes.length > 0 && (
+                  <p className={`mt-0.5 text-[12px] ${b.mismatch ? 'text-red' : 'text-ink-3'}`}>
+                    {b.mismatch && 'Doesn’t match the ledger · '}
+                    {notes.join(' · ')}
+                  </p>
+                )}
+              </div>
+              {b.balance === null ? (
+                <span className="text-[13px] text-ink-3 italic">Balance unknown</span>
+              ) : (
+                <Money amount={b.balance} currency={b.currency} className="font-display text-[19px]" />
+              )}
+            </li>
+          )
+        })}
+      </ul>
+    </div>
+  )
+}
+
 function Kpis({ summary, periodLabel }: { summary: Summary; periodLabel: string }) {
   // Totals are per currency; the headline uses the currency most balances are in.
-  const known = summary.balances.flatMap((b) => (b.balance === null ? [] : [{ currency: b.currency, balance: b.balance }]))
+  const known = summary.balances.flatMap((b) => (b.balance === null ? [] : [{ ...b, balance: b.balance }]))
   const totals: Record<string, number> = {}
   for (const b of known) totals[b.currency] = (totals[b.currency] ?? 0) + b.balance
   const currencies = Object.keys(totals).sort(
@@ -185,15 +223,18 @@ function Kpis({ summary, periodLabel }: { summary: Summary; periodLabel: string 
   )
   const currency = currencies[0] ?? 'USD'
   const others = currencies.slice(1)
+  const inCurrency = known.filter((b) => b.currency === currency)
+  const assets = inCurrency.filter((b) => !isDebt(b)).reduce((sum, b) => sum + b.balance, 0)
+  const owed = inCurrency.filter(isDebt).reduce((sum, b) => sum - b.balance, 0)
   const { income, expense, net } = summary.incomeVsExpense
 
   const cells = [
     {
-      label: 'Total balance',
+      label: 'Net worth',
       value: <Money amount={totals[currency] ?? 0} currency={currency} />,
-      note: others.length
-        ? `plus ${others.map((c) => formatMoney(totals[c], c)).join(', ')}`
-        : `across ${known.length} ${known.length === 1 ? 'account' : 'accounts'}`,
+      note:
+        `${formatMoney(assets, currency)} assets · ${formatMoney(owed, currency)} owed` +
+        (others.length ? ` · plus ${others.map((c) => formatMoney(totals[c], c)).join(', ')}` : ''),
     },
     { label: 'Money in', value: <Money amount={income} currency={currency} />, note: periodLabel },
     { label: 'Money out', value: <Money amount={expense} currency={currency} />, note: periodLabel },

@@ -4,6 +4,7 @@ import { accounts, balanceAssertions, postings, transactions, type AccountKind }
 import { liveTransaction, settledTransaction } from './live.js'
 
 export type AccountBalance = {
+  id: string
   name: string
   currency: string
   kind: AccountKind | null
@@ -54,6 +55,7 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
     .leftJoin(transactions, eq(transactions.id, postings.transactionId))
     .where(and(eq(accounts.tenantId, tenantId), inArray(accounts.type, ['asset', 'liability'])))
     .groupBy(accounts.id, accounts.name, accounts.currency, accounts.kind)
+    .orderBy(accounts.type, accounts.kind, accounts.name, accounts.id)
 
   const ids = ledgerRows.map((r) => r.id)
   const bankRows = ids.length
@@ -94,6 +96,7 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
     const matchesWithPending =
       bankBalance !== null && Math.abs(pendingBalance) >= 0.005 && Math.abs(bankBalance - ledgerBalance - pendingBalance) < 0.005
     return {
+      id: r.id,
       name: r.name,
       currency: r.currency,
       kind: r.kind,

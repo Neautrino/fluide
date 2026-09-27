@@ -103,12 +103,28 @@ export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' |
 
 export type AccountKind = 'cash' | 'investment' | 'credit' | 'loan' | 'other'
 
+export type AccountBalance = {
+  id: string
+  name: string
+  currency: string
+  kind: AccountKind | null
+  /** null = unknown: no bank balance and no opening-balance anchor. */
+  balance: number | null
+  bankBalance: number | null
+  bankBalanceAt: string | null
+  bankBalanceIsFallback: boolean
+  ledgerBalance: number
+  pendingBalance: number
+  bankCountsPending: boolean | null
+  mismatch: boolean
+}
+
 export type Summary = {
   period: Period
   incomeVsExpense: { income: number; expense: number; net: number }
   topCategories: { category: string; total: number }[]
   topMerchants: { merchant: string; total: number; count: number }[]
-  balances: { name: string; currency: string; balance: number | null }[]
+  balances: AccountBalance[]
 }
 
 export type ConnectionStatus = 'active' | 'reauth_required' | 'error' | 'disconnected'
