@@ -13,6 +13,7 @@ export type CategorizeResult = {
   categorized: number
   queuedForReview: number
   uncategorized: number
+  /** Postings each tier categorized; items only sent to review are not counted. */
   byTier: { rule: number; jev: number }
 }
 
@@ -196,9 +197,10 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
 
     const outcome = await applyOrQueue(tenantId, posting.id, posting.text, posting.amount, jevMatch, settings)
     if (outcome === 'skipped') continue
-    byTier.jev++
-    if (outcome === 'applied') categorized++
-    else queuedForReview++
+    if (outcome === 'applied') {
+      byTier.jev++
+      categorized++
+    } else queuedForReview++
   }
 
   return {

@@ -40,6 +40,7 @@ const dateTime = new Intl.DateTimeFormat(undefined, {
   hour: 'numeric',
   minute: '2-digit',
 })
+const localDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric' })
 
 /** Ledger dates are calendar dates stored at UTC midnight — format them in UTC. */
 export function formatLedgerDate(iso: string, withYear = false): string {
@@ -52,6 +53,12 @@ export function formatLedgerDate(iso: string, withYear = false): string {
 export function formatTimestamp(iso: string): string {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? iso : dateTime.format(d)
+}
+
+/** A real timestamp's calendar day in the viewer's time zone (not a UTC-midnight ledger date). */
+export function formatLocalDate(iso: string): string {
+  const d = new Date(iso)
+  return Number.isNaN(d.getTime()) ? iso : localDate.format(d)
 }
 
 export const BAND_LABEL: Record<ConfidenceBand, string> = { high: 'High', medium: 'Medium', low: 'Low' }

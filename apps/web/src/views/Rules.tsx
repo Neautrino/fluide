@@ -8,7 +8,7 @@ import { Confidence, PageHeader, SectionTitle } from '../components/ui/Typograph
 import { errorMessage, getJson, sendJson, type Rule, type RuleStatus } from '../lib/api'
 import { useApp } from '../lib/app-context'
 import { useCategories, type CategoryCatalogue } from '../lib/categories'
-import { bandFor, formatLedgerDate, toNumber } from '../lib/format'
+import { bandFor, formatLocalDate, toNumber } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
 const STATUS_COPY: Record<RuleStatus, { empty: string; note: string }> = {
@@ -113,7 +113,7 @@ export function Rules() {
                     <td className="py-3 pr-4 text-ink">{categories.data?.byId[r.categoryId]?.label ?? '—'}</td>
                     <td className="py-3 pr-4 text-ink-2">
                       {r.isUserCustom ? 'Your rule' : 'Learned'}
-                      <span className="block text-[12px] text-ink-3">{formatLedgerDate(r.createdAt)}</span>
+                      <span className="block text-[12px] text-ink-3">{formatLocalDate(r.createdAt)}</span>
                     </td>
                     <td className="figures py-3 pr-4 text-right text-ink">{r.timesMatched}</td>
                     <td className="py-3 pr-4">
