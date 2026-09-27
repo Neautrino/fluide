@@ -2,9 +2,9 @@
  * Invariant: each transaction is a balanced bank + equity (suspense or opening-balance) posting pair; re-ingest never duplicates. Enforced by: migration 0001 postings_must_balance, transactions_external_ref_unique_idx.
  * See: ADR 008 — provider-agnostic ingest and the externalRef format
  */
-import { db, accounts, transactions, postings, balanceAssertions, type DbExecutor } from '@repo/ledger'
+import { db, accounts, transactions, postings, balanceAssertions, reviewQueue, type DbExecutor } from '@repo/ledger'
 import type { Connector, NormalizedAccount, NormalizedBalance, NormalizedTransaction } from '@repo/connectors'
-import { eq, and, sql, inArray, isNull } from 'drizzle-orm'
+import { eq, and, sql, inArray, isNull, desc } from 'drizzle-orm'
 import { writeAuditLog } from './audit.js'
 
 type Account = typeof accounts.$inferSelect
@@ -136,8 +136,12 @@ function postingTags(provider: string, tx: NormalizedTransaction) {
 }
 
 type VoidReason = NonNullable<(typeof transactions.$inferSelect)['voidReason']>
-type CarriedCategory = { categoryId: string; source: string; reason: string }
+type Carried = { source: string; reason: string } & (
+  | { categoryId: string }
+  | { rejection: typeof reviewQueue.$inferSelect }
+)
 
+/** With liveOnly false, returns the newest version of the external ref. */
 async function findBankPosting(executor: DbExecutor, externalRef: string, liveOnly: boolean) {
   const [row] = await executor
     .select({
@@ -145,6 +149,8 @@ async function findBankPosting(executor: DbExecutor, externalRef: string, liveOn
       date: transactions.date,
       description: transactions.description,
       status: transactions.status,
+      voidedAt: transactions.voidedAt,
+      postingId: postings.id,
       accountId: postings.accountId,
       amount: postings.amount,
       categoryId: postings.categoryId,
@@ -159,8 +165,25 @@ async function findBankPosting(executor: DbExecutor, externalRef: string, liveOn
         liveOnly ? isNull(transactions.voidedAt) : undefined,
       ),
     )
+    .orderBy(desc(transactions.createdAt))
     .limit(1)
   return row
+}
+
+async function decisionToCarry(
+  executor: DbExecutor,
+  previous: { postingId: string; categoryId: string | null },
+  source: string,
+  reason: string,
+): Promise<Carried | undefined> {
+  if (previous.categoryId) return { categoryId: previous.categoryId, source, reason }
+  const [rejection] = await executor
+    .select()
+    .from(reviewQueue)
+    .where(and(eq(reviewQueue.postingId, previous.postingId), eq(reviewQueue.status, 'rejected')))
+    .orderBy(desc(reviewQueue.resolvedAt))
+    .limit(1)
+  return rejection ? { rejection, source, reason } : undefined
 }
 
 /** Postings are append-only: a void is a reversing transaction that negates
@@ -206,7 +229,7 @@ async function insertProviderTransaction(
   bankAccount: Account,
   suspenseAccount: Account,
   tx: NormalizedTransaction,
-  carried?: CarriedCategory,
+  carried?: Carried,
 ) {
   const [row] = await executor
     .insert(transactions)
@@ -229,7 +252,7 @@ async function insertProviderTransaction(
       amount: tx.amount.toFixed(8),
       currency: tx.currency,
       counterpartyRaw: tx.description,
-      categoryId: carried?.categoryId,
+      categoryId: carried && 'categoryId' in carried ? carried.categoryId : undefined,
       tags: postingTags(provider, tx),
     })
     .returning({ id: postings.id })
@@ -240,7 +263,7 @@ async function insertProviderTransaction(
     currency: tx.currency,
   })
 
-  if (carried) {
+  if (carried && 'categoryId' in carried) {
     await writeAuditLog(
       {
         postingId: bankPosting!.id,
@@ -249,6 +272,30 @@ async function insertProviderTransaction(
         source: carried.source,
         confidence: null,
         reason: carried.reason,
+        actor: 'system',
+      },
+      executor,
+    )
+  } else if (carried) {
+    const { rejection } = carried
+    await executor.insert(reviewQueue).values({
+      postingId: bankPosting!.id,
+      suggestedCategoryId: rejection.suggestedCategoryId,
+      confidenceBand: rejection.confidenceBand,
+      source: rejection.source,
+      confidence: rejection.confidence,
+      reason: `${carried.reason}; rejected review_queue ${rejection.id}`,
+      status: 'rejected',
+      resolvedAt: new Date(),
+    })
+    await writeAuditLog(
+      {
+        postingId: bankPosting!.id,
+        action: 'rejected',
+        categoryId: rejection.suggestedCategoryId,
+        source: carried.source,
+        confidence: Number(rejection.confidence),
+        reason: `${carried.reason}; rejected review_queue ${rejection.id}`,
         actor: 'system',
       },
       executor,
@@ -309,17 +356,20 @@ export async function ingestConnection(
       counts.skipped++
       continue
     }
-    const insertedNow = await db.transaction(async (tx_db) => {
-      if (await findBankPosting(tx_db, ref(tx.providerTransactionId), true)) return false
+    const outcome = await db.transaction(async (tx_db) => {
+      if (await findBankPosting(tx_db, ref(tx.providerTransactionId), true)) return 'duplicate'
       const pending = tx.pendingTransactionId ? await findBankPosting(tx_db, ref(tx.pendingTransactionId), false) : undefined
-      const carried = pending?.categoryId
-        ? { categoryId: pending.categoryId, source: 'pending-carry', reason: `carried from pending transaction ${ref(tx.pendingTransactionId!)}` }
+      const pendingWasLive = pending !== undefined && pending.voidedAt === null
+      if (pendingWasLive) await voidTransaction(tx_db, pending.transactionId, 'pending_posted')
+      const carried = pending
+        ? await decisionToCarry(tx_db, pending, 'pending-carry', `carried from pending transaction ${ref(tx.pendingTransactionId!)}`)
         : undefined
       await insertProviderTransaction(tx_db, connector.provider, ledgerAccounts.bankAccount, ledgerAccounts.suspenseAccount, tx, carried)
-      return true
+      return pendingWasLive ? 'posted' : 'inserted'
     })
-    if (insertedNow) counts.inserted++
-    else counts.skipped++
+    if (outcome === 'duplicate') counts.skipped++
+    else counts.inserted++
+    if (outcome === 'posted') counts.voided++
   }
 
   for (const tx of changes.modified) {
@@ -348,9 +398,12 @@ export async function ingestConnection(
         return 'updated'
       }
       await voidTransaction(tx_db, live.transactionId, 'provider_modified')
-      const carried = live.categoryId
-        ? { categoryId: live.categoryId, source: 'modified-carry', reason: `carried from ${ref(tx.providerTransactionId)} before the provider changed its amount or account` }
-        : undefined
+      const carried = await decisionToCarry(
+        tx_db,
+        live,
+        'modified-carry',
+        `carried from ${ref(tx.providerTransactionId)} before the provider changed its amount or account`,
+      )
       await insertProviderTransaction(tx_db, connector.provider, bankAccount, suspenseAccount, tx, carried)
       return 'replaced'
     })
