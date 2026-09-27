@@ -60,8 +60,13 @@ async function findOrCreateEquityAccount(tenantId: string, path: string, name: s
 /** Anchors a cash/credit account's ledger to the bank's balance once, dated
  * before its earliest posting so the whole ingested history replays to it.
  * Later differences are real discrepancies and are never re-anchored.
- * The bank balance is compared with settled, same-currency postings dated on or before its asOf. */
-async function postOpeningBalance(tenantId: string, account: Account, current: NormalizedBalance): Promise<'anchored' | 'no_transactions'> {
+ * The bank balance is compared with settled, same-currency postings dated on or before its asOf.
+ * Waits until the account has no live pending rows: banks differ on whether `current` counts pending. */
+async function postOpeningBalance(
+  tenantId: string,
+  account: Account,
+  current: NormalizedBalance,
+): Promise<'anchored' | 'no_transactions' | 'pending_rows'> {
   const externalRef = `opening:${account.id}`
   return db.transaction(async (tx_db) => {
     const [existing] = await tx_db
@@ -74,6 +79,7 @@ async function postOpeningBalance(tenantId: string, account: Account, current: N
     const [ledger] = await tx_db
       .select({
         liveCount: sql<number>`count(*) filter (where ${liveTransaction})::int`,
+        pendingCount: sql<number>`count(*) filter (where ${and(liveTransaction, eq(transactions.status, 'pending'))})::int`,
         difference: sql<string>`${current.amount.toFixed(8)}::numeric - coalesce(sum(${postings.amount}) filter (where ${and(
           settledTransaction,
           eq(postings.currency, account.currency),
@@ -85,6 +91,7 @@ async function postOpeningBalance(tenantId: string, account: Account, current: N
       .innerJoin(transactions, eq(transactions.id, postings.transactionId))
       .where(eq(postings.accountId, account.id))
     if (!ledger || ledger.liveCount === 0 || !ledger.earliest) return 'no_transactions'
+    if (ledger.pendingCount > 0) return 'pending_rows'
 
     const [row] = await tx_db
       .insert(transactions)
@@ -117,7 +124,7 @@ async function postOpeningBalance(tenantId: string, account: Account, current: N
 
 export type BalanceFlag = {
   account: string
-  issue: 'no_bank_balance' | 'fallback_type' | 'currency_mismatch' | 'history_pending' | 'no_transactions'
+  issue: 'no_bank_balance' | 'fallback_type' | 'currency_mismatch' | 'history_pending' | 'no_transactions' | 'pending_rows'
   providerBalanceType?: string
 }
 
@@ -483,9 +490,8 @@ export async function ingestConnection(
       balanceFlags.push({ account: account.name, issue: 'history_pending' })
       continue
     }
-    if ((await postOpeningBalance(LOCAL_TENANT_ID, account, current)) === 'no_transactions') {
-      balanceFlags.push({ account: account.name, issue: 'no_transactions' })
-    }
+    const anchor = await postOpeningBalance(LOCAL_TENANT_ID, account, current)
+    if (anchor !== 'anchored') balanceFlags.push({ account: account.name, issue: anchor })
   }
 
   return {
