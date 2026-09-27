@@ -385,13 +385,12 @@ export async function ingestConnection(
         await insertProviderTransaction(tx_db, connector.provider, bankAccount, suspenseAccount, tx)
         return 'inserted'
       }
-      if (live.accountId === bankAccount.id && Number(live.amount) === tx.amount) {
+      if (live.accountId === bankAccount.id && Number(live.amount) === tx.amount && live.description === tx.description) {
         const next = {
           date: new Date(tx.date),
-          description: tx.description,
           status: live.status === 'reconciled' ? live.status : tx.pending ? ('pending' as const) : ('cleared' as const),
         }
-        if (live.date.getTime() === next.date.getTime() && live.description === next.description && live.status === next.status) {
+        if (live.date.getTime() === next.date.getTime() && live.status === next.status) {
           return 'unchanged'
         }
         await tx_db.update(transactions).set(next).where(eq(transactions.id, live.transactionId))
@@ -402,7 +401,7 @@ export async function ingestConnection(
         tx_db,
         live,
         'modified-carry',
-        `carried from ${ref(tx.providerTransactionId)} before the provider changed its amount or account`,
+        `carried from ${ref(tx.providerTransactionId)} before the provider changed its amount, account or description`,
       )
       await insertProviderTransaction(tx_db, connector.provider, bankAccount, suspenseAccount, tx, carried)
       return 'replaced'
