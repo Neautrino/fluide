@@ -2,9 +2,9 @@
  * Invariant: each transaction is a balanced bank + equity (suspense or opening-balance) posting pair; re-ingest never duplicates. Enforced by: migration 0001 postings_must_balance, transactions_external_ref_unique_idx.
  * See: ADR 008 — provider-agnostic ingest and the externalRef format
  */
-import { db, accounts, transactions, postings, balanceAssertions, reviewQueue, type DbExecutor } from '@repo/ledger'
+import { db, accounts, transactions, postings, balanceAssertions, reviewQueue, settledTransaction, liveTransaction, type DbExecutor } from '@repo/ledger'
 import type { Connector, NormalizedAccount, NormalizedBalance, NormalizedTransaction } from '@repo/connectors'
-import { eq, and, sql, inArray, isNull, desc } from 'drizzle-orm'
+import { eq, and, sql, inArray, isNull, desc, lte } from 'drizzle-orm'
 import { writeAuditLog } from './audit.js'
 import { updateConnectionCursor } from './connection-store.js'
 
@@ -59,41 +59,38 @@ async function findOrCreateEquityAccount(tenantId: string, path: string, name: s
 
 /** Anchors a cash/credit account's ledger to the bank's balance once, dated
  * before its earliest posting so the whole ingested history replays to it.
- * Later differences are real discrepancies and are never re-anchored. */
-async function postOpeningBalance(tenantId: string, account: Account, current: NormalizedBalance) {
+ * Later differences are real discrepancies and are never re-anchored.
+ * The bank balance is compared with settled, same-currency postings dated on or before its asOf. */
+async function postOpeningBalance(tenantId: string, account: Account, current: NormalizedBalance): Promise<'anchored' | 'no_transactions'> {
   const externalRef = `opening:${account.id}`
-  const equity = await findOrCreateEquityAccount(
-    tenantId,
-    `equity:opening-balances:${account.currency.toLowerCase()}`,
-    `Opening balances (${account.currency})`,
-    account.currency,
-  )
-
-  await db.transaction(async (tx_db) => {
+  return db.transaction(async (tx_db) => {
     const [existing] = await tx_db
       .select({ id: transactions.id })
       .from(transactions)
       .where(eq(transactions.externalRef, externalRef))
       .limit(1)
-    if (existing) return
+    if (existing) return 'anchored'
 
     const [ledger] = await tx_db
       .select({
-        difference: sql<string>`${current.amount.toFixed(8)}::numeric - coalesce(sum(${postings.amount}), 0)`,
+        liveCount: sql<number>`count(*) filter (where ${liveTransaction})::int`,
+        difference: sql<string>`${current.amount.toFixed(8)}::numeric - coalesce(sum(${postings.amount}) filter (where ${and(
+          settledTransaction,
+          eq(postings.currency, account.currency),
+          current.asOf ? lte(transactions.date, new Date(current.asOf)) : undefined,
+        )}), 0)`,
         earliest: sql<string | null>`min(${transactions.date})`,
       })
       .from(postings)
       .innerJoin(transactions, eq(transactions.id, postings.transactionId))
       .where(eq(postings.accountId, account.id))
+    if (!ledger || ledger.liveCount === 0 || !ledger.earliest) return 'no_transactions'
 
-    const date = ledger?.earliest
-      ? new Date(new Date(ledger.earliest).getTime() - 24 * 60 * 60 * 1000)
-      : new Date(current.asOf ?? Date.now())
     const [row] = await tx_db
       .insert(transactions)
       .values({
         tenantId,
-        date,
+        date: new Date(new Date(ledger.earliest).getTime() - 24 * 60 * 60 * 1000),
         description: `Opening balance: ${account.name}`,
         source: 'opening-balance',
         status: 'cleared',
@@ -102,18 +99,25 @@ async function postOpeningBalance(tenantId: string, account: Account, current: N
       })
       .returning()
 
-    const difference = ledger?.difference ?? current.amount.toFixed(8)
-    if (Number(difference) === 0) return
+    const difference = ledger.difference
+    if (Number(difference) === 0) return 'anchored'
+    const equity = await findOrCreateEquityAccount(
+      tenantId,
+      `equity:opening-balances:${account.currency.toLowerCase()}`,
+      `Opening balances (${account.currency})`,
+      account.currency,
+    )
     await tx_db.insert(postings).values([
       { transactionId: row!.id, accountId: account.id, amount: difference, currency: account.currency },
       { transactionId: row!.id, accountId: equity.id, amount: sql`-(${difference}::numeric)`, currency: account.currency },
     ])
+    return 'anchored'
   })
 }
 
 export type BalanceFlag = {
   account: string
-  issue: 'no_bank_balance' | 'fallback_type' | 'currency_mismatch' | 'history_pending'
+  issue: 'no_bank_balance' | 'fallback_type' | 'currency_mismatch' | 'history_pending' | 'no_transactions'
   providerBalanceType?: string
 }
 
@@ -468,6 +472,7 @@ export async function ingestConnection(
     }
     if (current.isFallback) {
       balanceFlags.push({ account: account.name, issue: 'fallback_type', providerBalanceType: current.providerBalanceType })
+      continue
     }
     if (account.kind !== 'cash' && account.kind !== 'credit') continue
     if (current.currency !== account.currency) {
@@ -478,7 +483,9 @@ export async function ingestConnection(
       balanceFlags.push({ account: account.name, issue: 'history_pending' })
       continue
     }
-    await postOpeningBalance(LOCAL_TENANT_ID, account, current)
+    if ((await postOpeningBalance(LOCAL_TENANT_ID, account, current)) === 'no_transactions') {
+      balanceFlags.push({ account: account.name, issue: 'no_transactions' })
+    }
   }
 
   return {
