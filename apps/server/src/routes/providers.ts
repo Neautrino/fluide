@@ -6,7 +6,7 @@ import {
   listEnableBankingAspsps,
 } from '@repo/connectors'
 import { getPlaidCredentials, getEnableBankingCredentials } from '../provider-credentials.js'
-import { saveConnection, listConnections, updateConnectionCursor } from '../connection-store.js'
+import { saveConnection, listConnections } from '../connection-store.js'
 import { ingestConnection, LOCAL_TENANT_ID } from '../ingest.js'
 import { startEnableBankingLink, completeEnableBankingLink } from '../enable-banking-link.js'
 import { connectorErrorResponse } from '../connector-errors.js'
@@ -46,7 +46,6 @@ providerRoutes.post('/plaid/exchange', async (c) => {
 
     // ingest immediately so the ledger has data right after connecting
     const result = await ingestConnection(createPlaidConnector(credentials), connectionId, accessToken)
-    if (result.nextCursor) await updateConnectionCursor(LOCAL_TENANT_ID, connectionId, result.nextCursor)
 
     return c.json({ item_id: itemId, ingest: result })
   } catch (err) {
@@ -66,7 +65,6 @@ providerRoutes.post('/plaid/sync', async (c) => {
     const results = []
     for (const item of items) {
       const result = await ingestConnection(connector, item.id, item.credential, item.cursor)
-      if (result.nextCursor) await updateConnectionCursor(LOCAL_TENANT_ID, item.id, result.nextCursor)
       results.push({ item_id: item.externalId, ...result })
     }
     return c.json({ synced: results })

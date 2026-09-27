@@ -6,6 +6,7 @@ import { db, accounts, transactions, postings, balanceAssertions, reviewQueue, t
 import type { Connector, NormalizedAccount, NormalizedBalance, NormalizedTransaction } from '@repo/connectors'
 import { eq, and, sql, inArray, isNull, desc } from 'drizzle-orm'
 import { writeAuditLog } from './audit.js'
+import { updateConnectionCursor } from './connection-store.js'
 
 type Account = typeof accounts.$inferSelect
 
@@ -124,7 +125,7 @@ export type IngestResult = {
   transactionsSkipped: number
   transactionsVoided: number
   transactionsUpdated: number
-  nextCursor?: string
+  transactionsUnknownAccount: number
 }
 
 function postingTags(provider: string, tx: NormalizedTransaction) {
@@ -305,7 +306,8 @@ async function insertProviderTransaction(
 
 /** Ingest all new transactions for one connection. `credential` is the
  * provider's opaque token (Plaid access_token, Enable Banking session_id).
- * Safe to call repeatedly — see idempotency notes in the file header. */
+ * Saves the provider cursor once the transaction phase is written, unless a
+ * row referenced an account listAccounts didn't return (the next sync replays it). */
 export async function ingestConnection(
   connector: Connector,
   connectorId: string,
@@ -324,7 +326,7 @@ export async function ingestConnection(
   const changes = await connector.getTransactions(credential, cursor)
   const { nextCursor, historyComplete } = changes
   const ref = (providerTransactionId: string) => `${connector.provider}:${providerTransactionId}`
-  const counts = { inserted: 0, skipped: 0, voided: 0, updated: 0 }
+  const counts = { inserted: 0, skipped: 0, unknownAccount: 0, voided: 0, updated: 0 }
 
   const ledgerAccountsFor = async (tx: NormalizedTransaction) => {
     const bankAccount = accountByProviderId.get(tx.accountId)
@@ -353,7 +355,7 @@ export async function ingestConnection(
   for (const tx of changes.added) {
     const ledgerAccounts = await ledgerAccountsFor(tx)
     if (!ledgerAccounts) {
-      counts.skipped++
+      counts.unknownAccount++
       continue
     }
     const outcome = await db.transaction(async (tx_db) => {
@@ -375,7 +377,7 @@ export async function ingestConnection(
   for (const tx of changes.modified) {
     const ledgerAccounts = await ledgerAccountsFor(tx)
     if (!ledgerAccounts) {
-      counts.skipped++
+      counts.unknownAccount++
       continue
     }
     const { bankAccount, suspenseAccount } = ledgerAccounts
@@ -414,6 +416,28 @@ export async function ingestConnection(
       counts.inserted++
     }
   }
+
+  if (cursor === undefined) {
+    const snapshotRefs = new Set([...changes.added, ...changes.modified].map((tx) => ref(tx.providerTransactionId)))
+    const livePending = await db
+      .selectDistinct({ externalRef: transactions.externalRef })
+      .from(transactions)
+      .innerJoin(postings, eq(postings.transactionId, transactions.id))
+      .innerJoin(accounts, eq(accounts.id, postings.accountId))
+      .where(and(eq(accounts.connectorId, connectorId), eq(transactions.status, 'pending'), isNull(transactions.voidedAt)))
+    for (const { externalRef } of livePending) {
+      if (!externalRef || snapshotRefs.has(externalRef)) continue
+      const voided = await db.transaction(async (tx_db) => {
+        const live = await findBankPosting(tx_db, externalRef, true)
+        if (!live) return false
+        await voidTransaction(tx_db, live.transactionId, 'provider_removed')
+        return true
+      })
+      if (voided) counts.voided++
+    }
+  }
+
+  if (nextCursor && counts.unknownAccount === 0) await updateConnectionCursor(LOCAL_TENANT_ID, connectorId, nextCursor)
 
   const balances = await connector.getBalances(credential)
   const fetchedAt = new Date()
@@ -463,9 +487,9 @@ export async function ingestConnection(
     balanceFlags,
     transactionsInserted: counts.inserted,
     transactionsSkipped: counts.skipped,
+    transactionsUnknownAccount: counts.unknownAccount,
     transactionsVoided: counts.voided,
     transactionsUpdated: counts.updated,
-    nextCursor,
   }
 }
 
