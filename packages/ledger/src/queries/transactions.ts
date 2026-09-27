@@ -1,4 +1,4 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq, ne, sql } from 'drizzle-orm'
 import { db } from '../db.js'
 import { accounts, transactions, postings, categories } from '../schema/index.js'
 import { bankPostingsFilter, type Period } from './period.js'
@@ -86,7 +86,7 @@ export async function listTransactionsWithPostings(tenantId: string, limit = 100
     .innerJoin(postings, eq(postings.transactionId, transactions.id))
     .innerJoin(accounts, eq(accounts.id, postings.accountId))
     .leftJoin(categories, eq(categories.id, postings.categoryId))
-    .where(and(eq(transactions.tenantId, tenantId), liveTransaction))
+    .where(and(eq(transactions.tenantId, tenantId), liveTransaction, ne(transactions.source, 'opening-balance')))
     .orderBy(desc(transactions.date))
     .limit(limit)
 }
