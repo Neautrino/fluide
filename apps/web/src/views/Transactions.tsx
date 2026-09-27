@@ -1,10 +1,11 @@
 import { Fragment, useMemo, useState } from 'react'
+import { SyncNotice } from '../components/SyncNotice'
 import { TransactionDrawer, type DrawerRow } from '../components/TransactionDrawer'
 import { Button } from '../components/ui/Button'
 import { Input, Select } from '../components/ui/Field'
 import { Empty, ErrorState, Loading, Notice } from '../components/ui/States'
 import { Money, PageHeader } from '../components/ui/Typography'
-import { errorMessage, getJson, sendJson, type Account, type CategorizeResult, type LedgerRow } from '../lib/api'
+import { errorMessage, getJson, sendJson, type Account, type CategorizeResult, type LedgerRow, type SyncOutcome } from '../lib/api'
 import { useApp } from '../lib/app-context'
 import { formatLedgerDate, toNumber } from '../lib/format'
 import { useResource } from '../lib/useResource'
@@ -38,6 +39,7 @@ type Action =
   | { kind: 'idle' }
   | { kind: 'busy'; which: 'sync' | 'categorize' }
   | { kind: 'done'; tone: 'success' | 'error'; message: string }
+  | { kind: 'synced'; outcomes: SyncOutcome[] }
 
 export function Transactions() {
   const { version, invalidate } = useApp()
@@ -89,13 +91,8 @@ export function Transactions() {
     setAction({ kind: 'busy', which })
     try {
       if (which === 'sync') {
-        const res = await sendJson<{ synced?: unknown[] }>('POST', '/api/providers/plaid/sync', undefined, 120_000)
-        const n = Array.isArray(res.synced) ? res.synced.length : null
-        setAction({
-          kind: 'done',
-          tone: 'success',
-          message: n === null ? 'Bank sync complete.' : `Bank sync complete — ${n} ${n === 1 ? 'connection' : 'connections'} updated.`,
-        })
+        const { synced } = await sendJson<{ synced: SyncOutcome[] }>('POST', '/api/providers/plaid/sync', undefined, 120_000)
+        setAction({ kind: 'synced', outcomes: synced })
       } else {
         const { result } = await sendJson<{ result: CategorizeResult }>('POST', '/api/assistant/categorize', undefined, 180_000)
         setAction({
@@ -135,6 +132,7 @@ export function Transactions() {
         <Notice>Categorizing uncategorized postings — rules first, then the Jev model. This can take a while.</Notice>
       )}
       {action.kind === 'done' && <Notice tone={action.tone}>{action.message}</Notice>}
+      {action.kind === 'synced' && <SyncNotice outcomes={action.outcomes} />}
 
       <div className="flex flex-col gap-3 sm:flex-row sm:items-center">
         <label className="sr-only" htmlFor="tx-search">

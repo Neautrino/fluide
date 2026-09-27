@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { Connections } from '../components/Connections'
 import { Button } from '../components/ui/Button'
 import { Field, Input } from '../components/ui/Field'
 import { ErrorState, Loading, Notice } from '../components/ui/States'
@@ -78,8 +79,9 @@ export function Settings() {
       <PageHeader
         eyebrow="Configuration"
         title="Settings"
-        lede="How cautious Fluide is when it categorizes transactions on its own, and which connector providers it can reach."
+        lede="Your bank connections, how cautious Fluide is when it categorizes transactions on its own, and which connector providers it can reach."
       />
+      <Connections />
       {settings.error ? (
         <ErrorState title="Couldn't load the gate settings" message={settings.error} onRetry={settings.reload} />
       ) : !settings.data ? (

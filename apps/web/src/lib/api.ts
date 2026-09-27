@@ -101,6 +101,8 @@ export type ProviderCredentialsStatus = { configured: boolean; updatedAt?: strin
 
 export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' | 'all_time'
 
+export type AccountKind = 'cash' | 'investment' | 'credit' | 'loan' | 'other'
+
 export type Summary = {
   period: Period
   incomeVsExpense: { income: number; expense: number; net: number }
@@ -108,6 +110,42 @@ export type Summary = {
   topMerchants: { merchant: string; total: number; count: number }[]
   balances: { name: string; currency: string; balance: number | null }[]
 }
+
+export type ConnectionStatus = 'active' | 'reauth_required' | 'error' | 'disconnected'
+
+export type ConnectionSummary = {
+  id: string
+  provider: 'plaid' | 'enable-banking'
+  institutionName: string | null
+  status: ConnectionStatus
+  statusReason: string | null
+  statusChangedAt: string
+  lastSyncedAt: string | null
+  validUntil: string | null
+  createdAt: string
+  accounts: { name: string; mask: string | null; kind: AccountKind | null }[]
+}
+
+export type BalanceFlag = {
+  account: string
+  issue: 'no_bank_balance' | 'fallback_type' | 'currency_mismatch' | 'history_pending' | 'no_transactions' | 'pending_rows'
+  providerBalanceType?: string
+}
+
+export type IngestResult = {
+  accountsSeen: number
+  unclassifiedAccounts: string[]
+  balanceFlags: BalanceFlag[]
+  transactionsInserted: number
+  transactionsSkipped: number
+  transactionsUnknownAccount: number
+  transactionsVoided: number
+  transactionsUpdated: number
+}
+
+export type SyncOutcome =
+  | { connectionId: string; institutionName: string | null; ok: true; ingest: IngestResult }
+  | { connectionId: string; institutionName: string | null; ok: false; status: 'reauth_required' | 'error'; error: string }
 
 export type CategorizeResult = {
   checked: number
