@@ -4,7 +4,7 @@
  * See: ADR 017 — why connection tokens live in Postgres, not a file
  */
 import { randomUUID } from 'node:crypto'
-import { and, eq, inArray, ne, sql } from 'drizzle-orm'
+import { and, eq, inArray, ne, notExists, sql } from 'drizzle-orm'
 import { db, accounts, connectors, type AccountKind, type ConnectorProvider, type ConnectorStatus } from '@repo/ledger'
 import { encrypt, decrypt } from './vault.js'
 
@@ -13,6 +13,8 @@ export type Connection = {
   provider: ConnectorProvider
   credential: string
   externalId?: string
+  /** Plaid institution_id, or `<country>:<ASPSP name>` for Enable Banking. */
+  institutionId?: string
   institutionName?: string
   cursor?: string
   validUntil?: Date
@@ -78,6 +80,7 @@ function toConnection(tenantId: string, row: typeof connectors.$inferSelect): Co
     provider: row.provider,
     credential: decrypt({ ciphertext: row.credentialCiphertext!, nonce: row.credentialNonce! }, aad(tenantId, row.provider, row.id)),
     externalId: row.externalId ?? undefined,
+    institutionId: row.institutionId ?? undefined,
     institutionName: row.institutionName ?? undefined,
     cursor: row.cursor ?? undefined,
     validUntil: row.validUntil ?? undefined,
@@ -190,4 +193,32 @@ export async function disconnectConnection(tenantId: string, id: string) {
       cursor: null,
     })
     .where(and(eq(connectors.tenantId, tenantId), eq(connectors.id, id)))
+}
+
+/** Disconnects the other live logins at the same institution that own no
+ * account any more: a new login took their accounts (matched by the bank's
+ * stable account id), and the bank usually expired their session. */
+export async function retireReplacedConnections(tenantId: string, keepId: string, provider: ConnectorProvider, institutionId: string) {
+  const retired = await db
+    .update(connectors)
+    .set({
+      status: 'disconnected',
+      statusReason: 'replaced by a newer login to the same bank',
+      statusChangedAt: new Date(),
+      credentialCiphertext: null,
+      credentialNonce: null,
+      cursor: null,
+    })
+    .where(
+      and(
+        eq(connectors.tenantId, tenantId),
+        eq(connectors.provider, provider),
+        eq(connectors.institutionId, institutionId),
+        ne(connectors.id, keepId),
+        ne(connectors.status, 'disconnected'),
+        notExists(db.select({ id: accounts.id }).from(accounts).where(eq(accounts.connectorId, connectors.id))),
+      ),
+    )
+    .returning({ id: connectors.id })
+  return retired.map((r) => r.id)
 }

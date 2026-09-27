@@ -1,12 +1,15 @@
-import { Hono } from 'hono'
+import { Hono, type Context } from 'hono'
+import { getConnInfo } from 'hono/bun'
 import {
   ConnectorError,
+  createEnableBankingConnector,
   createPlaidConnector,
   createPlaidLinkToken,
   exchangePlaidPublicToken,
   getPlaidInstitution,
   listEnableBankingAspsps,
   removePlaidItem,
+  type EnableBankingPsuHeaders,
   type PlaidCredentials,
 } from '@repo/connectors'
 import { getPlaidCredentials, getEnableBankingCredentials } from '../provider-credentials.js'
@@ -21,7 +24,14 @@ import {
   type Connection,
 } from '../connection-store.js'
 import { ingestConnection, LOCAL_TENANT_ID, type IngestResult } from '../ingest.js'
-import { startEnableBankingLink, completeEnableBankingLink } from '../enable-banking-link.js'
+import {
+  startEnableBankingLink,
+  completeEnableBankingLink,
+  enableBankingPsuHeadersFor,
+  parseEnableBankingInstitutionId,
+  psuHeadersFromRequest,
+  type BankFetch,
+} from '../enable-banking-link.js'
 import { connectorErrorResponse, connectorFailure } from '../connector-errors.js'
 import { uuidParam } from './validate.js'
 
@@ -29,10 +39,22 @@ export const providerRoutes = new Hono()
 
 const COUNTRY_RE = /^[A-Z]{2}$/
 const PLAID_NOT_CONFIGURED = 'Plaid is not configured — add a client id and secret in Settings first.'
+const EB_NOT_CONFIGURED = 'Enable Banking is not configured — add an app id and key path in Settings first.'
 
 type SyncOutcome =
-  | { connectionId: string; institutionName: string | null; ok: true; ingest: IngestResult }
+  | { connectionId: string; institutionName: string | null; ok: true; ingest: IngestResult; bankFetch?: BankFetch }
   | { connectionId: string; institutionName: string | null; ok: false; status: 'reauth_required' | 'error'; error: string }
+
+/** The end user's request headers, for Enable Banking fetches the user asked for. */
+function requestPsuHeaders(c: Context): EnableBankingPsuHeaders {
+  let peer: string | undefined
+  try {
+    peer = getConnInfo(c).remote.address
+  } catch {
+    peer = undefined // no Bun server in env (e.g. app.request in a script)
+  }
+  return psuHeadersFromRequest((name) => c.req.header(name) || undefined, peer)
+}
 
 /** Syncs one Plaid Item and records its status; one failing Item never stops the others. */
 async function syncPlaidConnection(
@@ -59,6 +81,49 @@ async function syncPlaidConnection(
     return { connectionId: connection.id, institutionName, ok: false, status: failure.status, error: failure.reason }
   }
 }
+
+/** Re-fetches one Enable Banking session. Expired access is marked without calling the bank. */
+async function syncEnableBankingConnection(connection: Connection, psu: EnableBankingPsuHeaders): Promise<SyncOutcome> {
+  const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
+  const base = { connectionId: connection.id, institutionName: connection.institutionName ?? null }
+  if (!credentials) return { ...base, ok: false, status: 'error', error: EB_NOT_CONFIGURED }
+  try {
+    if (connection.validUntil && connection.validUntil.getTime() <= Date.now()) {
+      throw new ConnectorError('enable-banking', 'reauth_required', `access expired at ${connection.validUntil.toISOString()}`)
+    }
+    const { psuHeaders, bankFetch } = await enableBankingPsuHeadersFor(
+      credentials,
+      parseEnableBankingInstitutionId(connection.institutionId),
+      psu,
+    )
+    const ingest = await ingestConnection(createEnableBankingConnector(credentials, { psuHeaders }), connection.id, connection.credential)
+    await recordConnectionStatus(LOCAL_TENANT_ID, connection.id, { status: 'active' })
+    return { ...base, ok: true, ingest, bankFetch }
+  } catch (err) {
+    const failure = connectorFailure('enable-banking sync error', err)
+    await recordConnectionStatus(LOCAL_TENANT_ID, connection.id, failure)
+    return { ...base, ok: false, status: failure.status, error: failure.reason }
+  }
+}
+
+async function syncConnection(connection: Connection, psu: EnableBankingPsuHeaders): Promise<SyncOutcome> {
+  if (connection.provider === 'enable-banking') return syncEnableBankingConnection(connection, psu)
+  const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
+  if (!credentials) {
+    return { connectionId: connection.id, institutionName: connection.institutionName ?? null, ok: false, status: 'error', error: PLAID_NOT_CONFIGURED }
+  }
+  return syncPlaidConnection(credentials, connection)
+}
+
+/** Every live login, any provider; one result per login. */
+providerRoutes.post('/sync', async (c) => {
+  const connections = await listConnections(LOCAL_TENANT_ID)
+  if (connections.length === 0) return c.json({ error: 'no connected accounts yet' }, 404)
+  const psu = requestPsuHeaders(c)
+  const synced: SyncOutcome[] = []
+  for (const connection of connections) synced.push(await syncConnection(connection, psu))
+  return c.json({ synced })
+})
 
 // --- Plaid ---
 
@@ -93,43 +158,44 @@ providerRoutes.post('/plaid/exchange', async (c) => {
   return c.json({ sync })
 })
 
-providerRoutes.post('/plaid/sync', async (c) => {
-  const items = await listConnections(LOCAL_TENANT_ID, 'plaid')
-  if (items.length === 0) return c.json({ error: 'no connected accounts yet' }, 404)
-  const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
-  if (!credentials) return c.json({ error: PLAID_NOT_CONFIGURED }, 409)
-  const synced: SyncOutcome[] = []
-  for (const item of items) synced.push(await syncPlaidConnection(credentials, item))
-  return c.json({ synced })
-})
-
 // --- Connections (one row per bank login) ---
 
 providerRoutes.get('/connections', async (c) => {
   return c.json({ connections: await listConnectionSummaries(LOCAL_TENANT_ID) })
 })
 
-const EB_NO_RESYNC = 'Enable Banking connections cannot be refreshed yet — link the bank again to fetch new data.'
-
 providerRoutes.post('/connections/:id/sync', uuidParam('id'), async (c) => {
   const connection = await getConnection(LOCAL_TENANT_ID, c.req.param('id'))
   if (!connection) return c.json({ error: 'connection not found or disconnected' }, 404)
-  if (connection.provider !== 'plaid') return c.json({ error: EB_NO_RESYNC }, 409)
-  const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
-  if (!credentials) return c.json({ error: PLAID_NOT_CONFIGURED }, 409)
-  return c.json({ sync: await syncPlaidConnection(credentials, connection) })
+  return c.json({ sync: await syncConnection(connection, requestPsuHeaders(c)) })
 })
 
-providerRoutes.post('/connections/:id/link-token', uuidParam('id'), async (c) => {
+/** Plaid: a Link token in update mode (same Item). Enable Banking: a new bank
+ * authorization for the same bank; the old login is retired once it completes. */
+providerRoutes.post('/connections/:id/reconnect', uuidParam('id'), async (c) => {
   const connection = await getConnection(LOCAL_TENANT_ID, c.req.param('id'))
   if (!connection) return c.json({ error: 'connection not found or disconnected' }, 404)
-  if (connection.provider !== 'plaid') return c.json({ error: EB_NO_RESYNC }, 409)
-  const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
-  if (!credentials) return c.json({ error: PLAID_NOT_CONFIGURED }, 409)
+  if (connection.provider === 'plaid') {
+    const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
+    if (!credentials) return c.json({ error: PLAID_NOT_CONFIGURED }, 409)
+    try {
+      return c.json({ plaidLinkToken: await createPlaidLinkToken(credentials, 'fluide-local-user', connection.credential) })
+    } catch (err) {
+      return connectorErrorResponse(c, 'update link-token error', err, 'failed to create a reconnect link')
+    }
+  }
+  const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
+  if (!credentials) return c.json({ error: EB_NOT_CONFIGURED }, 409)
+  const aspsp = parseEnableBankingInstitutionId(connection.institutionId)
+  if (!aspsp) {
+    return c.json({ error: 'this login does not record its bank — connect the bank again with "Connect a European bank"' }, 409)
+  }
   try {
-    return c.json({ link_token: await createPlaidLinkToken(credentials, 'fluide-local-user', connection.credential) })
+    const result = await startEnableBankingLink(credentials, aspsp.name, aspsp.country)
+    if (!result.ok) return c.json({ error: result.error }, result.status)
+    return c.json({ redirectUrl: result.url })
   } catch (err) {
-    return connectorErrorResponse(c, 'update link-token error', err, 'failed to create a reconnect link')
+    return connectorErrorResponse(c, 'enable-banking reconnect error', err, 'failed to start bank authorization')
   }
 })
 
@@ -156,9 +222,7 @@ providerRoutes.get('/enable-banking/aspsps', async (c) => {
   const country = c.req.query('country')?.toUpperCase()
   if (!country || !COUNTRY_RE.test(country)) return c.json({ error: 'country must be a 2-letter ISO code' }, 400)
   const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
-  if (!credentials) {
-    return c.json({ error: 'Enable Banking is not configured — add an app id and key path in Settings first.' }, 409)
-  }
+  if (!credentials) return c.json({ error: EB_NOT_CONFIGURED }, 409)
   try {
     const aspsps = await listEnableBankingAspsps(credentials, country)
     return c.json({
@@ -177,9 +241,7 @@ providerRoutes.post('/enable-banking/auth', async (c) => {
     return c.json({ error: 'aspspName and a 2-letter country are required' }, 400)
   }
   const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
-  if (!credentials) {
-    return c.json({ error: 'Enable Banking is not configured — add an app id and key path in Settings first.' }, 409)
-  }
+  if (!credentials) return c.json({ error: EB_NOT_CONFIGURED }, 409)
   try {
     const result = await startEnableBankingLink(credentials, body.aspspName.trim(), country)
     if (!result.ok) return c.json({ error: result.error }, result.status)
@@ -194,11 +256,9 @@ providerRoutes.post('/enable-banking/session', async (c) => {
   if (!body) return c.json({ error: 'body must be JSON' }, 400)
   if (!body.code || !body.state) return c.json({ error: 'code and state are required' }, 400)
   const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
-  if (!credentials) {
-    return c.json({ error: 'Enable Banking is not configured — add an app id and key path in Settings first.' }, 409)
-  }
+  if (!credentials) return c.json({ error: EB_NOT_CONFIGURED }, 409)
   try {
-    const result = await completeEnableBankingLink(credentials, body.code, body.state)
+    const result = await completeEnableBankingLink(credentials, body.code, body.state, requestPsuHeaders(c))
     if (!result.ok) return c.json({ error: result.error }, result.status)
     const { ok: _ok, ...summary } = result
     return c.json(summary)
