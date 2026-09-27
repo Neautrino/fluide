@@ -2,7 +2,7 @@
  * Invariant: touches only postings with category_id IS NULL and only status='active' rules.
  * See: ADR 005 (never overturn a human), ADR 016 (why Jev is the only AI tier)
  */
-import { db, postings, transactions, categorizationRules, reviewQueue, getGateSettings, liveTransaction, type GateSettings } from '@repo/ledger'
+import { db, postings, transactions, categorizationRules, reviewQueue, getGateSettings, liveTransaction, type DbExecutor, type GateSettings } from '@repo/ledger'
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 import { categorizeByJevBatch, type CategorizationMatch } from './jev.js'
 import { evaluateGate, queueForReview } from './gate.js'
@@ -37,6 +37,17 @@ async function findBestRule(tenantId: string, text: string) {
   return matches[0]
 }
 
+/** Locks the posting and its transaction; false once it is categorized or no longer live. */
+async function lockUncategorizedLive(tx: DbExecutor, postingId: string) {
+  const [row] = await tx
+    .select({ id: postings.id })
+    .from(postings)
+    .innerJoin(transactions, eq(transactions.id, postings.transactionId))
+    .where(and(eq(postings.id, postingId), isNull(postings.categoryId), liveTransaction))
+    .for('update')
+  return row !== undefined
+}
+
 /** Runs a Jev match through the gate and writes the outcome, all in one
  * transaction. Three possible results, matching the user's exact rule:
  *  - auto_apply: postings.categoryId is set directly.
@@ -55,10 +66,11 @@ async function applyOrQueue(
   amount: number,
   match: CategorizationMatch,
   settings: GateSettings,
-): Promise<'applied' | 'queued'> {
+): Promise<'applied' | 'queued' | 'skipped'> {
   const outcome = await evaluateGate(tenantId, counterpartyRaw, amount, match, settings)
 
   return db.transaction(async (tx) => {
+    if (!(await lockUncategorizedLive(tx, postingId))) return 'skipped'
     if (outcome.action === 'auto_apply') {
       await tx.update(postings).set({ categoryId: match.categoryId }).where(eq(postings.id, postingId))
       await writeAuditLog(
@@ -142,7 +154,8 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
 
     const rule = await findBestRule(tenantId, text)
     if (rule) {
-      await db.transaction(async (tx) => {
+      const applied = await db.transaction(async (tx) => {
+        if (!(await lockUncategorizedLive(tx, posting.id))) return false
         await tx.update(postings).set({ categoryId: rule.categoryId }).where(eq(postings.id, posting.id))
         await tx
           .update(categorizationRules)
@@ -160,9 +173,12 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
           },
           tx,
         )
+        return true
       })
-      byTier.rule++
-      categorized++
+      if (applied) {
+        byTier.rule++
+        categorized++
+      }
       continue
     }
 
@@ -179,6 +195,7 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
     if (!jevMatch) continue // hard failure for this item -- left uncategorized, unflagged
 
     const outcome = await applyOrQueue(tenantId, posting.id, posting.text, posting.amount, jevMatch, settings)
+    if (outcome === 'skipped') continue
     byTier.jev++
     if (outcome === 'applied') categorized++
     else queuedForReview++
