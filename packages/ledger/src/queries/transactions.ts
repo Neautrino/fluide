@@ -1,4 +1,4 @@
-import { and, desc, eq, ne, sql } from 'drizzle-orm'
+import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { db } from '../db.js'
 import { accounts, transactions, postings, categories } from '../schema/index.js'
 import { bankPostingsFilter, type Period } from './period.js'
@@ -55,10 +55,9 @@ export async function listRecentTransactions(
   }))
 }
 
-/** One row per posting (both legs of every transaction), newest first --
- * the web transaction table's shape. `account.type` lets the UI hide the
- * equity suspense leg; `posting.id` is what recategorize targets. */
-export async function listTransactionsWithPostings(tenantId: string, limit = 100) {
+/** Every live bank posting (asset/liability leg), newest first -- the web
+ * transaction table's shape. `posting.id` is what recategorize targets. */
+export async function listTransactionsWithPostings(tenantId: string) {
   return db
     .select({
       id: transactions.id,
@@ -86,7 +85,13 @@ export async function listTransactionsWithPostings(tenantId: string, limit = 100
     .innerJoin(postings, eq(postings.transactionId, transactions.id))
     .innerJoin(accounts, eq(accounts.id, postings.accountId))
     .leftJoin(categories, eq(categories.id, postings.categoryId))
-    .where(and(eq(transactions.tenantId, tenantId), liveTransaction, ne(transactions.source, 'opening-balance')))
-    .orderBy(desc(transactions.date))
-    .limit(limit)
+    .where(
+      and(
+        eq(transactions.tenantId, tenantId),
+        liveTransaction,
+        ne(transactions.source, 'opening-balance'),
+        inArray(accounts.type, ['asset', 'liability']),
+      ),
+    )
+    .orderBy(desc(transactions.date), desc(transactions.id))
 }

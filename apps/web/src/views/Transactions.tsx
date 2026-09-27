@@ -56,8 +56,6 @@ export function Transactions() {
     const rows: Row[] = []
     for (const row of t.transactions) {
       const acct = accountsById[row.posting.accountId]
-      const type = row.account?.type ?? acct?.type
-      if (type === 'equity') continue
       rows.push({
         ...row,
         key: row.posting.id ?? `${row.id}:${row.posting.accountId}`,
