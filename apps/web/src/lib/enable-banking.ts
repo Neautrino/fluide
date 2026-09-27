@@ -1,4 +1,4 @@
-import { sendJson, errorMessage } from './api'
+import { sendJson, errorMessage, type BankFetch } from './api'
 
 export const ENABLE_BANKING_CALLBACK_PATH = '/connect/enable-banking/callback'
 
@@ -9,6 +9,7 @@ export type ConnectedSummary = {
   validUntil: string
   accountsAuthorized: number
   ingest: { accountsSeen: number; transactionsInserted: number; transactionsSkipped: number }
+  bankFetch: BankFetch
 }
 
 export type CallbackOutcome = { ok: true; summary: ConnectedSummary } | { ok: false; message: string }

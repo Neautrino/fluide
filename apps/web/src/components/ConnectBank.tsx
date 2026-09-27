@@ -26,9 +26,10 @@ export function ConnectBank({ onConnected, variant = 'primary', size, showSandbo
     setError(null)
     setOutcome(null)
     try {
-      const path = reconnectId ? `/api/providers/connections/${reconnectId}/link-token` : '/api/providers/plaid/link-token'
-      const { link_token } = await sendJson<{ link_token: string }>('POST', path)
-      setLinkToken(link_token)
+      const token = reconnectId
+        ? (await sendJson<{ plaidLinkToken: string }>('POST', `/api/providers/connections/${reconnectId}/reconnect`)).plaidLinkToken
+        : (await sendJson<{ link_token: string }>('POST', '/api/providers/plaid/link-token')).link_token
+      setLinkToken(token)
     } catch (e) {
       setError(errorMessage(e))
     } finally {

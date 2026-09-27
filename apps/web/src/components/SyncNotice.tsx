@@ -30,6 +30,9 @@ function outcomeLines(outcome: SyncOutcome): string[] {
   if (r.unclassifiedAccounts.length) {
     lines.push(`${r.unclassifiedAccounts.join(', ')}: account type not recognised, counted as other assets.`)
   }
+  if (outcome.bankFetch === 'background') {
+    lines.push('Fetched in the background (the bank did not get your browser details); many banks allow this about 4 times a day.')
+  }
   return lines
 }
 

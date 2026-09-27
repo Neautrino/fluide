@@ -159,8 +159,11 @@ export type IngestResult = {
   transactionsUpdated: number
 }
 
+/** `background`: an Enable Banking fetch without the user's PSU headers, which many banks allow about 4 times a day. */
+export type BankFetch = 'user-present' | 'background'
+
 export type SyncOutcome =
-  | { connectionId: string; institutionName: string | null; ok: true; ingest: IngestResult }
+  | { connectionId: string; institutionName: string | null; ok: true; ingest: IngestResult; bankFetch?: BankFetch }
   | { connectionId: string; institutionName: string | null; ok: false; status: 'reauth_required' | 'error'; error: string }
 
 export type CategorizeResult = {

@@ -91,7 +91,7 @@ export function Transactions() {
     setAction({ kind: 'busy', which })
     try {
       if (which === 'sync') {
-        const { synced } = await sendJson<{ synced: SyncOutcome[] }>('POST', '/api/providers/plaid/sync', undefined, 120_000)
+        const { synced } = await sendJson<{ synced: SyncOutcome[] }>('POST', '/api/providers/sync', undefined, 120_000)
         setAction({ kind: 'synced', outcomes: synced })
       } else {
         const { result } = await sendJson<{ result: CategorizeResult }>('POST', '/api/assistant/categorize', undefined, 180_000)

@@ -46,7 +46,7 @@ export function Connections() {
 }
 
 function ConnectionRow({ connection: c, onChanged }: { connection: ConnectionSummary; onChanged: () => void }) {
-  const [busy, setBusy] = useState<'sync' | 'disconnect' | null>(null)
+  const [busy, setBusy] = useState<'sync' | 'disconnect' | 'reconnect' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<SyncOutcome | null>(null)
   const name = c.institutionName ?? `${PROVIDER_LABEL[c.provider]} login`
@@ -54,7 +54,7 @@ function ConnectionRow({ connection: c, onChanged }: { connection: ConnectionSum
   const live = c.status !== 'disconnected'
   const plaid = c.provider === 'plaid'
 
-  const act = async (which: 'sync' | 'disconnect') => {
+  const act = async (which: 'sync' | 'disconnect' | 'reconnect') => {
     if (
       which === 'disconnect' &&
       !window.confirm(
@@ -70,6 +70,11 @@ function ConnectionRow({ connection: c, onChanged }: { connection: ConnectionSum
       if (which === 'sync') {
         const { sync } = await sendJson<{ sync: SyncOutcome }>('POST', `/api/providers/connections/${c.id}/sync`, undefined, 120_000)
         setOutcome(sync)
+      } else if (which === 'reconnect') {
+        // Enable Banking: a new authorization at the same bank; the bank sends the user back to the callback.
+        const { redirectUrl } = await sendJson<{ redirectUrl: string }>('POST', `/api/providers/connections/${c.id}/reconnect`)
+        window.location.assign(redirectUrl)
+        return
       } else {
         await sendJson('POST', `/api/providers/connections/${c.id}/disconnect`)
       }
@@ -103,12 +108,16 @@ function ConnectionRow({ connection: c, onChanged }: { connection: ConnectionSum
         </div>
         {live && (
           <div className="flex flex-wrap items-start gap-2">
-            {plaid && (
-              <Button size="sm" onClick={() => void act('sync')} busy={busy === 'sync'} disabled={busy !== null}>
-                {busy === 'sync' ? 'Syncing…' : 'Sync now'}
+            <Button size="sm" onClick={() => void act('sync')} busy={busy === 'sync'} disabled={busy !== null}>
+              {busy === 'sync' ? 'Syncing…' : 'Sync now'}
+            </Button>
+            {plaid ? (
+              <ConnectBank reconnectId={c.id} onConnected={onChanged} variant="secondary" size="sm" />
+            ) : (
+              <Button size="sm" variant="secondary" onClick={() => void act('reconnect')} busy={busy === 'reconnect'} disabled={busy !== null}>
+                {busy === 'reconnect' ? 'Opening bank…' : 'Reconnect'}
               </Button>
             )}
-            {plaid && <ConnectBank reconnectId={c.id} onConnected={onChanged} variant="secondary" size="sm" />}
             <Button size="sm" variant="danger" onClick={() => void act('disconnect')} busy={busy === 'disconnect'} disabled={busy !== null}>
               Disconnect
             </Button>

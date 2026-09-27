@@ -33,13 +33,14 @@ export function EnableBankingCallback() {
   } else if (!outcome.ok) {
     notice = <Notice tone="error">Bank connection failed: {outcome.message}</Notice>
   } else {
-    const { institutionName, validUntil, ingest } = outcome.summary
+    const { institutionName, validUntil, ingest, bankFetch } = outcome.summary
     notice = (
       <Notice tone="success">
         Connected {institutionName}: {ingest.accountsSeen} account{ingest.accountsSeen === 1 ? '' : 's'},{' '}
         {ingest.transactionsInserted} booked transaction{ingest.transactionsInserted === 1 ? '' : 's'} imported
         {ingest.transactionsSkipped > 0 ? ` (${ingest.transactionsSkipped} already present)` : ''}. Access lasts
         until {new Date(validUntil).toLocaleDateString()}.
+        {bankFetch === 'background' && ' Fetched in the background: many banks allow this about 4 times a day.'}
       </Notice>
     )
   }
