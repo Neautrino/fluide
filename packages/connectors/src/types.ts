@@ -23,6 +23,8 @@ export type NormalizedTransaction = {
 
 export type RemovedTransaction = { providerTransactionId: string; accountId: string }
 
+/** The provider's final state since `cursor`: each providerTransactionId
+ * appears in at most one list. */
 export type TransactionChanges = {
   added: NormalizedTransaction[]
   modified: NormalizedTransaction[]

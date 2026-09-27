@@ -19,6 +19,7 @@ import type {
   NormalizedAccountKind,
   NormalizedBalance,
   NormalizedTransaction,
+  RemovedTransaction,
   TransactionChanges,
 } from './types.js'
 
@@ -135,22 +136,42 @@ function normalizeTransaction(tx: PlaidTransaction): NormalizedTransaction {
   }
 }
 
+type SyncEvent =
+  | { list: 'added' | 'modified'; tx: NormalizedTransaction }
+  | { list: 'removed'; removed: RemovedTransaction }
+
 /** Pulls every page from `cursor`. Plaid requires restarting from the
  * original cursor when the data changes mid-pagination. */
 async function syncAllPages(client: PlaidApi, accessToken: string, cursor: string | undefined): Promise<TransactionChanges> {
   for (let restart = 0; restart < MAX_SYNC_RESTARTS; restart++) {
-    const changes: TransactionChanges = { added: [], modified: [], removed: [], nextCursor: cursor, historyComplete: false }
+    const events = new Map<string, SyncEvent>()
+    let nextCursor = cursor
     try {
       for (let page = 0; page < MAX_SYNC_PAGES; page++) {
         const data = await plaidCall('transactionsSync', () =>
-          client.transactionsSync({ access_token: accessToken, cursor: changes.nextCursor, count: SYNC_PAGE_SIZE }),
+          client.transactionsSync({ access_token: accessToken, cursor: nextCursor, count: SYNC_PAGE_SIZE }),
         )
-        changes.added.push(...data.added.map(normalizeTransaction))
-        changes.modified.push(...data.modified.map(normalizeTransaction))
-        changes.removed.push(...data.removed.map((r) => ({ providerTransactionId: r.transaction_id, accountId: r.account_id })))
-        changes.nextCursor = data.next_cursor
+        for (const tx of data.added.map(normalizeTransaction)) events.set(tx.providerTransactionId, { list: 'added', tx })
+        for (const tx of data.modified.map(normalizeTransaction)) {
+          const addedInBatch = events.get(tx.providerTransactionId)?.list === 'added'
+          events.set(tx.providerTransactionId, { list: addedInBatch ? 'added' : 'modified', tx })
+        }
+        for (const r of data.removed) {
+          events.set(r.transaction_id, { list: 'removed', removed: { providerTransactionId: r.transaction_id, accountId: r.account_id } })
+        }
+        nextCursor = data.next_cursor
         if (!data.has_more) {
-          changes.historyComplete = data.transactions_update_status === TransactionsUpdateStatus.HistoricalUpdateComplete
+          const changes: TransactionChanges = {
+            added: [],
+            modified: [],
+            removed: [],
+            nextCursor,
+            historyComplete: data.transactions_update_status === TransactionsUpdateStatus.HistoricalUpdateComplete,
+          }
+          for (const event of events.values()) {
+            if (event.list === 'removed') changes.removed.push(event.removed)
+            else changes[event.list].push(event.tx)
+          }
           return changes
         }
       }

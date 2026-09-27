@@ -184,6 +184,19 @@ describe('Plaid normalization', () => {
     expect(changes.historyComplete).toBe(true)
   })
 
+  test('an id seen on several pages ends in the list of its last event', async () => {
+    const pages = [
+      page({ added: [plaidTx('x', { pending: true }), plaidTx('y', { amount: 5 })], modified: [plaidTx('z')], has_more: true, next_cursor: 'c1' }),
+      page({ modified: [plaidTx('y', { amount: 7 }), plaidTx('w')], removed: [{ transaction_id: 'x', account_id: 'acct-1' }, { transaction_id: 'z', account_id: 'acct-1' }], next_cursor: 'c2' }),
+    ]
+    let calls = 0
+    stub('transactionsSync', async () => pages[calls++])
+    const changes = await createPlaidConnector(credentials).getTransactions(ACCESS_TOKEN, 'c0')
+    expect(changes.added.map((t) => [t.providerTransactionId, t.amount])).toEqual([['y', -7]])
+    expect(changes.modified.map((t) => t.providerTransactionId)).toEqual(['w'])
+    expect(changes.removed.map((r) => r.providerTransactionId).sort()).toEqual(['x', 'z'])
+  })
+
   test('history is incomplete until the historical pull finishes', async () => {
     stub('transactionsSync', async () => page({ transactions_update_status: 'INITIAL_UPDATE_COMPLETE' }))
     expect((await createPlaidConnector(credentials).getTransactions(ACCESS_TOKEN)).historyComplete).toBe(false)
