@@ -94,6 +94,38 @@ export type EnableBankingAspsp = {
   beta?: boolean
   psu_types?: string[]
   maximum_consent_validity?: number
+  /** Headers an online (user-present) fetch must carry, e.g. ["Psu-Ip-Address"]. */
+  required_psu_headers?: string[]
+}
+
+/** End-user (PSU) headers taken from the user's own request. An account call
+ * carrying them is a user-present fetch; one without them is a background fetch,
+ * which many banks allow only about 4 times a day. */
+export type EnableBankingPsuHeaders = Partial<
+  Record<
+    | 'Psu-Ip-Address'
+    | 'Psu-User-Agent'
+    | 'Psu-Referer'
+    | 'Psu-Accept'
+    | 'Psu-Accept-Charset'
+    | 'Psu-Accept-Encoding'
+    | 'Psu-Accept-language'
+    | 'Psu-Geo-Location',
+    string
+  >
+>
+
+/** Every header we have when that covers all of `required`, otherwise none:
+ * Enable Banking refuses a partial set (422 PSU_HEADER_NOT_PROVIDED). */
+export function selectEnableBankingPsuHeaders(
+  required: readonly string[],
+  available: EnableBankingPsuHeaders,
+): Record<string, string> | undefined {
+  const present = Object.entries(available).filter((entry): entry is [string, string] => Boolean(entry[1]))
+  if (present.length === 0) return undefined
+  const have = new Set(present.map(([name]) => name.toLowerCase()))
+  if (!required.every((name) => have.has(name.toLowerCase()))) return undefined
+  return Object.fromEntries(present)
 }
 
 // ---------------------------------------------------------------- auth + http
@@ -192,7 +224,7 @@ async function call<T>(
   credentials: EnableBankingCredentials,
   method: 'GET' | 'POST' | 'DELETE',
   path: string,
-  options: { query?: Record<string, string | undefined>; body?: unknown } = {},
+  options: { query?: Record<string, string | undefined>; body?: unknown; headers?: Record<string, string> } = {},
 ): Promise<T> {
   assertAllowedEnableBankingCall(method, path)
   const where = `${method} ${redactPath(path)}`
@@ -208,6 +240,7 @@ async function call<T>(
     const response = await fetch(url, {
       method,
       headers: {
+        ...options.headers,
         Authorization: `Bearer ${token}`,
         Accept: 'application/json',
         ...(options.body === undefined ? {} : { 'Content-Type': 'application/json' }),
@@ -347,16 +380,14 @@ export function assignEnableBankingIds(
 
 // ---------------------------------------------------------------- session helpers
 
-async function sessionAccounts(credentials: EnableBankingCredentials, sessionId: string) {
-  const session = await call<{ accounts_data?: { uid: string; identification_hash: string }[] }>(
-    credentials,
-    'GET',
-    `/sessions/${encodeURIComponent(sessionId)}`,
-  )
+type SessionAccount = { uid: string; identification_hash: string }
+
+async function sessionAccounts(credentials: EnableBankingCredentials, sessionId: string): Promise<SessionAccount[]> {
+  const session = await call<{ accounts_data?: SessionAccount[] }>(credentials, 'GET', `/sessions/${encodeURIComponent(sessionId)}`)
   return session.accounts_data ?? []
 }
 
-async function bookedTransactions(credentials: EnableBankingCredentials, accountUid: string) {
+async function bookedTransactions(credentials: EnableBankingCredentials, accountUid: string, headers?: Record<string, string>) {
   const all: EbTransaction[] = []
   let continuationKey: string | undefined
   for (let page = 0; page < MAX_TRANSACTION_PAGES; page++) {
@@ -364,7 +395,7 @@ async function bookedTransactions(credentials: EnableBankingCredentials, account
       credentials,
       'GET',
       `/accounts/${encodeURIComponent(accountUid)}/transactions`,
-      { query: { strategy: 'longest', transaction_status: 'BOOK', continuation_key: continuationKey } },
+      { query: { strategy: 'longest', transaction_status: 'BOOK', continuation_key: continuationKey }, headers },
     )
     all.push(...result.transactions)
     if (!result.continuation_key) return all
@@ -375,27 +406,55 @@ async function bookedTransactions(credentials: EnableBankingCredentials, account
 
 // ---------------------------------------------------------------- connector
 
+export type EnableBankingConnectorOptions = {
+  /** Sent on every account call; omitted = a background fetch. From selectEnableBankingPsuHeaders. */
+  psuHeaders?: Record<string, string>
+}
+
 /** `credentials` are captured in a closure so the returned Connector still
  * matches the provider-agnostic shape (accessToken/cursor only) — ingest.ts
- * never needs to know Enable Banking has app-level credentials at all. */
-export function createEnableBankingConnector(credentials: EnableBankingCredentials): Connector {
+ * never needs to know Enable Banking has app-level credentials at all.
+ * Create one per ingest: it fetches the session and each account's details
+ * once and reuses them, because banks count every account call. */
+export function createEnableBankingConnector(
+  credentials: EnableBankingCredentials,
+  options: EnableBankingConnectorOptions = {},
+): Connector {
+  const headers = options.psuHeaders
+  const sessions = new Map<string, Promise<SessionAccount[]>>()
+  const details = new Map<string, Promise<EbAccount>>()
+
+  const accountsOf = (sessionId: string) => {
+    let accounts = sessions.get(sessionId)
+    if (!accounts) sessions.set(sessionId, (accounts = sessionAccounts(credentials, sessionId)))
+    return accounts
+  }
+  const detailsOf = (uid: string) => {
+    let account = details.get(uid)
+    if (!account) {
+      account = call<EbAccount>(credentials, 'GET', `/accounts/${encodeURIComponent(uid)}/details`, { headers })
+      details.set(uid, account)
+    }
+    return account
+  }
+
   return {
     provider: PROVIDER,
 
     // `accessToken` is the Enable Banking session_id.
     async listAccounts(sessionId) {
       const accounts: NormalizedAccount[] = []
-      for (const { uid, identification_hash } of await sessionAccounts(credentials, sessionId)) {
-        const details = await call<EbAccount>(credentials, 'GET', `/accounts/${encodeURIComponent(uid)}/details`)
-        if (!details.currency) throw badResponse(`Enable Banking account ${identification_hash} has no currency`)
-        const type = details.cash_account_type ?? 'OTHR'
+      for (const { uid, identification_hash } of await accountsOf(sessionId)) {
+        const account = await detailsOf(uid)
+        if (!account.currency) throw badResponse(`Enable Banking account ${identification_hash} has no currency`)
+        const type = account.cash_account_type ?? 'OTHR'
         accounts.push({
           providerAccountId: identification_hash,
-          name: details.name ?? details.product ?? details.details ?? 'Bank account',
+          name: account.name ?? account.product ?? account.details ?? 'Bank account',
           type,
-          subtype: details.product,
+          subtype: account.product,
           kind: enableBankingAccountKind(type),
-          currency: details.currency,
+          currency: account.currency,
         })
       }
       return accounts
@@ -403,13 +462,14 @@ export function createEnableBankingConnector(credentials: EnableBankingCredentia
 
     async getBalances(sessionId) {
       const balances: NormalizedBalance[] = []
-      for (const { uid, identification_hash } of await sessionAccounts(credentials, sessionId)) {
-        const details = await call<EbAccount>(credentials, 'GET', `/accounts/${encodeURIComponent(uid)}/details`)
-        if (enableBankingAccountKind(details.cash_account_type ?? 'OTHR') !== 'cash') continue
+      for (const { uid, identification_hash } of await accountsOf(sessionId)) {
+        const account = await detailsOf(uid)
+        if (enableBankingAccountKind(account.cash_account_type ?? 'OTHR') !== 'cash') continue
         const { balances: raw } = await call<{ balances: EbBalance[] }>(
           credentials,
           'GET',
           `/accounts/${encodeURIComponent(uid)}/balances`,
+          { headers },
         )
         for (const [balanceType, preference] of [
           ['current', ['CLBD', 'ITBD', 'XPCD']],
@@ -437,8 +497,8 @@ export function createEnableBankingConnector(credentials: EnableBankingCredentia
     // returns them anyway.
     async getTransactions(sessionId) {
       const transactions: NormalizedTransaction[] = []
-      for (const { uid, identification_hash } of await sessionAccounts(credentials, sessionId)) {
-        const booked = (await bookedTransactions(credentials, uid)).filter((tx) => tx.status === 'BOOK')
+      for (const { uid, identification_hash } of await accountsOf(sessionId)) {
+        const booked = (await bookedTransactions(credentials, uid, headers)).filter((tx) => tx.status === 'BOOK')
         transactions.push(
           ...assignEnableBankingIds(
             identification_hash,

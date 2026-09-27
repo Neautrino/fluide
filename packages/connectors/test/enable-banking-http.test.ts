@@ -7,6 +7,7 @@ import {
   createEnableBankingConnector,
   listEnableBankingAspsps,
   loadEnableBankingKey,
+  selectEnableBankingPsuHeaders,
   type EnableBankingCredentials,
 } from '../src/enable-banking.ts'
 import { ConnectorError } from '../src/errors.ts'
@@ -198,6 +199,56 @@ describe('getBalances', () => {
         json({ balances: [{ balance_type: 'CLBD', balance_amount: { amount: 'n/a', currency: 'EUR' } }] }),
     })
     expect((await rejection(createEnableBankingConnector(credentials).getBalances(SESSION_ID))).kind).toBe('bad_response')
+  })
+})
+
+describe('one ingest', () => {
+  test('fetches the session and each account\u2019s details once, and sends PSU headers on every account call', async () => {
+    const calls: Record<string, number> = {}
+    const psuSeen: (string | null)[] = []
+    const count = (key: string, handler: Handler): Handler => (url, init) => {
+      calls[key] = (calls[key] ?? 0) + 1
+      if (url.pathname.startsWith('/accounts/')) psuSeen.push(new Headers(init.headers).get('Psu-User-Agent'))
+      return handler(url, init)
+    }
+    const routes: Record<string, Handler> = {
+      [`GET /sessions/${SESSION_ID}`]: count('session', () =>
+        json({ accounts_data: [{ uid: 'uid-1', identification_hash: 'hash-1' }, { uid: 'uid-2', identification_hash: 'hash-2' }] }),
+      ),
+    }
+    for (const uid of ['uid-1', 'uid-2']) {
+      routes[`GET /accounts/${uid}/details`] = count('details', () => json({ uid, currency: 'EUR', cash_account_type: 'CACC' }))
+      routes[`GET /accounts/${uid}/balances`] = count('balances', () =>
+        json({ balances: [{ balance_type: 'CLBD', balance_amount: { amount: '1.00', currency: 'EUR' } }] }),
+      )
+      routes[`GET /accounts/${uid}/transactions`] = count('transactions', () => json({ transactions: [booked('R1')], continuation_key: null }))
+    }
+    stubFetch(routes)
+
+    const connector = createEnableBankingConnector(credentials, { psuHeaders: { 'Psu-User-Agent': 'Browser/1.0' } })
+    await connector.listAccounts(SESSION_ID)
+    await connector.getTransactions(SESSION_ID)
+    await connector.getBalances(SESSION_ID)
+
+    expect(calls).toEqual({ session: 1, details: 2, transactions: 2, balances: 2 })
+    expect(psuSeen).toEqual(Array(6).fill('Browser/1.0'))
+  })
+})
+
+describe('selectEnableBankingPsuHeaders', () => {
+  const browser = { 'Psu-User-Agent': 'Browser/1.0', 'Psu-Accept-language': 'en' }
+
+  test('sends every header we have when they cover what the bank requires, matched case-insensitively', () => {
+    expect(selectEnableBankingPsuHeaders(['psu-user-agent', 'Psu-Accept-Language'], browser)).toEqual(browser)
+    expect(selectEnableBankingPsuHeaders([], browser)).toEqual(browser)
+  })
+
+  test('sends none when a required header is missing: a partial set is refused by the bank', () => {
+    expect(selectEnableBankingPsuHeaders(['Psu-Ip-Address'], browser)).toBeUndefined()
+  })
+
+  test('sends none when we have no header values at all', () => {
+    expect(selectEnableBankingPsuHeaders([], { 'Psu-User-Agent': '', 'Psu-Referer': undefined })).toBeUndefined()
   })
 })
 

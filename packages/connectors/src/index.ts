@@ -22,8 +22,11 @@ export {
   enableBankingAccountKind,
   listEnableBankingAspsps,
   loadEnableBankingKey,
+  selectEnableBankingPsuHeaders,
   startEnableBankingAuth,
   createEnableBankingSession,
   type EnableBankingAspsp,
+  type EnableBankingConnectorOptions,
   type EnableBankingCredentials,
+  type EnableBankingPsuHeaders,
 } from './enable-banking.js'
