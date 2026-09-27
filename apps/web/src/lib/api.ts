@@ -106,7 +106,7 @@ export type Summary = {
   incomeVsExpense: { income: number; expense: number; net: number }
   topCategories: { category: string; total: number }[]
   topMerchants: { merchant: string; total: number; count: number }[]
-  balances: { name: string; currency: string; balance: number }[]
+  balances: { name: string; currency: string; balance: number | null }[]
 }
 
 export type CategorizeResult = {

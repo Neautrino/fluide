@@ -75,7 +75,11 @@ export function Overview() {
                     {summary.data.balances.map((b) => (
                       <li key={`${b.name}:${b.currency}`} className="flex items-baseline justify-between gap-4 border-b border-rule py-3">
                         <span className="min-w-0 truncate text-[15px] text-ink">{b.name}</span>
-                        <Money amount={b.balance} currency={b.currency} className="font-display text-[19px]" />
+                        {b.balance === null ? (
+                          <span className="text-[13px] text-ink-3 italic">Balance unknown</span>
+                        ) : (
+                          <Money amount={b.balance} currency={b.currency} className="font-display text-[19px]" />
+                        )}
                       </li>
                     ))}
                   </ul>
@@ -173,10 +177,11 @@ function ConnectFirst({ onConnected }: { onConnected: () => void }) {
 
 function Kpis({ summary, periodLabel }: { summary: Summary; periodLabel: string }) {
   // Totals are per currency; the headline uses the currency most balances are in.
+  const known = summary.balances.flatMap((b) => (b.balance === null ? [] : [{ currency: b.currency, balance: b.balance }]))
   const totals: Record<string, number> = {}
-  for (const b of summary.balances) totals[b.currency] = (totals[b.currency] ?? 0) + b.balance
+  for (const b of known) totals[b.currency] = (totals[b.currency] ?? 0) + b.balance
   const currencies = Object.keys(totals).sort(
-    (a, b) => summary.balances.filter((x) => x.currency === b).length - summary.balances.filter((x) => x.currency === a).length,
+    (a, b) => known.filter((x) => x.currency === b).length - known.filter((x) => x.currency === a).length,
   )
   const currency = currencies[0] ?? 'USD'
   const others = currencies.slice(1)
@@ -188,7 +193,7 @@ function Kpis({ summary, periodLabel }: { summary: Summary; periodLabel: string 
       value: <Money amount={totals[currency] ?? 0} currency={currency} />,
       note: others.length
         ? `plus ${others.map((c) => formatMoney(totals[c], c)).join(', ')}`
-        : `across ${summary.balances.length} ${summary.balances.length === 1 ? 'account' : 'accounts'}`,
+        : `across ${known.length} ${known.length === 1 ? 'account' : 'accounts'}`,
     },
     { label: 'Money in', value: <Money amount={income} currency={currency} />, note: periodLabel },
     { label: 'Money out', value: <Money amount={expense} currency={currency} />, note: periodLabel },
