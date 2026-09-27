@@ -2,7 +2,7 @@
  * Invariant: thresholds come only from the tenant's gate_settings, never constants here.
  * See: ADR 002 — the user's binding 3-tier rule and its defaults
  */
-import { db, postings, transactions, reviewQueue, type DbExecutor, type GateSettings } from '@repo/ledger'
+import { db, postings, transactions, reviewQueue, liveTransaction, type DbExecutor, type GateSettings } from '@repo/ledger'
 import { and, eq } from 'drizzle-orm'
 import type { CategorizationMatch } from './jev.js'
 
@@ -23,6 +23,7 @@ async function vendorCategoryHistory(tenantId: string, counterpartyRaw: string, 
         eq(transactions.tenantId, tenantId),
         eq(postings.counterpartyRaw, counterpartyRaw),
         eq(postings.categoryId, categoryId),
+        liveTransaction,
       ),
     )
   return rows.map((r) => Number(r.amount))
