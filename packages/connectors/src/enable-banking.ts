@@ -85,7 +85,7 @@ export type EbTransaction = {
   merchant_category_code?: string | null
 }
 
-type EbBalance = { balance_amount: Amount; balance_type: string }
+type EbBalance = { balance_amount: Amount; balance_type: string; reference_date?: string | null }
 
 export type EnableBankingAspsp = {
   name: string
@@ -425,6 +425,7 @@ export function createEnableBankingConnector(credentials: EnableBankingCredentia
             currency,
             providerBalanceType: chosen.balance_type,
             isFallback: chosen.balance_type !== preference[0],
+            asOf: chosen.reference_date ?? undefined,
           })
         }
       }
