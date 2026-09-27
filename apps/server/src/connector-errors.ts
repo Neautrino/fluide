@@ -23,3 +23,13 @@ export function connectorErrorResponse(c: Context, label: string, err: unknown, 
   console.error(label, err)
   return c.json({ error: failure }, 500)
 }
+
+/** The connection status and user-facing reason a failed sync leaves behind. */
+export function connectorFailure(label: string, err: unknown): { status: 'reauth_required' | 'error'; reason: string } {
+  if (err instanceof ConnectorError) {
+    console.error(label, `${err.provider}/${err.kind}`, err.message)
+    return { status: err.kind === 'reauth_required' ? 'reauth_required' : 'error', reason: RESPONSES[err.kind].reason }
+  }
+  console.error(label, err)
+  return { status: 'error', reason: 'unexpected server error — see the server log' }
+}

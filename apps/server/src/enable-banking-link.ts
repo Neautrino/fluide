@@ -11,7 +11,8 @@ import {
   createEnableBankingSession,
   type EnableBankingCredentials,
 } from '@repo/connectors'
-import { saveConnection } from './connection-store.js'
+import { recordConnectionStatus, saveConnection } from './connection-store.js'
+import { connectorFailure } from './connector-errors.js'
 import { ingestConnection, LOCAL_TENANT_ID, type IngestResult } from './ingest.js'
 
 const STATE_TTL_MS = 15 * 60 * 1000
@@ -81,7 +82,14 @@ export async function completeEnableBankingLink(
     validUntil: session.validUntil,
   })
 
-  const ingest = await ingestConnection(createEnableBankingConnector(credentials), connectionId, session.sessionId)
+  let ingest: IngestResult
+  try {
+    ingest = await ingestConnection(createEnableBankingConnector(credentials), connectionId, session.sessionId)
+  } catch (err) {
+    await recordConnectionStatus(LOCAL_TENANT_ID, connectionId, connectorFailure('enable-banking ingest error', err))
+    throw err
+  }
+  await recordConnectionStatus(LOCAL_TENANT_ID, connectionId, { status: 'active' })
   return {
     ok: true,
     connectionId,
