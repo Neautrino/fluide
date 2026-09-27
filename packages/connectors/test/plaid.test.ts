@@ -1,16 +1,18 @@
 import { afterEach, beforeAll, describe, expect, spyOn, test, type Mock } from 'bun:test'
 import { Configuration, PlaidApi } from 'plaid'
 import { ConnectorError } from '../src/errors.ts'
-import { createPlaidConnector, createPlaidLinkToken, exchangePlaidPublicToken, plaidAccountKind } from '../src/plaid.ts'
+import { createPlaidConnector, createPlaidLinkToken, exchangePlaidPublicToken, getPlaidInstitution, plaidAccountKind } from '../src/plaid.ts'
 
 const SECRET = 'secret-SHOULD-NOT-LEAK'
 const ACCESS_TOKEN = 'access-sandbox-SHOULD-NOT-LEAK'
 const credentials = { clientId: 'client-id', secret: SECRET }
 
 const spies: Mock<(...args: never[]) => unknown>[] = []
-function stub<K extends 'accountsGet' | 'accountsBalanceGet' | 'transactionsSync' | 'itemPublicTokenExchange' | 'linkTokenCreate'>(
+function stub<
+  K extends 'accountsGet' | 'accountsBalanceGet' | 'transactionsSync' | 'itemPublicTokenExchange' | 'linkTokenCreate' | 'itemGet' | 'institutionsGetById',
+>(
   method: K,
-  impl: (request: { cursor?: string }) => Promise<unknown>,
+  impl: (request: { cursor?: string } & Record<string, unknown>) => Promise<unknown>,
 ) {
   const spy = spyOn(PlaidApi.prototype, method).mockImplementation(impl as never)
   spies.push(spy as never)
@@ -112,6 +114,35 @@ describe('Plaid SDK errors become ConnectorError without secrets', () => {
     const err = await rejection(createPlaidLinkToken(credentials, 'user-1'))
     expect(err.kind).toBe('provider_unavailable')
     expectNoSecrets(err)
+  })
+})
+
+describe('Plaid Link and Item metadata', () => {
+  test('a new link asks for Transactions with 730 days; update mode sends only the access token', async () => {
+    const requests: Record<string, unknown>[] = []
+    stub('linkTokenCreate', async (request) => {
+      requests.push(request)
+      return { data: { link_token: 'link-1' } }
+    })
+    await createPlaidLinkToken(credentials, 'user-1')
+    await createPlaidLinkToken(credentials, 'user-1', ACCESS_TOKEN)
+    expect(requests[0]).toMatchObject({ products: ['transactions'], transactions: { days_requested: 730 } })
+    expect(requests[0]).not.toHaveProperty('access_token')
+    expect(requests[1]).toMatchObject({ access_token: ACCESS_TOKEN })
+    expect(requests[1]).not.toHaveProperty('products')
+    expect(requests[1]).not.toHaveProperty('transactions')
+  })
+
+  test('institution name comes from the Item, or from the institution lookup when the Item has none', async () => {
+    const lookup = stub('institutionsGetById', async () => ({ data: { institution: { name: 'First Platypus Bank' } } }))
+    stub('itemGet', async () => ({ data: { item: { institution_id: 'ins_109508', institution_name: null } } }))
+    expect(await getPlaidInstitution(credentials, ACCESS_TOKEN)).toEqual({ institutionId: 'ins_109508', institutionName: 'First Platypus Bank' })
+    expect(lookup).toHaveBeenCalledTimes(1)
+    for (const spy of spies.splice(0)) spy.mockRestore()
+    const unused = stub('institutionsGetById', async () => ({ data: { institution: { name: 'unused' } } }))
+    stub('itemGet', async () => ({ data: { item: { institution_id: 'ins_1', institution_name: 'Named Bank' } } }))
+    expect(await getPlaidInstitution(credentials, ACCESS_TOKEN)).toEqual({ institutionId: 'ins_1', institutionName: 'Named Bank' })
+    expect(unused).not.toHaveBeenCalled()
   })
 })
 

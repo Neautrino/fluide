@@ -12,7 +12,9 @@ export {
   createPlaidConnector,
   createPlaidLinkToken,
   exchangePlaidPublicToken,
+  getPlaidInstitution,
   plaidAccountKind,
+  removePlaidItem,
   type PlaidCredentials,
 } from './plaid.js'
 export {

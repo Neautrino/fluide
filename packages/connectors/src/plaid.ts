@@ -240,19 +240,35 @@ export function createPlaidConnector(credentials: PlaidCredentials): Connector {
 
 // Not part of Connector — link tokens have no provider-agnostic equivalent
 // (Teller uses a static app_id + widget, not a per-session token).
-export async function createPlaidLinkToken(credentials: PlaidCredentials, clientUserId: string) {
+/** With `accessToken`, Link opens in update mode to repair that Item instead of creating a new one. */
+export async function createPlaidLinkToken(credentials: PlaidCredentials, clientUserId: string, accessToken?: string) {
   const client = plaidClient(credentials)
+  const base = { user: { client_user_id: clientUserId }, client_name: 'Fluide', country_codes: [CountryCode.Us], language: 'en' }
   const data = await plaidCall('linkTokenCreate', () =>
-    client.linkTokenCreate({
-      user: { client_user_id: clientUserId },
-      client_name: 'Fluide',
-      products: [Products.Transactions],
-      country_codes: [CountryCode.Us],
-      language: 'en',
-      transactions: { days_requested: 730 },
-    }),
+    client.linkTokenCreate(
+      accessToken
+        ? { ...base, access_token: accessToken }
+        : { ...base, products: [Products.Transactions], transactions: { days_requested: 730 } },
+    ),
   )
   return data.link_token
+}
+
+export async function getPlaidInstitution(credentials: PlaidCredentials, accessToken: string) {
+  const client = plaidClient(credentials)
+  const { item } = await plaidCall('itemGet', () => client.itemGet({ access_token: accessToken }))
+  const institutionId = item.institution_id ?? null
+  if (item.institution_name || !institutionId) return { institutionId, institutionName: item.institution_name ?? null }
+  const { institution } = await plaidCall('institutionsGetById', () =>
+    client.institutionsGetById({ institution_id: institutionId, country_codes: [CountryCode.Us] }),
+  )
+  return { institutionId, institutionName: institution.name }
+}
+
+/** Deletes the Item at Plaid: the access token stops working and per-Item billing stops. */
+export async function removePlaidItem(credentials: PlaidCredentials, accessToken: string) {
+  const client = plaidClient(credentials)
+  await plaidCall('itemRemove', () => client.itemRemove({ access_token: accessToken }))
 }
 
 export async function exchangePlaidPublicToken(credentials: PlaidCredentials, publicToken: string) {
