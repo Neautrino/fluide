@@ -3,6 +3,7 @@ import type { View } from '../lib/app-context'
 
 const NAV: { view: View; label: string }[] = [
   { view: 'overview', label: 'Overview' },
+  { view: 'accounts', label: 'Accounts' },
   { view: 'transactions', label: 'Transactions' },
   { view: 'review', label: 'Review' },
   { view: 'rules', label: 'Rules' },

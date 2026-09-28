@@ -1,6 +1,6 @@
 import { createContext, useContext } from 'react'
 
-export type View = 'overview' | 'transactions' | 'review' | 'rules' | 'assistant' | 'settings'
+export type View = 'overview' | 'accounts' | 'transactions' | 'review' | 'rules' | 'assistant' | 'settings'
 
 export type AppContextValue = {
   view: View

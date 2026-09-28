@@ -101,7 +101,7 @@ export type ProviderCredentialsStatus = { configured: boolean; updatedAt?: strin
 
 export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' | 'all_time'
 
-export type AccountKind = 'cash' | 'investment' | 'credit' | 'loan' | 'other'
+export type AccountKind = 'cash' | 'investment' | 'property' | 'vehicle' | 'crypto' | 'credit' | 'loan' | 'other'
 
 export type AccountBalance = {
   id: string
@@ -117,6 +117,15 @@ export type AccountBalance = {
   pendingBalance: number
   bankCountsPending: boolean | null
   mismatch: boolean
+  mask: string | null
+  subtype: string | null
+  officialName: string | null
+  excludeFromNetWorth: boolean
+  institutionName: string | null
+  connectionStatus: ConnectionStatus | null
+  lastSyncedAt: string | null
+  availableBalance: number | null
+  creditLimit: number | null
 }
 
 export type Summary = {

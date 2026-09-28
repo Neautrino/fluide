@@ -1,6 +1,7 @@
 import { useCallback, useMemo, useState, type ComponentType } from 'react'
 import { EnableBankingCallback } from './components/EnableBankingCallback'
 import { Sidebar } from './components/Sidebar'
+import { Accounts } from './views/Accounts'
 import { getJson, type ReviewItem } from './lib/api'
 import { AppContext, type View } from './lib/app-context'
 import { useResource } from './lib/useResource'
@@ -13,6 +14,7 @@ import { Transactions } from './views/Transactions'
 
 const VIEWS: Record<Exclude<View, 'assistant'>, ComponentType> = {
   overview: Overview,
+  accounts: Accounts,
   transactions: Transactions,
   review: Review,
   rules: Rules,
