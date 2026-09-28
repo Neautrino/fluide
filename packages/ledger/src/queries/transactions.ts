@@ -56,8 +56,9 @@ export async function listRecentTransactions(
 }
 
 /** Every live bank posting (asset/liability leg), newest first -- the web
- * transaction table's shape. `posting.id` is what recategorize targets. */
-export async function listTransactionsWithPostings(tenantId: string) {
+ * transaction table's shape. `posting.id` is what recategorize targets.
+ * `accountId` narrows it to postings on that one account. */
+export async function listTransactionsWithPostings(tenantId: string, accountId?: string) {
   return db
     .select({
       id: transactions.id,
@@ -91,6 +92,7 @@ export async function listTransactionsWithPostings(tenantId: string) {
         liveTransaction,
         ne(transactions.source, 'opening-balance'),
         inArray(accounts.type, ['asset', 'liability']),
+        accountId ? eq(postings.accountId, accountId) : undefined,
       ),
     )
     .orderBy(desc(transactions.date), desc(transactions.id))

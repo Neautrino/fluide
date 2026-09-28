@@ -1,6 +1,6 @@
 import { and, desc, eq, inArray, sql } from 'drizzle-orm'
 import { db } from '../db.js'
-import { accounts, balanceAssertions, postings, transactions, type AccountKind } from '../schema/index.js'
+import { accounts, balanceAssertions, connectors, postings, transactions, type AccountKind, type ConnectorStatus } from '../schema/index.js'
 import { liveTransaction, settledTransaction } from './live.js'
 
 export type AccountBalance = {
@@ -16,6 +16,15 @@ export type AccountBalance = {
   pendingBalance: number
   bankCountsPending: boolean | null
   mismatch: boolean
+  mask: string | null
+  subtype: string | null
+  officialName: string | null
+  excludeFromNetWorth: boolean
+  institutionName: string | null
+  connectionStatus: ConnectorStatus | null
+  lastSyncedAt: string | null
+  availableBalance: number | null
+  creditLimit: number | null
 }
 
 /** `balance` is the bank's latest current balance, else the ledger sum of an
@@ -25,7 +34,9 @@ export type AccountBalance = {
  * Banks differ on whether `current` includes pending, so an anchored cash/credit
  * account mismatches only when the bank equals neither total; `bankCountsPending`
  * records which one matched (null when there is no pending amount to tell).
- * Investments and loans change without transactions, so they are not reconciled. */
+ * Investments and loans change without transactions, so they are not reconciled.
+ * Connection fields come from the account's connector (null for manual accounts);
+ * `availableBalance`/`creditLimit` are the latest same-currency assertions of that type. */
 export async function listAccountBalances(tenantId: string): Promise<AccountBalance[]> {
   const bankDate = sql`(
     select ${balanceAssertions.date} from ${balanceAssertions}
@@ -40,6 +51,13 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
       name: accounts.name,
       currency: accounts.currency,
       kind: accounts.kind,
+      mask: accounts.mask,
+      subtype: accounts.providerSubtype,
+      officialName: accounts.officialName,
+      excludeFromNetWorth: accounts.excludeFromNetWorth,
+      institutionName: connectors.institutionName,
+      connectionStatus: connectors.status,
+      lastSyncedAt: connectors.lastSyncedAt,
       ledgerBalance: sql<string>`coalesce(sum(${postings.amount}) filter (where ${and(
         settledTransaction,
         eq(postings.currency, accounts.currency),
@@ -53,8 +71,9 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
     .from(accounts)
     .leftJoin(postings, eq(postings.accountId, accounts.id))
     .leftJoin(transactions, eq(transactions.id, postings.transactionId))
+    .leftJoin(connectors, eq(connectors.id, accounts.connectorId))
     .where(and(eq(accounts.tenantId, tenantId), inArray(accounts.type, ['asset', 'liability'])))
-    .groupBy(accounts.id, accounts.name, accounts.currency, accounts.kind)
+    .groupBy(accounts.id, accounts.name, accounts.currency, accounts.kind, connectors.id)
     .orderBy(accounts.type, accounts.kind, accounts.name, accounts.id)
 
   const ids = ledgerRows.map((r) => r.id)
@@ -77,6 +96,24 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
         )
         .orderBy(balanceAssertions.accountId, desc(balanceAssertions.date))
     : []
+  const otherRows = ids.length
+    ? await db
+        .selectDistinctOn([balanceAssertions.accountId, balanceAssertions.balanceType], {
+          accountId: balanceAssertions.accountId,
+          balanceType: balanceAssertions.balanceType,
+          amount: balanceAssertions.assertedAmount,
+        })
+        .from(balanceAssertions)
+        .innerJoin(accounts, eq(accounts.id, balanceAssertions.accountId))
+        .where(
+          and(
+            inArray(balanceAssertions.accountId, ids),
+            inArray(balanceAssertions.balanceType, ['available', 'limit']),
+            eq(balanceAssertions.currency, accounts.currency),
+          ),
+        )
+        .orderBy(balanceAssertions.accountId, balanceAssertions.balanceType, desc(balanceAssertions.date))
+    : []
   const anchoredRefs = ids.length
     ? await db
         .select({ externalRef: transactions.externalRef })
@@ -87,6 +124,8 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
 
   return ledgerRows.map((r) => {
     const bank = bankRows.find((b) => b.accountId === r.id)
+    const available = otherRows.find((b) => b.accountId === r.id && b.balanceType === 'available')
+    const limit = otherRows.find((b) => b.accountId === r.id && b.balanceType === 'limit')
     const isAnchored = anchored.has(`opening:${r.id}`)
     const ledgerBalance = Number(r.ledgerBalance)
     const pendingBalance = Number(r.pendingBalance)
@@ -108,6 +147,15 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
       pendingBalance,
       bankCountsPending: reconciled && Math.abs(pendingBalance) >= 0.005 ? (matchesWithPending ? true : matchesSettled ? false : null) : null,
       mismatch: reconciled && !matchesSettled && !matchesWithPending,
+      mask: r.mask,
+      subtype: r.subtype,
+      officialName: r.officialName,
+      excludeFromNetWorth: r.excludeFromNetWorth,
+      institutionName: r.institutionName,
+      connectionStatus: r.connectionStatus,
+      lastSyncedAt: r.lastSyncedAt ? r.lastSyncedAt.toISOString() : null,
+      availableBalance: available ? Number(available.amount) : null,
+      creditLimit: limit ? Number(limit.amount) : null,
     }
   })
 }
