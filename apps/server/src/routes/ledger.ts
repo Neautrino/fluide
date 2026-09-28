@@ -1,6 +1,7 @@
 import { Hono } from 'hono'
 import {
   listAccounts,
+  listAccountBalances,
   listTransactionsWithPostings,
   listCategories,
   listAuditLogForPosting,
@@ -18,8 +19,14 @@ ledgerRoutes.get('/accounts', async (c) => {
   return c.json({ accounts: await listAccounts(LOCAL_TENANT_ID) })
 })
 
+ledgerRoutes.get('/account-balances', async (c) => {
+  return c.json({ accounts: await listAccountBalances(LOCAL_TENANT_ID) })
+})
+
 ledgerRoutes.get('/transactions', async (c) => {
-  return c.json({ transactions: await listTransactionsWithPostings(LOCAL_TENANT_ID) })
+  const accountId = c.req.query('accountId')
+  if (accountId !== undefined && !isUuid(accountId)) return c.json({ error: 'accountId must be a UUID' }, 400)
+  return c.json({ transactions: await listTransactionsWithPostings(LOCAL_TENANT_ID, accountId) })
 })
 
 ledgerRoutes.get('/summary', async (c) => {
