@@ -1,10 +1,10 @@
 import { useCallback, useMemo, useState, type ComponentType } from 'react'
 import { EnableBankingCallback } from './components/EnableBankingCallback'
 import { Sidebar } from './components/Sidebar'
-import { Accounts } from './views/Accounts'
 import { getJson, type ReviewItem } from './lib/api'
 import { AppContext, type View } from './lib/app-context'
 import { useResource } from './lib/useResource'
+import { Accounts } from './views/Accounts'
 import { Assistant } from './views/Assistant'
 import { Overview } from './views/Overview'
 import { Review } from './views/Review'
@@ -24,9 +24,11 @@ const VIEWS: Record<Exclude<View, 'assistant'>, ComponentType> = {
 function App() {
   const [view, setView] = useState<View>('overview')
   const [version, setVersion] = useState(0)
+  const [visit, setVisit] = useState(0)
 
   const navigate = useCallback((next: View) => {
     setView(next)
+    setVisit((n) => n + 1)
     window.scrollTo({ top: 0 })
   }, [])
   const invalidate = useCallback(() => setVersion((v) => v + 1), [])
@@ -50,7 +52,7 @@ function App() {
           <div className="mx-auto w-full max-w-[1120px] px-5 pt-8 pb-20 md:px-12 md:pt-12">
             <EnableBankingCallback />
             {ActiveView && (
-              <div key={view} className="animate-rise">
+              <div key={`${view}:${visit}`} className="animate-rise">
                 <ActiveView />
               </div>
             )}
