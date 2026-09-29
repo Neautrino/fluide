@@ -3,6 +3,7 @@ import { db } from '../db.js'
 import {
   accounts,
   categories,
+  connectors,
   postings,
   transactions,
   transferMarks,
@@ -571,7 +572,8 @@ async function listScopeAccounts(tenantId: string): Promise<ScopeAccount[]> {
       currency: accounts.currency,
     })
     .from(accounts)
-    .where(and(eq(accounts.tenantId, tenantId), inScopeAccount))
+    .leftJoin(connectors, eq(connectors.id, accounts.connectorId))
+    .where(and(eq(accounts.tenantId, tenantId), inScopeAccount, isNull(connectors.replacedByConnectorId)))
     .orderBy(accounts.name, accounts.id)
 }
 

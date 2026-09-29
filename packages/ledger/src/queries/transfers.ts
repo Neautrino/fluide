@@ -5,7 +5,7 @@
 import { and, eq, inArray, ne, sql } from 'drizzle-orm'
 import { db } from '../db.js'
 import { accounts, postings, transactions, transferMarks } from '../schema/index.js'
-import { bankPostingsFilter } from './period.js'
+import { bankPostingsFilter, countedHistory } from './period.js'
 import { isTransferPairCandidate, matchTransferPairs, pairTransferKind, taggedTransferKind } from './transfer-match.js'
 
 type NewMark = typeof transferMarks.$inferInsert
@@ -81,7 +81,7 @@ async function rederiveMarks(tx: Tx, tenantId: string): Promise<{ marked: number
     .from(postings)
     .innerJoin(transactions, eq(transactions.id, postings.transactionId))
     .innerJoin(accounts, eq(accounts.id, postings.accountId))
-    .where(bankPostingsFilter(tenantId, 'all_time'))
+    .where(and(bankPostingsFilter(tenantId, 'all_time'), countedHistory))
   const existing = await tx
     .select({ transactionId: transferMarks.transactionId, pairTransactionId: transferMarks.pairTransactionId, method: transferMarks.method })
     .from(transferMarks)

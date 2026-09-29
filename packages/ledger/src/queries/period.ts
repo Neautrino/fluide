@@ -1,6 +1,6 @@
-import { and, eq, gte, inArray, isNull, ne, notExists, or } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNotNull, isNull, ne, notExists, or } from 'drizzle-orm'
 import { db } from '../db.js'
-import { accounts, transactions, transferMarks } from '../schema/index.js'
+import { accounts, connectors, transactions, transferMarks } from '../schema/index.js'
 import { liveTransaction } from './live.js'
 import { EXCLUDING_METHODS, SUGGESTED_MARK, type ExcludedKind } from './transfer-match.js'
 
@@ -50,10 +50,30 @@ export const excludedMark = or(
 /** SQL twin of isSuggestedMark. */
 export const suggestedMark = and(eq(transferMarks.kind, SUGGESTED_MARK.kind), eq(transferMarks.method, SUGGESTED_MARK.method))
 
+/** A login the user replaced stops counting where its successor's history
+ * starts: everything older still counts, so nothing is lost and nothing is
+ * counted twice. Joins accounts and transactions. */
+export const countedHistory = notExists(
+  db
+    .select({ id: connectors.id })
+    .from(connectors)
+    .where(
+      and(
+        eq(connectors.id, accounts.connectorId),
+        isNotNull(connectors.countedUntil),
+        gte(transactions.date, connectors.countedUntil),
+      ),
+    ),
+)
+
 /** Bank legs whose movements can be cash flow at all. Loan and investment
  * accounts never count: the everyday-account side of the movement does. */
 export function cashFlowScopeFilter(tenantId: string, period: Period) {
-  return and(bankPostingsFilter(tenantId, period), or(isNull(accounts.kind), inArray(accounts.kind, ['cash', 'credit', 'other'])))
+  return and(
+    bankPostingsFilter(tenantId, period),
+    or(isNull(accounts.kind), inArray(accounts.kind, ['cash', 'credit', 'other'])),
+    countedHistory,
+  )
 }
 
 /** Income and money out (spending + debt payments): in scope and not an
