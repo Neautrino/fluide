@@ -18,6 +18,7 @@ import {
   getConnection,
   listConnections,
   listConnectionSummaries,
+  listLoginsAtInstitution,
   recordConnectionStatus,
   saveConnection,
   setConnectionInstitution,
@@ -33,7 +34,7 @@ import {
   type BankFetch,
 } from '../enable-banking-link.js'
 import { connectorErrorResponse, connectorFailure } from '../connector-errors.js'
-import { uuidParam } from './validate.js'
+import { isUuid, uuidParam } from './validate.js'
 
 export const providerRoutes = new Hono()
 
@@ -138,9 +139,25 @@ providerRoutes.post('/plaid/link-token', async (c) => {
   }
 })
 
+
+async function removeLinkedItem(credentials: PlaidCredentials, accessToken: string) {
+  try {
+    await removePlaidItem(credentials, accessToken)
+  } catch (err) {
+    connectorFailure('item remove error', err)
+  }
+}
+
+/** A second login at a bank the tenant already has is never ingested on a
+ * guess: the Item is removed at Plaid again and the user is asked what the
+ * new login is. `replaces` carries the answer — a connection id or 'new'. */
 providerRoutes.post('/plaid/exchange', async (c) => {
-  const body = await c.req.json<{ public_token?: string }>().catch(() => null)
+  const body = await c.req.json<{ public_token?: string; replaces?: string }>().catch(() => null)
   if (!body?.public_token) return c.json({ error: 'public_token required' }, 400)
+  const replaces = body.replaces
+  if (replaces !== undefined && replaces !== 'new' && !isUuid(replaces)) {
+    return c.json({ error: "replaces must be a connection id or 'new'" }, 400)
+  }
   const credentials = await getPlaidCredentials(LOCAL_TENANT_ID)
   if (!credentials) return c.json({ error: PLAID_NOT_CONFIGURED }, 409)
   let exchanged: { itemId: string; accessToken: string }
@@ -149,12 +166,46 @@ providerRoutes.post('/plaid/exchange', async (c) => {
   } catch (err) {
     return connectorErrorResponse(c, 'exchange error', err, 'failed to exchange public token')
   }
+
+  let institution: { institutionId: string | null; institutionName: string | null } | null = null
+  try {
+    institution = await getPlaidInstitution(credentials, exchanged.accessToken)
+  } catch (err) {
+    connectorFailure('plaid institution lookup error', err)
+  }
+  if (!institution?.institutionId) {
+    await removeLinkedItem(credentials, exchanged.accessToken)
+    return c.json({ error: 'could not confirm which bank this login is — try again' }, 502)
+  }
+  const logins = await listLoginsAtInstitution(LOCAL_TENANT_ID, 'plaid', institution.institutionId)
+  const unanswered = replaces === undefined && logins.length > 0
+  const unknownPredecessor = replaces !== undefined && replaces !== 'new' && !logins.some((l) => l.id === replaces)
+  if (unanswered || unknownPredecessor) {
+    await removeLinkedItem(credentials, exchanged.accessToken)
+    if (unanswered) {
+      return c.json(
+        {
+          error: `You're already connected to ${institution.institutionName ?? 'this bank'}.`,
+          duplicateOf: { institutionName: institution.institutionName, logins },
+        },
+        409,
+      )
+    }
+    return c.json({ error: 'replaces must name one of your logins at this bank' }, 400)
+  }
+
   const connectionId = await saveConnection(LOCAL_TENANT_ID, {
     provider: 'plaid',
     credential: exchanged.accessToken,
     externalId: exchanged.itemId,
+    institutionId: institution.institutionId,
+    institutionName: institution.institutionName ?? undefined,
   })
-  const sync = await syncPlaidConnection(credentials, { id: connectionId, credential: exchanged.accessToken })
+  const sync = await syncPlaidConnection(credentials, {
+    id: connectionId,
+    credential: exchanged.accessToken,
+    institutionName: institution.institutionName ?? undefined,
+  })
   return c.json({ sync })
 })
 

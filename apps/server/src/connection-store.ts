@@ -4,7 +4,7 @@
  * See: ADR 017 — why connection tokens live in Postgres, not a file
  */
 import { randomUUID } from 'node:crypto'
-import { and, eq, inArray, ne, notExists, sql } from 'drizzle-orm'
+import { and, eq, inArray, isNull, ne, notExists, sql } from 'drizzle-orm'
 import { db, accounts, connectors, type AccountKind, type ConnectorProvider, type ConnectorStatus } from '@repo/ledger'
 import { encrypt, decrypt } from './vault.js'
 
@@ -32,6 +32,17 @@ export type NewConnection = {
 }
 
 /** What apps/web may see about a connection: never the credential. */
+
+/** What the web is offered when a link would create a second login at a bank
+ * the tenant already has: never the credential. */
+export type LoginAtInstitution = {
+  id: string
+  institutionName: string | null
+  status: ConnectorStatus
+  lastSyncedAt: string | null
+  createdAt: string
+}
+
 export type ConnectionSummary = {
   id: string
   provider: ConnectorProvider
@@ -181,6 +192,42 @@ export async function recordConnectionStatus(
 }
 
 /** Drops the credential for good; the connection's accounts and ledger history stay. */
+
+/** Every login at one institution that has not itself been replaced, whatever
+ * its status — matched on the provider's institution id only, never on a bank
+ * name. A login already replaced by another one is never offered again: making
+ * it a predecessor a second time would leave its first successor counting in
+ * full. */
+export async function listLoginsAtInstitution(
+  tenantId: string,
+  provider: ConnectorProvider,
+  institutionId: string,
+): Promise<LoginAtInstitution[]> {
+  const rows = await db
+    .select({
+      id: connectors.id,
+      institutionName: connectors.institutionName,
+      status: connectors.status,
+      lastSyncedAt: connectors.lastSyncedAt,
+      createdAt: connectors.createdAt,
+    })
+    .from(connectors)
+    .where(
+      and(
+        eq(connectors.tenantId, tenantId),
+        eq(connectors.provider, provider),
+        eq(connectors.institutionId, institutionId),
+        isNull(connectors.replacedByConnectorId),
+      ),
+    )
+    .orderBy(connectors.createdAt)
+  return rows.map((r) => ({
+    ...r,
+    lastSyncedAt: r.lastSyncedAt?.toISOString() ?? null,
+    createdAt: r.createdAt.toISOString(),
+  }))
+}
+
 export async function disconnectConnection(tenantId: string, id: string) {
   await db
     .update(connectors)
