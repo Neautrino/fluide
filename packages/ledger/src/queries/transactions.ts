@@ -1,7 +1,7 @@
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { db } from '../db.js'
 import { accounts, transactions, postings, categories } from '../schema/index.js'
-import { bankPostingsFilter, type Period } from './period.js'
+import { bankPostingsFilter, countedHistory, type Period } from './period.js'
 import { liveTransaction } from './live.js'
 
 export type TransactionRow = {
@@ -25,7 +25,7 @@ export async function listRecentTransactions(
   merchantQuery?: string,
   limit = 20,
 ): Promise<TransactionRow[]> {
-  const conditions = [bankPostingsFilter(tenantId, period)]
+  const conditions = [bankPostingsFilter(tenantId, period), countedHistory]
   if (merchantQuery) {
     conditions.push(sql`${postings.counterpartyRaw} ILIKE '%' || ${merchantQuery} || '%'`)
   }
@@ -57,7 +57,9 @@ export async function listRecentTransactions(
 
 /** Every live bank posting (asset/liability leg), newest first -- the web
  * transaction table's shape. `posting.id` is what recategorize targets.
- * `accountId` narrows it to postings on that one account. */
+ * `accountId` narrows it to postings on that one account. A row a replaced
+ * login's successor also carries is still listed, with countsTowardTotals
+ * false: it is out of every total but never simply missing. */
 export async function listTransactionsWithPostings(tenantId: string, accountId?: string) {
   return db
     .select({
@@ -81,6 +83,7 @@ export async function listTransactionsWithPostings(tenantId: string, accountId?:
         label: categories.label,
         detailed: categories.detailed,
       },
+      countsTowardTotals: sql<boolean>`${countedHistory}`,
     })
     .from(transactions)
     .innerJoin(postings, eq(postings.transactionId, transactions.id))

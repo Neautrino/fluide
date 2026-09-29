@@ -98,7 +98,10 @@ export const chatTools = [
     },
     {
       name: 'list_account_balances',
-      description: "List the user's connected bank accounts with their current balances.",
+      description:
+        "List the user's connected bank accounts with their current balances. " +
+        'A row with countsTowardTotals false (its login was disconnected or replaced, or the user excluded it) ' +
+        'must never be added into a net worth, assets or debt total.',
       schema: z.object({}),
     },
   ),
