@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { ConnectBank } from '../components/ConnectBank'
 import { ConnectEuropeanBank } from '../components/ConnectEuropeanBank'
 import { PossibleTransfers } from '../components/PossibleTransfers'
@@ -6,11 +6,12 @@ import { Button } from '../components/ui/Button'
 import { Segmented } from '../components/ui/Segmented'
 import { Empty, ErrorState, Loading } from '../components/ui/States'
 import { Money, PageHeader, SectionTitle } from '../components/ui/Typography'
-import { getJson, listPossibleTransfers, type Account, type AccountBalance, type Period, type Summary } from '../lib/api'
+import { getJson, listPossibleTransfers, type Account, type AccountBalance, type NotCountedKind, type Period, type Summary } from '../lib/api'
 import { useApp } from '../lib/app-context'
-import { useCategories, categoryName } from '../lib/categories'
 import { formatMoney, formatTimestamp } from '../lib/format'
 import { useResource } from '../lib/useResource'
+
+const LINK = 'cursor-pointer underline decoration-rule-strong underline-offset-4 transition-colors hover:text-ink hover:decoration-ink'
 
 const PERIODS: { value: Exclude<Period, 'this_week'>; label: string }[] = [
   { value: 'this_month', label: 'This month' },
@@ -24,17 +25,19 @@ const today = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeri
 export function Overview() {
   const { version, invalidate, navigate, reviewCount } = useApp()
   const [period, setPeriod] = useState<Exclude<Period, 'this_week'>>('this_month')
+  const [currency, setCurrency] = useState<string | null>(null)
 
   const accounts = useResource(
     (signal) => getJson<{ accounts: Account[] }>('/api/ledger/accounts', signal).then((r) => r.accounts.filter((a) => a.type !== 'equity')),
     version,
   )
   const summary = useResource(
-    (signal) => getJson<Summary>(`/api/ledger/summary?period=${period}`, signal),
-    `${period}:${version}`,
+    (signal) =>
+      getJson<Summary>(`/api/ledger/summary?period=${period}${currency ? `&currency=${encodeURIComponent(currency)}` : ''}`, signal),
+    `${period}:${currency ?? ''}:${version}`,
   )
-  const categories = useCategories()
-
+  const data = summary.data
+  
   const noAccounts = accounts.data !== undefined && accounts.data.length === 0
   const periodLabel = PERIODS.find((p) => p.value === period)?.label.toLowerCase()
 
@@ -45,7 +48,19 @@ export function Overview() {
         title="Overview"
         lede="Where your money stands, read straight from the ledger."
         actions={
-          !noAccounts && <Segmented label="Period" value={period} options={PERIODS} onChange={setPeriod} />
+          !noAccounts && (
+            <>
+              <Segmented label="Period" value={period} options={PERIODS} onChange={setPeriod} />
+              {data && data.currencies.length > 1 && currency && (
+                <Segmented
+                  label="Currency"
+                  value={currency}
+                  options={data.currencies.map((c) => ({ value: c, label: c }))}
+                  onChange={setCurrency}
+                />
+              )}
+            </>
+          )
         }
       />
 
@@ -214,13 +229,13 @@ function AccountGroup({ title, balances }: { title: string; balances: AccountBal
   )
 }
 
-const NOT_COUNTED_LABEL: Record<Summary['notCounted'][number]['kind'], string> = {
+const NOT_COUNTED_LABEL: Record<NotCountedKind, string> = {
   transfer: 'moved between your accounts',
   card_payment: 'card payments',
   investment: 'moved to investments',
 }
 
-function Kpis({ summary, period, periodLabel }: { summary: Summary; period: Period; periodLabel: string }) {
+function Kpis({ summary, period, periodLabel, onCurrency }: { summary: Summary; period: Period; periodLabel: string; onCurrency: (c: string) => void }) {
   // Totals are per currency; the headline uses the currency most balances are in.
   const known = summary.balances.flatMap((b) => (b.balance === null ? [] : [{ ...b, balance: b.balance }]))
   const totals: Record<string, number> = {}
@@ -241,7 +256,7 @@ function Kpis({ summary, period, periodLabel }: { summary: Summary; period: Peri
       value: <Money amount={totals[currency] ?? 0} currency={currency} />,
       note:
         `${formatMoney(assets, currency)} assets · ${formatMoney(owed, currency)} owed` +
-        (others.length ? ` · plus ${others.map((c) => formatMoney(totals[c], c)).join(', ')}` : ''),
+        '',
     },
     { label: 'Money in', value: <Money amount={income} currency={currency} />, note: periodLabel },
     {
@@ -293,9 +308,9 @@ function Kpis({ summary, period, periodLabel }: { summary: Summary; period: Peri
   )
 }
 
-function CategoryBars({ summary, name }: { summary: Summary; name: (ref: string) => string }) {
+function CategoryBars({ summary }: { summary: Summary }) {
   const rows = summary.topCategories.slice(0, 7)
-  const currency = summary.balances[0]?.currency ?? 'USD'
+  const currency = summary.currency
   if (rows.length === 0) return <Empty title="No spending in this period" />
   const max = Math.max(...rows.map((r) => r.total), 1)
   const spent = summary.incomeVsExpense.spending
@@ -303,7 +318,7 @@ function CategoryBars({ summary, name }: { summary: Summary; name: (ref: string)
     <ul className="flex flex-col">
       {rows.map((r) => (
         <li key={r.category} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1.5 border-b border-rule py-3">
-          <span className="truncate text-[14px] text-ink">{name(r.category)}</span>
+          <span className="truncate text-[14px] text-ink">{r.category}</span>
           <span className="flex items-baseline gap-3">
             {spent > 0 && <span className="figures text-[12px] text-ink-3">{Math.round((r.total / spent) * 100)}%</span>}
             <Money amount={r.total} currency={currency} className="text-[14px]" />
@@ -319,7 +334,7 @@ function CategoryBars({ summary, name }: { summary: Summary; name: (ref: string)
 
 function Merchants({ summary }: { summary: Summary }) {
   const rows = summary.topMerchants.slice(0, 8)
-  const currency = summary.balances[0]?.currency ?? 'USD'
+  const currency = summary.currency
   if (rows.length === 0) return <Empty title="No merchants in this period" />
   return (
     <table className="w-full text-[14px]">
