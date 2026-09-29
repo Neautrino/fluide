@@ -26,21 +26,25 @@ export const chatTools = [
     },
     {
       name: 'top_expense_categories',
-      description: "Get the user's biggest spending categories for a time period, ranked highest to lowest.",
+      description:
+        "Get the user's biggest spending categories for a time period, ranked highest to lowest. " +
+        'Returns one block per currency, most-used currency first; never add totals across currencies.',
       schema: z.object({
         period: periodSchema,
-        limit: z.number().int().positive().max(20).optional().describe('How many categories to return, default 5.'),
+        limit: z.number().int().positive().max(20).optional().describe('How many categories to return per currency, default 5.'),
       }),
     },
   ),
   tool(
     async ({ category, period }: { category: string; period: Period }) => {
-      const result = await spendingInCategory(LOCAL_TENANT_ID, category, period)
-      return JSON.stringify(result)
+      const blocks = await spendingInCategory(LOCAL_TENANT_ID, category, period)
+      return JSON.stringify(blocks)
     },
     {
       name: 'spending_in_category',
-      description: 'Get total spending in one specific category (e.g. "groceries", "coffee") for a time period.',
+      description:
+        'Get total spending in one specific category (e.g. "groceries", "coffee") for a time period. ' +
+        'Returns one block per currency, most-used currency first; never add totals across currencies.',
       schema: z.object({
         category: z.string().describe('Category name or partial name to match, e.g. "Groceries".'),
         period: periodSchema,
@@ -66,7 +70,8 @@ export const chatTools = [
       description:
         'Get total income, total expense, and net for a time period. expense = spending + debtPayments ' +
         '(loan payments); confirmed own-account transfers, credit-card payments and investment moves are excluded ' +
-        'from both sides. Bank-tagged transfers the user has not confirmed (they may be payments to other people) are counted.',
+        'from both sides. Bank-tagged transfers the user has not confirmed (they may be payments to other people) are counted. ' +
+        'Returns one block per currency, most-used currency first; never add totals across currencies.',
       schema: z.object({ period: periodSchema }),
     },
   ),
@@ -77,10 +82,12 @@ export const chatTools = [
     },
     {
       name: 'top_merchants',
-      description: "Get the merchants/vendors the user spent the most with, ranked highest to lowest.",
+      description:
+        "Get the merchants/vendors the user spent the most with, ranked highest to lowest. " +
+        'Returns one block per currency, most-used currency first; never add totals across currencies.',
       schema: z.object({
         period: periodSchema,
-        limit: z.number().int().positive().max(20).optional().describe('How many merchants to return, default 5.'),
+        limit: z.number().int().positive().max(20).optional().describe('How many merchants to return per currency, default 5.'),
       }),
     },
   ),
