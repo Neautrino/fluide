@@ -2,7 +2,7 @@
  * Invariant: each transaction is a balanced bank + equity (suspense or opening-balance) posting pair; re-ingest never duplicates. Enforced by: migration 0001 postings_must_balance, transactions_external_ref_unique_idx.
  * See: ADR 008 — provider-agnostic ingest and the externalRef format
  */
-import { db, accounts, transactions, postings, balanceAssertions, reviewQueue, settledTransaction, liveTransaction, type DbExecutor } from '@repo/ledger'
+import { db, accounts, transactions, postings, balanceAssertions, reviewQueue, settledTransaction, liveTransaction, detectTransferMarks, type DbExecutor } from '@repo/ledger'
 import type { Connector, NormalizedAccount, NormalizedBalance, NormalizedTransaction } from '@repo/connectors'
 import { eq, and, sql, inArray, isNull, desc, lte } from 'drizzle-orm'
 import { writeAuditLog } from './audit.js'
@@ -492,6 +492,15 @@ export async function ingestConnection(
     }
     const anchor = await postOpeningBalance(LOCAL_TENANT_ID, account, current)
     if (anchor !== 'anchored') balanceFlags.push({ account: account.name, issue: anchor })
+  }
+
+  // Whole-tenant and after every write above, so a transfer whose other leg
+  // arrives in a later sync (or on another connection) is still paired.
+  // A failure leaves marks stale, not wrong: log it and keep the ingest.
+  try {
+    await detectTransferMarks(LOCAL_TENANT_ID)
+  } catch (err) {
+    console.error('transfer detection failed after ingest', err)
   }
 
   return {

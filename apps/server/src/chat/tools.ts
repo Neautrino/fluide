@@ -56,7 +56,10 @@ export const chatTools = [
     },
     {
       name: 'income_vs_expense',
-      description: 'Get total income, total expense, and net for a time period.',
+      description:
+        'Get total income, total expense, and net for a time period. expense = spending + debtPayments ' +
+        '(loan payments); confirmed own-account transfers, credit-card payments and investment moves are excluded ' +
+        'from both sides. Bank-tagged transfers the user has not confirmed (they may be payments to other people) are counted.',
       schema: z.object({ period: periodSchema }),
     },
   ),

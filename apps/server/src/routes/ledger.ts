@@ -6,6 +6,9 @@ import {
   listCategories,
   listAuditLogForPosting,
   getSummary,
+  listPossibleTransfers,
+  decideTransfer,
+  TransferDecisionNotFoundError,
   PERIODS,
   type Period,
 } from '@repo/ledger'
@@ -35,6 +38,29 @@ ledgerRoutes.get('/summary', async (c) => {
     return c.json({ error: `period must be one of ${PERIODS.join(', ')}` }, 400)
   }
   return c.json(await getSummary(LOCAL_TENANT_ID, period))
+})
+
+ledgerRoutes.get('/possible-transfers', async (c) => {
+  const period = (c.req.query('period') ?? 'this_month') as Period
+  if (!PERIODS.includes(period)) {
+    return c.json({ error: `period must be one of ${PERIODS.join(', ')}` }, 400)
+  }
+  return c.json({ transactions: await listPossibleTransfers(LOCAL_TENANT_ID, period) })
+})
+
+ledgerRoutes.post('/transfers/:transactionId/decision', uuidParam('transactionId'), async (c) => {
+  const transactionId = c.req.param('transactionId')
+  const body = await c.req.json<{ decision?: unknown }>().catch(() => ({}) as { decision?: unknown })
+  if (body?.decision !== 'mine' && body?.decision !== 'payment') {
+    return c.json({ error: "decision must be 'mine' or 'payment'" }, 400)
+  }
+  try {
+    await decideTransfer(LOCAL_TENANT_ID, transactionId, body.decision)
+  } catch (err) {
+    if (err instanceof TransferDecisionNotFoundError) return c.json({ error: 'transaction not found' }, 404)
+    throw err
+  }
+  return c.json({ ok: true })
 })
 
 ledgerRoutes.get('/categories', async (c) => {
