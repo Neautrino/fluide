@@ -207,12 +207,27 @@ export type CategorizeResult = {
   byTier: { rule: number; jev: number }
 }
 
+export type DuplicateLink = {
+  institutionName: string | null
+  logins: { id: string; institutionName: string | null; status: ConnectionStatus; lastSyncedAt: string | null; createdAt: string }[]
+}
+
 export class ApiError extends Error {
   readonly status: number
-  constructor(status: number, message: string) {
+  readonly body: unknown
+  constructor(status: number, message: string, body?: unknown) {
     super(message)
     this.status = status
+    this.body = body
   }
+}
+
+export function duplicateLinkOf(error: unknown): DuplicateLink | null {
+  if (error instanceof ApiError && error.status === 409 && error.body && typeof error.body === 'object') {
+    const dup = (error.body as { duplicateOf?: unknown }).duplicateOf
+    if (dup && typeof dup === 'object') return dup as DuplicateLink
+  }
+  return null
 }
 
 async function parse<T>(res: Response): Promise<T> {
@@ -230,7 +245,7 @@ async function parse<T>(res: Response): Promise<T> {
       res.status === 404
         ? 'This endpoint is not available on the server (404).'
         : `Request failed (${res.status}${res.statusText ? ` ${res.statusText}` : ''}).`
-    throw new ApiError(res.status, serverMessage ?? fallback)
+    throw new ApiError(res.status, serverMessage ?? fallback, body)
   }
   if (body === undefined) throw new ApiError(res.status, 'The server returned an unreadable response.')
   return body as T
