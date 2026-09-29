@@ -64,6 +64,20 @@
       "when": 1790434019365,
       "tag": "0008_bank_balances",
       "breakpoints": true
+    },
+    {
+      "idx": 9,
+      "version": "7",
+      "when": 1790614715538,
+      "tag": "0009_transfer_marks",
+      "breakpoints": true
+    },
+    {
+      "idx": 10,
+      "version": "7",
+      "when": 1790616106072,
+      "tag": "0010_possible_transfers",
+      "breakpoints": true
     }
   ]
 }

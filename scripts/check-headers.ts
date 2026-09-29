@@ -23,6 +23,7 @@ const ALLOWED = new Set([
   'packages/connectors/src/types.ts',
   'packages/ledger/migrations/0001_ledger_guardrails.sql',
   'packages/ledger/migrations/0004_category_change_requires_audit.sql',
+  'packages/ledger/src/queries/transfers.ts',
   'packages/ledger/src/schema/ledger.ts',
 ])
 
