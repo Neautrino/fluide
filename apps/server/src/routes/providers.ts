@@ -12,6 +12,7 @@ import {
   type EnableBankingPsuHeaders,
   type PlaidCredentials,
 } from '@repo/connectors'
+import { detectTransferMarks } from '@repo/ledger'
 import { getPlaidCredentials, getEnableBankingCredentials } from '../provider-credentials.js'
 import {
   disconnectConnection,
@@ -20,6 +21,8 @@ import {
   listConnectionSummaries,
   listLoginsAtInstitution,
   recordConnectionStatus,
+  refreshCountedUntil,
+  retireConnection,
   saveConnection,
   setConnectionInstitution,
   type Connection,
@@ -75,6 +78,7 @@ async function syncPlaidConnection(
   try {
     const ingest = await ingestConnection(createPlaidConnector(credentials), connection.id, connection.credential, connection.cursor)
     await recordConnectionStatus(LOCAL_TENANT_ID, connection.id, { status: 'active' })
+    await refreshCountedUntil(LOCAL_TENANT_ID, connection.id)
     return { connectionId: connection.id, institutionName, ok: true, ingest }
   } catch (err) {
     const failure = connectorFailure('plaid sync error', err)
@@ -99,6 +103,7 @@ async function syncEnableBankingConnection(connection: Connection, psu: EnableBa
     )
     const ingest = await ingestConnection(createEnableBankingConnector(credentials, { psuHeaders }), connection.id, connection.credential)
     await recordConnectionStatus(LOCAL_TENANT_ID, connection.id, { status: 'active' })
+    await refreshCountedUntil(LOCAL_TENANT_ID, connection.id)
     return { ...base, ok: true, ingest, bankFetch }
   } catch (err) {
     const failure = connectorFailure('enable-banking sync error', err)
@@ -138,7 +143,6 @@ providerRoutes.post('/plaid/link-token', async (c) => {
     return connectorErrorResponse(c, 'link-token error', err, 'failed to create link token')
   }
 })
-
 
 async function removeLinkedItem(credentials: PlaidCredentials, accessToken: string) {
   try {
@@ -206,6 +210,21 @@ providerRoutes.post('/plaid/exchange', async (c) => {
     credential: exchanged.accessToken,
     institutionName: institution.institutionName ?? undefined,
   })
+  if (replaces !== undefined && replaces !== 'new') {
+    const predecessor = await getConnection(LOCAL_TENANT_ID, replaces)
+    if (predecessor) {
+      try {
+        await removePlaidItem(credentials, predecessor.credential)
+      } catch (err) {
+        const alreadyGone = err instanceof ConnectorError && err.details.providerCode === 'ITEM_NOT_FOUND'
+        if (!alreadyGone) return connectorErrorResponse(c, 'item remove error', err, 'failed to disconnect the login it replaces at Plaid')
+      }
+    }
+    const retired = await retireConnection(LOCAL_TENANT_ID, replaces, { replacedBy: connectionId })
+    if (!retired) return c.json({ error: 'replaces must name one of your logins at this bank' }, 400)
+    await refreshCountedUntil(LOCAL_TENANT_ID, connectionId)
+    await detectTransferMarks(LOCAL_TENANT_ID)
+  }
   return c.json({ sync })
 })
 

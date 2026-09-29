@@ -5,7 +5,18 @@
  */
 import { randomUUID } from 'node:crypto'
 import { and, eq, inArray, isNull, ne, notExists, sql } from 'drizzle-orm'
-import { db, accounts, connectors, type AccountKind, type ConnectorProvider, type ConnectorStatus } from '@repo/ledger'
+import { alias } from 'drizzle-orm/pg-core'
+import {
+  db,
+  accounts,
+  connectors,
+  postings,
+  transactions,
+  liveTransaction,
+  type AccountKind,
+  type ConnectorProvider,
+  type ConnectorStatus,
+} from '@repo/ledger'
 import { encrypt, decrypt } from './vault.js'
 
 export type Connection = {
@@ -32,17 +43,6 @@ export type NewConnection = {
 }
 
 /** What apps/web may see about a connection: never the credential. */
-
-/** What the web is offered when a link would create a second login at a bank
- * the tenant already has: never the credential. */
-export type LoginAtInstitution = {
-  id: string
-  institutionName: string | null
-  status: ConnectorStatus
-  lastSyncedAt: string | null
-  createdAt: string
-}
-
 export type ConnectionSummary = {
   id: string
   provider: ConnectorProvider
@@ -53,7 +53,19 @@ export type ConnectionSummary = {
   lastSyncedAt: string | null
   validUntil: string | null
   createdAt: string
+  replacedByConnectorId: string | null
+  countedUntil: string | null
   accounts: { name: string; mask: string | null; kind: AccountKind | null }[]
+}
+
+/** What the web is offered when a link would create a second login at a bank
+ * the tenant already has: never the credential. */
+export type LoginAtInstitution = {
+  id: string
+  institutionName: string | null
+  status: ConnectorStatus
+  lastSyncedAt: string | null
+  createdAt: string
 }
 
 function aad(tenantId: string, provider: ConnectorProvider, id: string) {
@@ -135,6 +147,8 @@ export async function listConnectionSummaries(tenantId: string): Promise<Connect
       lastSyncedAt: connectors.lastSyncedAt,
       validUntil: connectors.validUntil,
       createdAt: connectors.createdAt,
+      replacedByConnectorId: connectors.replacedByConnectorId,
+      countedUntil: connectors.countedUntil,
     })
     .from(connectors)
     .where(eq(connectors.tenantId, tenantId))
@@ -152,6 +166,7 @@ export async function listConnectionSummaries(tenantId: string): Promise<Connect
     lastSyncedAt: r.lastSyncedAt?.toISOString() ?? null,
     validUntil: r.validUntil?.toISOString() ?? null,
     createdAt: r.createdAt.toISOString(),
+    countedUntil: r.countedUntil?.toISOString() ?? null,
     accounts: linked.filter((a) => a.connectorId === r.id).map(({ name, mask, kind }) => ({ name, mask, kind })),
   }))
 }
@@ -192,6 +207,19 @@ export async function recordConnectionStatus(
 }
 
 /** Drops the credential for good; the connection's accounts and ledger history stay. */
+export async function disconnectConnection(tenantId: string, id: string) {
+  await db
+    .update(connectors)
+    .set({
+      status: 'disconnected',
+      statusReason: null,
+      statusChangedAt: new Date(),
+      credentialCiphertext: null,
+      credentialNonce: null,
+      cursor: null,
+    })
+    .where(and(eq(connectors.tenantId, tenantId), eq(connectors.id, id)))
+}
 
 /** Every login at one institution that has not itself been replaced, whatever
  * its status — matched on the provider's institution id only, never on a bank
@@ -228,18 +256,42 @@ export async function listLoginsAtInstitution(
   }))
 }
 
-export async function disconnectConnection(tenantId: string, id: string) {
-  await db
+/** Retires the login a newer one replaces, on the user's explicit say-so. An
+ * already disconnected row keeps its status and only records the fact. */
+export async function retireConnection(tenantId: string, id: string, options: { replacedBy: string }) {
+  const [retired] = await db
     .update(connectors)
     .set({
       status: 'disconnected',
-      statusReason: null,
-      statusChangedAt: new Date(),
+      statusReason: 'replaced by a newer login to the same bank',
+      statusChangedAt: sql`case when ${connectors.status} = 'disconnected' then ${connectors.statusChangedAt} else now() end`,
       credentialCiphertext: null,
       credentialNonce: null,
       cursor: null,
+      replacedByConnectorId: options.replacedBy,
     })
-    .where(and(eq(connectors.tenantId, tenantId), eq(connectors.id, id)))
+    .where(and(eq(connectors.tenantId, tenantId), eq(connectors.id, id), ne(connectors.id, options.replacedBy)))
+    .returning({ id: connectors.id })
+  return retired?.id
+}
+
+/** Moves every login this one replaced to the date the successor's history
+ * starts, so the predecessor keeps only the months the successor cannot
+ * cover. Called after each successful sync, because Plaid's first sync
+ * returns the newest page only. */
+export async function refreshCountedUntil(tenantId: string, successorId: string) {
+  const successor = alias(connectors, 'successor')
+  const earliest = db
+    .select({ date: sql`min(${transactions.date})` })
+    .from(transactions)
+    .innerJoin(postings, eq(postings.transactionId, transactions.id))
+    .innerJoin(accounts, eq(accounts.id, postings.accountId))
+    .where(and(eq(accounts.connectorId, successorId), liveTransaction, ne(transactions.source, 'opening-balance')))
+  const linkedAt = db.select({ createdAt: successor.createdAt }).from(successor).where(eq(successor.id, successorId))
+  await db
+    .update(connectors)
+    .set({ countedUntil: sql`coalesce((${earliest}), (${linkedAt}))` })
+    .where(and(eq(connectors.tenantId, tenantId), eq(connectors.replacedByConnectorId, successorId)))
 }
 
 /** Disconnects the other live logins at the same institution that own no
@@ -255,6 +307,7 @@ export async function retireReplacedConnections(tenantId: string, keepId: string
       credentialCiphertext: null,
       credentialNonce: null,
       cursor: null,
+      replacedByConnectorId: keepId,
     })
     .where(
       and(
