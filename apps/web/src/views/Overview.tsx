@@ -1,11 +1,12 @@
 import { useState } from 'react'
 import { ConnectBank } from '../components/ConnectBank'
 import { ConnectEuropeanBank } from '../components/ConnectEuropeanBank'
+import { PossibleTransfers } from '../components/PossibleTransfers'
 import { Button } from '../components/ui/Button'
 import { Segmented } from '../components/ui/Segmented'
 import { Empty, ErrorState, Loading } from '../components/ui/States'
 import { Money, PageHeader, SectionTitle } from '../components/ui/Typography'
-import { getJson, type Account, type AccountBalance, type Period, type Summary } from '../lib/api'
+import { getJson, listPossibleTransfers, type Account, type AccountBalance, type Period, type Summary } from '../lib/api'
 import { useApp } from '../lib/app-context'
 import { useCategories, categoryName } from '../lib/categories'
 import { formatMoney, formatTimestamp } from '../lib/format'
@@ -56,7 +57,7 @@ export function Overview() {
         <>
           <section aria-label="Key figures">
             {summary.data ? (
-              <Kpis summary={summary.data} periodLabel={periodLabel ?? ''} />
+              <Kpis summary={summary.data} period={period} periodLabel={periodLabel ?? ''} />
             ) : summary.error ? (
               <ErrorState title="Couldn't load the summary" message={summary.error} onRetry={summary.reload} />
             ) : (
@@ -213,7 +214,13 @@ function AccountGroup({ title, balances }: { title: string; balances: AccountBal
   )
 }
 
-function Kpis({ summary, periodLabel }: { summary: Summary; periodLabel: string }) {
+const NOT_COUNTED_LABEL: Record<Summary['notCounted'][number]['kind'], string> = {
+  transfer: 'moved between your accounts',
+  card_payment: 'card payments',
+  investment: 'moved to investments',
+}
+
+function Kpis({ summary, period, periodLabel }: { summary: Summary; period: Period; periodLabel: string }) {
   // Totals are per currency; the headline uses the currency most balances are in.
   const known = summary.balances.flatMap((b) => (b.balance === null ? [] : [{ ...b, balance: b.balance }]))
   const totals: Record<string, number> = {}
@@ -226,7 +233,7 @@ function Kpis({ summary, periodLabel }: { summary: Summary; periodLabel: string 
   const inCurrency = known.filter((b) => b.currency === currency)
   const assets = inCurrency.filter((b) => !isDebt(b)).reduce((sum, b) => sum + b.balance, 0)
   const owed = inCurrency.filter(isDebt).reduce((sum, b) => sum - b.balance, 0)
-  const { income, expense, net } = summary.incomeVsExpense
+  const { income, expense, net, debtPayments } = summary.incomeVsExpense
 
   const cells = [
     {
@@ -237,29 +244,52 @@ function Kpis({ summary, periodLabel }: { summary: Summary; periodLabel: string 
         (others.length ? ` · plus ${others.map((c) => formatMoney(totals[c], c)).join(', ')}` : ''),
     },
     { label: 'Money in', value: <Money amount={income} currency={currency} />, note: periodLabel },
-    { label: 'Money out', value: <Money amount={expense} currency={currency} />, note: periodLabel },
+    {
+      label: 'Money out',
+      value: <Money amount={expense} currency={currency} />,
+      note: periodLabel,
+      detail: debtPayments > 0 ? `incl. ${formatMoney(debtPayments, currency)} debt payments` : undefined,
+    },
     {
       label: 'Net',
       value: <Money amount={net} currency={currency} tone="flow" className={net < 0 ? 'text-red' : ''} />,
       note: net >= 0 ? 'more in than out' : 'more out than in',
     },
   ]
+  const notCounted = summary.notCounted.filter((n) => n.count > 0)
 
   return (
-    <dl className="grid grid-cols-2 border-y border-rule lg:grid-cols-4">
-      {cells.map((c, i) => (
-        <div
-          key={c.label}
-          className={`flex flex-col gap-2 px-0 py-5 lg:px-6 lg:first:pl-0 ${i % 2 === 1 ? 'border-l border-rule pl-5' : ''} ${
-            i >= 2 ? 'border-t border-rule lg:border-t-0' : ''
-          } ${i === 2 ? 'lg:border-l' : ''}`}
-        >
-          <dt className="eyebrow">{c.label}</dt>
-          <dd className="font-display text-[30px] leading-none text-ink sm:text-[36px]">{c.value}</dd>
-          <dd className="text-[12px] text-ink-3 first-letter:uppercase">{c.note}</dd>
-        </div>
-      ))}
-    </dl>
+    <>
+      <dl className="grid grid-cols-2 border-y border-rule lg:grid-cols-4">
+        {cells.map((c, i) => (
+          <div
+            key={c.label}
+            className={`flex flex-col gap-2 px-0 py-5 lg:px-6 lg:first:pl-0 ${i % 2 === 1 ? 'border-l border-rule pl-5' : ''} ${
+              i >= 2 ? 'border-t border-rule lg:border-t-0' : ''
+            } ${i === 2 ? 'lg:border-l' : ''}`}
+          >
+            <dt className="eyebrow">{c.label}</dt>
+            <dd className="font-display text-[30px] leading-none text-ink sm:text-[36px]">{c.value}</dd>
+            <dd className="text-[12px] text-ink-3 first-letter:uppercase">{c.note}</dd>
+            {c.detail && <dd className="figures text-[12px] text-ink-3">{c.detail}</dd>}
+          </div>
+        ))}
+      </dl>
+      {notCounted.length > 0 && (
+        <p className="figures pt-3 text-[12px] text-ink-3">
+          Not counted:{' '}
+          {notCounted.map((n) => `${formatMoney(n.total, currency)} ${NOT_COUNTED_LABEL[n.kind]} (${n.count})`).join(' · ')}
+        </p>
+      )}
+      {summary.possibleTransfers.count > 0 && (
+        <PossibleTransfers
+          currency={currency}
+          {...summary.possibleTransfers}
+          load={(signal) => listPossibleTransfers(period, signal)}
+          loadKey={period}
+        />
+      )}
+    </>
   )
 }
 
@@ -268,7 +298,7 @@ function CategoryBars({ summary, name }: { summary: Summary; name: (ref: string)
   const currency = summary.balances[0]?.currency ?? 'USD'
   if (rows.length === 0) return <Empty title="No spending in this period" />
   const max = Math.max(...rows.map((r) => r.total), 1)
-  const spent = summary.incomeVsExpense.expense
+  const spent = summary.incomeVsExpense.spending
   return (
     <ul className="flex flex-col">
       {rows.map((r) => (

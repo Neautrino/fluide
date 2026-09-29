@@ -130,10 +130,15 @@ export type AccountBalance = {
 
 export type Summary = {
   period: Period
-  incomeVsExpense: { income: number; expense: number; net: number }
+  /** `expense` = `spending` + `debtPayments`; own-account transfers, card payments and investments are excluded. */
+  incomeVsExpense: { income: number; expense: number; net: number; spending: number; debtPayments: number }
   topCategories: { category: string; total: number }[]
   topMerchants: { merchant: string; total: number; count: number }[]
   balances: AccountBalance[]
+  /** Movements left out of cash flow; only kinds with count > 0. `total` is positive; a matched pair counts once. */
+  notCounted: { kind: 'transfer' | 'card_payment' | 'investment'; count: number; total: number }[]
+  /** Bank-tagged transfers with no matching leg: still counted in cash flow until the user decides. `total` is positive. */
+  possibleTransfers: { count: number; total: number }
 }
 
 /** An unpaired bank-tagged transfer awaiting the user's decision. `amount` is signed (negative = money out). */
@@ -257,6 +262,14 @@ export async function sendJson<T>(
       ? { method }
       : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
   return parse<T>(await request(path, init, timeoutMs))
+}
+
+export async function listPossibleTransfers(period: Period, signal?: AbortSignal): Promise<PossibleTransfer[]> {
+  const { transactions } = await getJson<{ transactions: PossibleTransfer[] }>(
+    `/api/ledger/possible-transfers?period=${period}`,
+    signal,
+  )
+  return transactions
 }
 
 export async function decideTransfer(transactionId: string, decision: TransferDecision): Promise<void> {
