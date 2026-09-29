@@ -1,5 +1,7 @@
 import { useState, type ReactNode } from 'react'
 import { AccountIcon } from '../components/AccountIcon'
+import { ConnectBank } from '../components/ConnectBank'
+import { ConnectEuropeanBank } from '../components/ConnectEuropeanBank'
 import { Empty, ErrorState, Loading } from '../components/ui/States'
 import { Money, PageHeader } from '../components/ui/Typography'
 import { getJson, type AccountBalance, type AccountKind, type ConnectionStatus, type LedgerRow } from '../lib/api'
@@ -94,7 +96,7 @@ function totalsByCurrency(list: AccountBalance[]): { currency: string; amount: n
 }
 
 export function Accounts() {
-  const { version, navigate } = useApp()
+  const { version, invalidate, navigate } = useApp()
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const accounts = useResource(
     (signal) => getJson<{ accounts: AccountBalance[] }>('/api/ledger/account-balances', signal).then((r) => r.accounts),
@@ -112,24 +114,23 @@ export function Accounts() {
 
   return (
     <div className="flex flex-col gap-10">
-      <PageHeader title="Accounts" lede="Your bank accounts, cards, loans and investments — read-only." />
+      <PageHeader
+        title="Accounts"
+        lede="Your bank accounts, cards, loans and investments — read-only."
+        actions={
+          <>
+            <ConnectBank onConnected={invalidate} variant="secondary" showSandboxHint={false} />
+            <ConnectEuropeanBank variant="secondary" />
+          </>
+        }
+      />
 
       {accounts.error ? (
         <ErrorState title="Couldn't load your accounts" message={accounts.error} onRetry={accounts.reload} />
       ) : !data ? (
         <Loading label="Loading accounts" rows={4} />
       ) : data.length === 0 ? (
-        <Empty title="No accounts yet">
-          Connect a bank from the{' '}
-          <button
-            type="button"
-            onClick={() => navigate('overview')}
-            className="text-ink underline decoration-rule-strong underline-offset-4 hover:decoration-ink"
-          >
-            Overview
-          </button>{' '}
-          and your accounts will appear here.
-        </Empty>
+        <Empty title="No accounts yet">Connect a bank above and your accounts will appear here.</Empty>
       ) : (
         <>
           <Tiles accounts={data} />

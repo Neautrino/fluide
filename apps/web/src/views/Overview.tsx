@@ -1,14 +1,14 @@
-import { useState, useEffect } from 'react'
 import { ConnectBank } from '../components/ConnectBank'
 import { ConnectEuropeanBank } from '../components/ConnectEuropeanBank'
+import { useState, useEffect } from 'react'
 import { PossibleTransfers } from '../components/PossibleTransfers'
 import { Button } from '../components/ui/Button'
 import { Segmented } from '../components/ui/Segmented'
 import { Empty, ErrorState, Loading } from '../components/ui/States'
 import { Money, PageHeader, SectionTitle } from '../components/ui/Typography'
-import { getJson, listPossibleTransfers, type Account, type AccountBalance, type NotCountedKind, type Period, type Summary } from '../lib/api'
+import { getJson, listPossibleTransfers, type AccountBalance, type NotCountedKind, type Period, type Summary } from '../lib/api'
 import { useApp } from '../lib/app-context'
-import { formatMoney, formatTimestamp } from '../lib/format'
+import { formatMoney } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
 const LINK = 'cursor-pointer underline decoration-rule-strong underline-offset-4 transition-colors hover:text-ink hover:decoration-ink'
@@ -27,10 +27,7 @@ export function Overview() {
   const [period, setPeriod] = useState<Exclude<Period, 'this_week'>>('this_month')
   const [currency, setCurrency] = useState<string | null>(null)
 
-  const accounts = useResource(
-    (signal) => getJson<{ accounts: Account[] }>('/api/ledger/accounts', signal).then((r) => r.accounts.filter((a) => a.type !== 'equity')),
-    version,
-  )
+
   const summary = useResource(
     (signal) =>
       getJson<Summary>(`/api/ledger/summary?period=${period}${currency ? `&currency=${encodeURIComponent(currency)}` : ''}`, signal),
@@ -81,69 +78,36 @@ export function Overview() {
           </section>
 
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
-            <section className="lg:col-span-5">
-              <SectionTitle aside="Balances as your bank reports them">Accounts</SectionTitle>
-              {summary.data ? (
-                summary.data.balances.length === 0 ? (
-                  <Empty title="No balances yet">Balances appear once transactions have synced.</Empty>
-                ) : (
-                  <div className="flex flex-col gap-6">
-                    <AccountGroup title="Cash & investments" balances={summary.data.balances.filter((b) => !isDebt(b))} />
-                    <AccountGroup title="Cards & loans" balances={summary.data.balances.filter(isDebt)} />
-                  </div>
-                )
-              ) : summary.error ? (
-                <p className="py-3 text-[13px] text-ink-3">Balances come from the summary, which is unavailable.</p>
+            <section className="lg:col-span-6">
+              <SectionTitle aside={`Spent, ${PERIODS.find((p) => p.value === period)?.label ?? ''}`}>Where it went</SectionTitle>
+              {data ? <CategoryBars summary={data} /> : summary.error ? null : <Loading rows={4} />}
+            </section>
+
+            <section className="lg:col-span-6">
+              <SectionTitle aside={PERIODS.find((p) => p.value === period)?.label ?? ''}>Top merchants</SectionTitle>
+              {data ? <Merchants summary={data} /> : summary.error ? null : <Loading rows={4} />}
+            </section>
+          </div>
+
+          <section>
+            <SectionTitle>Review</SectionTitle>
+            <div className="flex flex-wrap items-center justify-between gap-4 pt-1">
+              {reviewCount === null ? (
+                <p className="text-sm text-ink-3">The review queue is unavailable right now.</p>
+              ) : reviewCount === 0 ? (
+                <p className="text-sm text-ink-2">Nothing waiting. Every suggestion has been applied or decided.</p>
               ) : (
-                <Loading rows={3} />
+                <p className="text-[15px] text-ink-2">
+                  <span className="figures font-display mr-2 text-[28px] leading-none text-ink">{reviewCount}</span>
+                  {reviewCount === 1 ? 'suggestion is' : 'suggestions are'} waiting for your decision before they touch
+                  the ledger.
+                </p>
               )}
-              <div className="mt-5 flex flex-col items-start gap-3">
-                <ConnectBank onConnected={invalidate} variant="secondary" showSandboxHint={false} />
-                <ConnectEuropeanBank variant="secondary" />
-              </div>
-            </section>
-
-            <section className="lg:col-span-7">
-              <SectionTitle aside={`Spent, ${periodLabel}`}>Where it went</SectionTitle>
-              {summary.data ? (
-                <CategoryBars summary={summary.data} name={(ref) => categoryName(categories.data, ref)} />
-              ) : summary.error ? null : (
-                <Loading rows={4} />
-              )}
-            </section>
-          </div>
-
-          <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
-            <section className="lg:col-span-7">
-              <SectionTitle aside={periodLabel}>Top merchants</SectionTitle>
-              {summary.data ? (
-                <Merchants summary={summary.data} />
-              ) : summary.error ? null : (
-                <Loading rows={4} />
-              )}
-            </section>
-
-            <section className="lg:col-span-5">
-              <SectionTitle>Review</SectionTitle>
-              <div className="flex flex-col items-start gap-4 pt-2">
-                {reviewCount === null ? (
-                  <p className="text-sm text-ink-3">The review queue is unavailable right now.</p>
-                ) : reviewCount === 0 ? (
-                  <p className="text-sm text-ink-2">Nothing waiting. Every suggestion has been applied or decided.</p>
-                ) : (
-                  <p className="text-[15px] leading-relaxed text-ink-2">
-                    <span className="figures font-display text-[40px] leading-none text-ink">{reviewCount}</span>
-                    <br />
-                    {reviewCount === 1 ? 'suggestion is' : 'suggestions are'} waiting for your decision before they
-                    touch the ledger.
-                  </p>
-                )}
-                <Button variant={reviewCount ? 'primary' : 'secondary'} onClick={() => navigate('review')}>
-                  Open review
-                </Button>
-              </div>
-            </section>
-          </div>
+              <Button variant={reviewCount ? 'primary' : 'secondary'} onClick={() => navigate('review')}>
+                Open review
+              </Button>
+            </div>
+          </section>
         </>
       )}
     </div>
@@ -185,54 +149,30 @@ function ConnectFirst({ onConnected }: { onConnected: () => void }) {
 
 const isDebt = (b: AccountBalance) => b.kind === 'credit' || b.kind === 'loan'
 
-function accountNotes(b: AccountBalance): string[] {
-  const notes: string[] = []
-  if (b.kind === 'other') notes.push('type not recognised')
-  if (b.bankBalanceIsFallback) notes.push('estimated by the bank')
-  if (Math.abs(b.pendingBalance) >= 0.005) {
-    notes.push(`${formatMoney(b.pendingBalance, b.currency)} pending${b.bankCountsPending ? ', included by the bank' : ''}`)
-  }
-  if (b.mismatch) notes.push(`ledger shows ${formatMoney(b.ledgerBalance, b.currency)}`)
-  if (b.bankBalanceAt) notes.push(`as of ${formatTimestamp(b.bankBalanceAt)}`)
-  return notes
-}
 
-function AccountGroup({ title, balances }: { title: string; balances: AccountBalance[] }) {
-  if (balances.length === 0) return null
+function AccountsLine({ balances, onOpen }: { balances: AccountBalance[]; onOpen: () => void }) {
+  const attention = balances.filter(
+    (b) => b.connectionStatus === 'reauth_required' || b.connectionStatus === 'error' || b.mismatch || b.balance === null,
+  ).length
+  const parts: string[] = []
+  if (attention > 0) parts.push(`${attention} need${attention === 1 ? 's' : ''} attention`)
+  else parts.push('all connected')
   return (
-    <div>
-      <p className="eyebrow">{title}</p>
-      <ul>
-        {balances.map((b) => {
-          const notes = accountNotes(b)
-          return (
-            <li key={b.id} className="flex items-baseline justify-between gap-4 border-b border-rule py-3">
-              <div className="min-w-0">
-                <p className="truncate text-[15px] text-ink">{b.name}</p>
-                {notes.length > 0 && (
-                  <p className={`mt-0.5 text-[12px] ${b.mismatch ? 'text-red' : 'text-ink-3'}`}>
-                    {b.mismatch && 'Doesn’t match the ledger · '}
-                    {notes.join(' · ')}
-                  </p>
-                )}
-              </div>
-              {b.balance === null ? (
-                <span className="text-[13px] text-ink-3 italic">Balance unknown</span>
-              ) : (
-                <Money amount={b.balance} currency={b.currency} className="font-display text-[19px]" />
-              )}
-            </li>
-          )
-        })}
-      </ul>
-    </div>
+    <p className="figures flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-3 text-[13px] text-ink-2">
+      <span>
+        {balances.length} account{balances.length === 1 ? '' : 's'}
+        {parts.map((part) => (
+          <span key={part}>
+            <span className="text-ink-3"> · </span>
+            {part}
+          </span>
+        ))}
+      </span>
+      <button type="button" onClick={onOpen} className={LINK}>
+        View accounts →
+      </button>
+    </p>
   )
-}
-
-const NOT_COUNTED_LABEL: Record<NotCountedKind, string> = {
-  transfer: 'moved between your accounts',
-  card_payment: 'card payments',
-  investment: 'moved to investments',
 }
 
 function Kpis({ summary, period, periodLabel, onCurrency }: { summary: Summary; period: Period; periodLabel: string; onCurrency: (c: string) => void }) {
