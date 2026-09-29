@@ -25,6 +25,16 @@ export type AccountBalance = {
   lastSyncedAt: string | null
   availableBalance: number | null
   creditLimit: number | null
+  countsTowardTotals: boolean
+  replacedByConnectorId: string | null
+  countedUntil: string | null
+}
+
+/** A balance counts toward net worth only while its login still reports it: a
+ * disconnected login's last balance is stale for ever, and the user can leave
+ * an account out by hand. */
+export function countsTowardTotals(account: { connectionStatus: ConnectorStatus | null; excludeFromNetWorth: boolean }): boolean {
+  return account.connectionStatus !== 'disconnected' && !account.excludeFromNetWorth
 }
 
 /** `balance` is the bank's latest current balance, else the ledger sum of an
@@ -58,6 +68,8 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
       institutionName: connectors.institutionName,
       connectionStatus: connectors.status,
       lastSyncedAt: connectors.lastSyncedAt,
+      replacedByConnectorId: connectors.replacedByConnectorId,
+      countedUntil: connectors.countedUntil,
       ledgerBalance: sql<string>`coalesce(sum(${postings.amount}) filter (where ${and(
         settledTransaction,
         eq(postings.currency, accounts.currency),
@@ -156,6 +168,9 @@ export async function listAccountBalances(tenantId: string): Promise<AccountBala
       lastSyncedAt: r.lastSyncedAt ? r.lastSyncedAt.toISOString() : null,
       availableBalance: available ? Number(available.amount) : null,
       creditLimit: limit ? Number(limit.amount) : null,
+      countsTowardTotals: countsTowardTotals(r),
+      replacedByConnectorId: r.replacedByConnectorId,
+      countedUntil: r.countedUntil ? r.countedUntil.toISOString() : null,
     }
   })
 }
