@@ -6,10 +6,8 @@
 import { tool } from '@langchain/core/tools'
 import { z } from 'zod'
 import {
-  topExpenseCategories,
+  getCurrencyBreakdown,
   spendingInCategory,
-  incomeVsExpense,
-  topMerchants,
   listAccountBalances,
   listRecentTransactions,
   type Period,
@@ -23,8 +21,8 @@ const periodSchema = z
 export const chatTools = [
   tool(
     async ({ period, limit }: { period: Period; limit?: number }) => {
-      const rows = await topExpenseCategories(LOCAL_TENANT_ID, period, limit ?? 5)
-      return JSON.stringify(rows)
+      const blocks = await getCurrencyBreakdown(LOCAL_TENANT_ID, period)
+      return JSON.stringify(blocks.map((b) => ({ currency: b.currency, categories: b.categories.slice(0, limit ?? 5) })))
     },
     {
       name: 'top_expense_categories',
@@ -51,8 +49,17 @@ export const chatTools = [
   ),
   tool(
     async ({ period }: { period: Period }) => {
-      const result = await incomeVsExpense(LOCAL_TENANT_ID, period)
-      return JSON.stringify(result)
+      const blocks = await getCurrencyBreakdown(LOCAL_TENANT_ID, period)
+      return JSON.stringify(
+        blocks.map(({ currency, income, expense, net, spending, debtPayments }) => ({
+          currency,
+          income,
+          expense,
+          net,
+          spending,
+          debtPayments,
+        })),
+      )
     },
     {
       name: 'income_vs_expense',
@@ -65,8 +72,8 @@ export const chatTools = [
   ),
   tool(
     async ({ period, limit }: { period: Period; limit?: number }) => {
-      const rows = await topMerchants(LOCAL_TENANT_ID, period, limit ?? 5)
-      return JSON.stringify(rows)
+      const blocks = await getCurrencyBreakdown(LOCAL_TENANT_ID, period)
+      return JSON.stringify(blocks.map((b) => ({ currency: b.currency, merchants: b.merchants.slice(0, limit ?? 5) })))
     },
     {
       name: 'top_merchants',

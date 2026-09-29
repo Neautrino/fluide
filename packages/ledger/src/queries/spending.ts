@@ -1,124 +1,73 @@
-import { and, desc, eq, sql } from 'drizzle-orm'
+import { and, desc, eq } from 'drizzle-orm'
 import { db } from '../db.js'
-import { accounts, transactions, postings, categories, transferMarks } from '../schema/index.js'
-import { cashFlowPostingsFilter, cashFlowScopeFilter, excludedMark, spendingPostingsFilter, suggestedMark, type Period } from './period.js'
-import type { ExcludedKind } from './transfer-match.js'
+import { accounts, transactions, postings, transferMarks } from '../schema/index.js'
+import { cashFlowScopeFilter, suggestedMark, type Period } from './period.js'
 import { listAccountBalances } from './accounts.js'
+import {
+  NOT_COUNTED_KINDS,
+  TOP_MERCHANTS,
+  loadScope,
+  otherCurrencyTotals,
+  periodWindow,
+  round,
+  summarizeMonth,
+  type MonthSummary,
+} from './cashflow.js'
+
+const DAY_SLOTS = 31
 
 export type CategoryTotal = { category: string; total: number }
+export type MerchantTotal = { merchant: string; total: number; count: number }
+export type IncomeVsExpense = { income: number; expense: number; net: number; spending: number; debtPayments: number }
 
-/** Amounts are negative-for-spent (see connectors/types.ts) -- "biggest
- * expense" is the most negative sum, so this orders ascending and reports
- * abs(total) so callers get a plain positive number. */
-export async function topExpenseCategories(
-  tenantId: string,
-  period: Period,
-  limit = 5,
-): Promise<CategoryTotal[]> {
-  const rows = await db
-    .select({
-      category: sql<string>`coalesce(${categories.label}, 'Uncategorized')`,
-      total: sql<string>`sum(${postings.amount})`,
-    })
-    .from(postings)
-    .innerJoin(transactions, eq(transactions.id, postings.transactionId))
-    .innerJoin(accounts, eq(accounts.id, postings.accountId))
-    .leftJoin(categories, eq(categories.id, postings.categoryId))
-    .where(and(spendingPostingsFilter(tenantId, period), sql`${postings.amount} < 0`))
-    .groupBy(sql`coalesce(${categories.label}, 'Uncategorized')`)
-    .orderBy(sql`sum(${postings.amount}) asc`)
-    .limit(limit)
-
-  return rows.map((r) => ({ category: r.category, total: Math.abs(Number(r.total)) }))
+/** One currency's figures; `expense` = `spending` + `debtPayments`. Excluded
+ * transfers, card payments and investment moves are in neither side. */
+export type CurrencyBlock = IncomeVsExpense & {
+  currency: string
+  categories: CategoryTotal[]
+  merchants: MerchantTotal[]
 }
 
+const blockOf = (currency: string, s: MonthSummary): CurrencyBlock => ({
+  currency,
+  income: s.moneyIn,
+  expense: s.moneyOut,
+  net: round(s.moneyIn - s.moneyOut),
+  spending: s.spending,
+  debtPayments: s.debtPayments,
+  categories: s.categories.map((c) => ({ category: c.label, total: c.amount })),
+  merchants: s.merchants.map((m) => ({ merchant: m.name, total: m.amount, count: m.count })),
+})
+
+/** One block per currency the period holds, most legs first. Nothing is ever
+ * added across currencies. */
+export async function getCurrencyBreakdown(tenantId: string, period: Period, now = new Date()): Promise<CurrencyBlock[]> {
+  const { currencies, allLegs } = await loadScope(tenantId, periodWindow(period, now), {})
+  return currencies.map((currency) =>
+    blockOf(currency, summarizeMonth(allLegs.filter((leg) => leg.currency === currency), DAY_SLOTS)),
+  )
+}
+
+export type CategorySpend = { currency: string; category: string; total: number; matched: boolean }
+
+/** Per currency, the biggest spending category whose name contains the query. */
 export async function spendingInCategory(
   tenantId: string,
   categoryQuery: string,
   period: Period,
-): Promise<{ category: string; total: number; matched: boolean }> {
-  const [row] = await db
-    .select({
-      category: categories.label,
-      total: sql<string>`sum(${postings.amount})`,
-    })
-    .from(postings)
-    .innerJoin(transactions, eq(transactions.id, postings.transactionId))
-    .innerJoin(accounts, eq(accounts.id, postings.accountId))
-    .innerJoin(categories, eq(categories.id, postings.categoryId))
-    .where(
-      and(spendingPostingsFilter(tenantId, period), sql`${categories.label} ILIKE '%' || ${categoryQuery} || '%'`),
-    )
-    .groupBy(categories.label)
-    .limit(1)
-
-  if (!row) return { category: categoryQuery, total: 0, matched: false }
-  return { category: row.category, total: Math.abs(Number(row.total)), matched: true }
-}
-
-export type IncomeVsExpense = { income: number; expense: number; net: number; spending: number; debtPayments: number }
-
-/** expense = spending + debtPayments. Excluded transfers, card payments and
- * investment moves are in neither side (see cashFlowPostingsFilter). */
-export async function incomeVsExpense(tenantId: string, period: Period): Promise<IncomeVsExpense> {
-  const notDebtPayment = sql`${transferMarks.kind} IS DISTINCT FROM 'loan_payment'`
-  const [row] = await db
-    .select({
-      income: sql<string>`coalesce(sum(case when ${postings.amount} > 0 and ${notDebtPayment} then ${postings.amount} else 0 end), 0)`,
-      spending: sql<string>`coalesce(sum(case when ${postings.amount} < 0 and ${notDebtPayment} then ${postings.amount} else 0 end), 0)`,
-      debtPayments: sql<string>`coalesce(sum(case when ${postings.amount} < 0 and ${transferMarks.kind} = 'loan_payment' then ${postings.amount} else 0 end), 0)`,
-    })
-    .from(postings)
-    .innerJoin(transactions, eq(transactions.id, postings.transactionId))
-    .innerJoin(accounts, eq(accounts.id, postings.accountId))
-    .leftJoin(transferMarks, eq(transferMarks.transactionId, transactions.id))
-    .where(cashFlowPostingsFilter(tenantId, period))
-
-  const income = Number(row?.income ?? 0)
-  const spending = Math.abs(Number(row?.spending ?? 0))
-  const debtPayments = Math.abs(Number(row?.debtPayments ?? 0))
-  const expense = spending + debtPayments
-  return { income, expense, net: income - expense, spending, debtPayments }
-}
-
-export type NotCounted = { kind: ExcludedKind; count: number; total: number }
-
-/** What the cash-flow numbers left out, per kind. A matched pair is one
- * movement; its total is the amount moved, counted once. */
-export async function notCountedMovements(tenantId: string, period: Period): Promise<NotCounted[]> {
-  const movement = sql`case when ${transferMarks.pairTransactionId} is null then ${transferMarks.transactionId}
-    else least(${transferMarks.transactionId}, ${transferMarks.pairTransactionId}) end`
-  const movements = db
-    .select({ kind: transferMarks.kind, amount: sql<string>`max(abs(${postings.amount}))`.as('amount') })
-    .from(postings)
-    .innerJoin(transactions, eq(transactions.id, postings.transactionId))
-    .innerJoin(accounts, eq(accounts.id, postings.accountId))
-    .innerJoin(transferMarks, eq(transferMarks.transactionId, transactions.id))
-    .where(and(cashFlowScopeFilter(tenantId, period), excludedMark))
-    .groupBy(transferMarks.kind, movement)
-    .as('movements')
-  const rows = await db
-    .select({ kind: movements.kind, count: sql<string>`count(*)`, total: sql<string>`sum(${movements.amount})` })
-    .from(movements)
-    .groupBy(movements.kind)
-
-  // excludedMark only matches ExcludedKind kinds, so the narrowing holds.
-  return rows.map((r) => ({ kind: r.kind as NotCounted['kind'], count: Number(r.count), total: Number(r.total) }))
-}
-
-export type PossibleTransfers = { count: number; total: number }
-
-/** Provider-tagged transfers nobody has confirmed: counted in cash flow and
- * listed for review. `total` sums the legs' absolute amounts. */
-export async function possibleTransfersTotal(tenantId: string, period: Period): Promise<PossibleTransfers> {
-  const [row] = await db
-    .select({ count: sql<string>`count(*)`, total: sql<string>`coalesce(sum(abs(${postings.amount})), 0)` })
-    .from(postings)
-    .innerJoin(transactions, eq(transactions.id, postings.transactionId))
-    .innerJoin(accounts, eq(accounts.id, postings.accountId))
-    .innerJoin(transferMarks, eq(transferMarks.transactionId, transactions.id))
-    .where(and(cashFlowScopeFilter(tenantId, period), suggestedMark))
-  return { count: Number(row?.count ?? 0), total: Number(row?.total ?? 0) }
+  now = new Date(),
+): Promise<CategorySpend[]> {
+  const needle = categoryQuery.toLowerCase()
+  const blocks = await getCurrencyBreakdown(tenantId, period, now)
+  return blocks.map((block) => {
+    const hit = block.categories.find((c) => c.category.toLowerCase().includes(needle))
+    return {
+      currency: block.currency,
+      category: hit?.category ?? categoryQuery,
+      total: hit?.total ?? 0,
+      matched: hit !== undefined,
+    }
+  })
 }
 
 export type PossibleTransfer = {
@@ -130,8 +79,8 @@ export type PossibleTransfer = {
   currency: string
 }
 
-/** The legs behind possibleTransfersTotal, newest first. */
-export async function listPossibleTransfers(tenantId: string, period: Period): Promise<PossibleTransfer[]> {
+/** The legs behind the summary's possible transfers, newest first. */
+export async function listPossibleTransfers(tenantId: string, period: Period, currency?: string): Promise<PossibleTransfer[]> {
   const rows = await db
     .select({
       transactionId: transactions.id,
@@ -145,49 +94,41 @@ export async function listPossibleTransfers(tenantId: string, period: Period): P
     .innerJoin(transactions, eq(transactions.id, postings.transactionId))
     .innerJoin(accounts, eq(accounts.id, postings.accountId))
     .innerJoin(transferMarks, eq(transferMarks.transactionId, transactions.id))
-    .where(and(cashFlowScopeFilter(tenantId, period), suggestedMark))
+    .where(
+      and(
+        cashFlowScopeFilter(tenantId, period),
+        suggestedMark,
+        currency ? eq(postings.currency, currency) : undefined,
+      ),
+    )
     .orderBy(desc(transactions.date), transactions.id)
   return rows.map((r) => ({ ...r, date: r.date.toISOString(), amount: Number(r.amount) }))
 }
 
-export type MerchantTotal = { merchant: string; total: number; count: number }
-
-export async function topMerchants(
-  tenantId: string,
-  period: Period,
-  limit = 5,
-): Promise<MerchantTotal[]> {
-  const rows = await db
-    .select({
-      merchant: sql<string>`coalesce(${postings.counterpartyRaw}, 'Unknown')`,
-      total: sql<string>`sum(${postings.amount})`,
-      count: sql<string>`count(*)`,
-    })
-    .from(postings)
-    .innerJoin(transactions, eq(transactions.id, postings.transactionId))
-    .innerJoin(accounts, eq(accounts.id, postings.accountId))
-    .where(and(spendingPostingsFilter(tenantId, period), sql`${postings.amount} < 0`))
-    .groupBy(sql`coalesce(${postings.counterpartyRaw}, 'Unknown')`)
-    .orderBy(sql`sum(${postings.amount}) asc`)
-    .limit(limit)
-
-  return rows.map((r) => ({
-    merchant: r.merchant,
-    total: Math.abs(Number(r.total)),
-    count: Number(r.count),
-  }))
-}
-
-/** The Overview screen's numbers -- the same aggregates the chat tools
- * call, so the dashboard and the assistant can never disagree. */
-export async function getSummary(tenantId: string, period: Period) {
-  const [incomeExpense, topCategories, merchants, balances, notCounted, possibleTransfers] = await Promise.all([
-    incomeVsExpense(tenantId, period),
-    topExpenseCategories(tenantId, period),
-    topMerchants(tenantId, period),
+/** The Overview screen's numbers, from the same engine and the same window as
+ * the Cash flow page, so the two screens can never disagree. Every figure is
+ * in `currency`; `balances` covers every account, in its own currency. */
+export async function getSummary(tenantId: string, period: Period, currency?: string, now = new Date()) {
+  const [scope, balances] = await Promise.all([
+    loadScope(tenantId, periodWindow(period, now), { currency }),
     listAccountBalances(tenantId),
-    notCountedMovements(tenantId, period),
-    possibleTransfersTotal(tenantId, period),
   ])
-  return { period, incomeVsExpense: incomeExpense, topCategories, topMerchants: merchants, balances, notCounted, possibleTransfers }
+  const summary = summarizeMonth(scope.legs, DAY_SLOTS)
+  const { currency: _currency, categories, merchants, ...incomeVsExpense } = blockOf(scope.currency, summary)
+  return {
+    period,
+    currency: scope.currency,
+    currencies: scope.currencies,
+    incomeVsExpense,
+    topCategories: categories,
+    topMerchants: merchants.slice(0, TOP_MERCHANTS),
+    balances,
+    notCounted: NOT_COUNTED_KINDS.filter((kind) => summary.destinations[kind].count > 0).map((kind) => ({
+      kind,
+      count: summary.destinations[kind].count,
+      total: summary.destinations[kind].total,
+    })),
+    otherCurrencies: otherCurrencyTotals(scope.allLegs, scope.currency),
+    possibleTransfers: summary.possible,
+  }
 }

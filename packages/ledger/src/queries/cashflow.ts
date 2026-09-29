@@ -10,7 +10,7 @@ import {
   type TransferKind,
   type TransferMarkMethod,
 } from '../schema/index.js'
-import { cashFlowScopeFilter, excludedMark } from './period.js'
+import { cashFlowScopeFilter, excludedMark, type Period } from './period.js'
 import { isExcludedMark, isSuggestedMark } from './transfer-match.js'
 
 export const CASH_FLOW_COMPARES = ['average', 'previous', 'last_year'] as const
@@ -110,7 +110,7 @@ export type CashFlowTransactions = { rows: DrillRow[]; total: Money; count: numb
 
 const TOP_PAYERS = 5
 const TOP_CATEGORIES = 7
-const TOP_MERCHANTS = 8
+export const TOP_MERCHANTS = 8
 const LARGEST = 5
 const BASELINE_SPAN = 12
 const REGULAR_SPAN = 3
@@ -118,7 +118,7 @@ const REGULAR_SPAN = 3
 const NEW_MERCHANT_SPAN = 24
 const SAVINGS_SUBTYPES = new Set(['savings', 'cd', 'money market', 'hsa'])
 
-const round = (value: number) => Math.round(value * 1e6) / 1e6
+export const round = (value: number) => Math.round(value * 1e6) / 1e6
 
 // ---- months (UTC calendar months, 'YYYY-MM') ----
 
@@ -163,6 +163,29 @@ export function monthWindow(month: string, now: Date): MonthWindow {
     partial,
     daysElapsed: partial ? now.getUTCDate() : days,
     daysInMonth: days,
+  }
+}
+
+export type ScopeWindow = { start: Date | null; end: Date | null }
+
+/** UTC bounds of a summary period. `this_month` is the cash-flow month window
+ * itself, so the two screens can never disagree about where the month starts. */
+export function periodWindow(period: Period, now: Date): ScopeWindow {
+  const [year, month, day] = [now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate()]
+  switch (period) {
+    case 'this_week':
+      return {
+        start: new Date(Date.UTC(year, month, day - now.getUTCDay())),
+        end: new Date(Date.UTC(year, month, day - now.getUTCDay() + 7)),
+      }
+    case 'this_month':
+      return monthWindow(monthOf(now), now)
+    case 'last_30_days':
+      return { start: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), end: null }
+    case 'this_year':
+      return { start: new Date(Date.UTC(year, 0, 1)), end: new Date(Date.UTC(year + 1, 0, 1)) }
+    case 'all_time':
+      return { start: null, end: null }
   }
 }
 
@@ -359,6 +382,26 @@ export function summarizeMonth(legs: CashFlowLeg[], days: number): MonthSummary 
   }
 }
 
+/** What the currencies the scope holds besides `currency` moved, for the line
+ * that says they are not in the totals. Counted legs only. */
+export function otherCurrencyTotals(
+  allLegs: CashFlowLeg[],
+  currency: string,
+): { currency: string; count: number; moneyIn: number; moneyOut: number }[] {
+  const byCurrency = new Map<string, { count: number; moneyIn: number; moneyOut: number }>()
+  for (const leg of allLegs) {
+    if (leg.currency === currency || !(isMoneyIn(leg) || isMoneyOut(leg))) continue
+    const c = byCurrency.get(leg.currency) ?? { count: 0, moneyIn: 0, moneyOut: 0 }
+    c.count++
+    if (isMoneyIn(leg)) c.moneyIn += leg.amount
+    else c.moneyOut += Math.abs(leg.amount)
+    byCurrency.set(leg.currency, c)
+  }
+  return [...byCurrency]
+    .map(([code, c]) => ({ currency: code, count: c.count, moneyIn: round(c.moneyIn), moneyOut: round(c.moneyOut) }))
+    .sort((a, b) => b.count - a.count || (a.currency < b.currency ? -1 : 1))
+}
+
 /** Top payers + Other income + Refunds on the left; top categories + Other,
  * debt, invested, savings on the right. A deficit adds From your balances on
  * the left, a surplus Stayed in cash on the right, so both sides sum to
@@ -504,12 +547,12 @@ const monthSql = sql<string>`to_char(${transactions.date} at time zone 'UTC', 'Y
 const daySql = sql<number>`extract(day from ${transactions.date} at time zone 'UTC')::int`
 const nameSql = sql<string>`coalesce(nullif(${postings.counterpartyRaw}, ''), ${transactions.description})`
 
-function scopeFilter(tenantId: string, from: Date | null, to: Date, accountIds?: string[], currency?: string): SQL {
+function scopeFilter(tenantId: string, from: Date | null, to: Date | null, accountIds?: string[], currency?: string): SQL {
   return and(
     cashFlowScopeFilter(tenantId, 'all_time'),
     eq(accounts.tenantId, tenantId),
     from ? gte(transactions.date, from) : undefined,
-    lt(transactions.date, to),
+    to ? lt(transactions.date, to) : undefined,
     accountIds?.length ? inArray(accounts.id, accountIds) : undefined,
     currency ? eq(postings.currency, currency) : undefined,
   )!
@@ -532,7 +575,7 @@ async function listScopeAccounts(tenantId: string): Promise<ScopeAccount[]> {
     .orderBy(accounts.name, accounts.id)
 }
 
-async function fetchMonthLegs(tenantId: string, window: MonthWindow, accountIds?: string[]): Promise<CashFlowLeg[]> {
+async function fetchLegs(tenantId: string, window: ScopeWindow, accountIds?: string[]): Promise<CashFlowLeg[]> {
   const rows = await db
     .select({
       postingId: postings.id,
@@ -595,8 +638,7 @@ async function fetchMonthLegs(tenantId: string, window: MonthWindow, accountIds?
   }))
 }
 
-type MonthScope = {
-  window: MonthWindow
+export type Scope = {
   currency: string
   currencies: string[]
   allLegs: CashFlowLeg[]
@@ -604,23 +646,40 @@ type MonthScope = {
   accountList: ScopeAccount[]
 }
 
-/** Currencies with in-scope legs this month, most legs first; with none,
- * the (filtered) accounts' currencies. The default is the first, and also
- * stands in for a requested currency the scope doesn't hold. */
-async function loadMonth(tenantId: string, params: CashFlowScopeParams): Promise<MonthScope> {
-  const now = params.now ?? new Date()
-  const window = monthWindow(params.month ?? monthOf(now), now)
-  const [allLegs, accountList] = await Promise.all([fetchMonthLegs(tenantId, window, params.accounts), listScopeAccounts(tenantId)])
-
+/** Currencies with in-scope legs, most legs first; with none, the (filtered)
+ * accounts' currencies. The default is the first, and also stands in for a
+ * requested currency the scope doesn't hold. */
+export function chooseCurrency(
+  allLegs: CashFlowLeg[],
+  accountCurrencies: string[],
+  requested?: string,
+): { currency: string; currencies: string[] } {
   const legCounts = new Map<string, number>()
   for (const leg of allLegs) add(legCounts, leg.currency, 1)
   let currencies = ranked(legCounts).map((c) => c.name)
-  if (!currencies.length) {
-    const filter = params.accounts?.length ? new Set(params.accounts) : null
-    currencies = [...new Set(accountList.filter((a) => !filter || filter.has(a.id)).map((a) => a.currency))].sort()
-  }
-  const currency = params.currency && currencies.includes(params.currency) ? params.currency : (currencies[0] ?? '')
-  return { window, currency, currencies, allLegs, legs: allLegs.filter((leg) => leg.currency === currency), accountList }
+  if (!currencies.length) currencies = [...new Set(accountCurrencies)].sort()
+  return { currency: requested && currencies.includes(requested) ? requested : (currencies[0] ?? ''), currencies }
+}
+
+export async function loadScope(
+  tenantId: string,
+  window: ScopeWindow,
+  params: { accounts?: string[]; currency?: string },
+): Promise<Scope> {
+  const [allLegs, accountList] = await Promise.all([fetchLegs(tenantId, window, params.accounts), listScopeAccounts(tenantId)])
+  const filter = params.accounts?.length ? new Set(params.accounts) : null
+  const { currency, currencies } = chooseCurrency(
+    allLegs,
+    accountList.filter((a) => !filter || filter.has(a.id)).map((a) => a.currency),
+    params.currency,
+  )
+  return { currency, currencies, allLegs, legs: allLegs.filter((leg) => leg.currency === currency), accountList }
+}
+
+async function loadMonth(tenantId: string, params: CashFlowScopeParams): Promise<Scope & { window: MonthWindow }> {
+  const now = params.now ?? new Date()
+  const window = monthWindow(params.month ?? monthOf(now), now)
+  return { window, ...(await loadScope(tenantId, window, params)) }
 }
 
 type DayAgg = { month: string; day: number; legs: number; moneyIn: number; moneyOut: number }
@@ -791,16 +850,6 @@ export async function getCashFlow(tenantId: string, params: CashFlowParams = {})
     }
   })
 
-  const byCurrency = new Map<string, { count: number; moneyIn: number; moneyOut: number }>()
-  for (const leg of allLegs) {
-    if (leg.currency === currency || !(isMoneyIn(leg) || isMoneyOut(leg))) continue
-    const c = byCurrency.get(leg.currency) ?? { count: 0, moneyIn: 0, moneyOut: 0 }
-    c.count++
-    if (isMoneyIn(leg)) c.moneyIn += leg.amount
-    else c.moneyOut += Math.abs(leg.amount)
-    byCurrency.set(leg.currency, c)
-  }
-
   const d = summary.destinations
   return {
     month,
@@ -829,9 +878,7 @@ export async function getCashFlow(tenantId: string, params: CashFlowParams = {})
       },
     },
     notCounted: NOT_COUNTED_KINDS.filter((kind) => d[kind].count > 0).map((kind) => ({ kind, count: d[kind].count, total: d[kind].total })),
-    otherCurrencies: [...byCurrency]
-      .map(([code, c]) => ({ currency: code, count: c.count, moneyIn: round(c.moneyIn), moneyOut: round(c.moneyOut) }))
-      .sort((a, b) => b.count - a.count || (a.currency < b.currency ? -1 : 1)),
+    otherCurrencies: otherCurrencyTotals(allLegs, currency),
     possibleTransfers: summary.possible,
     sankey: buildSankey(summary),
     transfers: (['savings', 'invested', 'card_payoffs', 'between_accounts', 'debt_payments'] as const)
