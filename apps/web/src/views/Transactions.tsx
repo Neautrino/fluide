@@ -230,6 +230,11 @@ export function Transactions() {
                       {r.merchant}
                     </button>
                     {r.status === 'pending' && <span className="ml-2 text-[12px] text-amber">Pending</span>}
+                    {!r.countsTowardTotals && (
+                      <span className="ml-2 inline-block rounded-[5px] border border-rule px-1.5 text-[11px] leading-[18px] font-medium text-ink-3">
+                        not counted (replaced login)
+                      </span>
+                    )}
                     <p className="mt-0.5 text-[12px] text-ink-3 md:hidden">
                       {r.category?.label ?? 'Uncategorized'} · {r.accountName}
                     </p>

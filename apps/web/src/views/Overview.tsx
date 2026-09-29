@@ -1,6 +1,6 @@
+import { useState } from 'react'
 import { ConnectBank } from '../components/ConnectBank'
 import { ConnectEuropeanBank } from '../components/ConnectEuropeanBank'
-import { useState, useEffect } from 'react'
 import { PossibleTransfers } from '../components/PossibleTransfers'
 import { Button } from '../components/ui/Button'
 import { Segmented } from '../components/ui/Segmented'
@@ -11,14 +11,14 @@ import { useApp } from '../lib/app-context'
 import { formatMoney } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
-const LINK = 'cursor-pointer underline decoration-rule-strong underline-offset-4 transition-colors hover:text-ink hover:decoration-ink'
-
 const PERIODS: { value: Exclude<Period, 'this_week'>; label: string }[] = [
   { value: 'this_month', label: 'This month' },
   { value: 'last_30_days', label: 'Last 30 days' },
   { value: 'this_year', label: 'This year' },
   { value: 'all_time', label: 'All time' },
 ]
+
+const LINK = 'cursor-pointer underline decoration-rule-strong underline-offset-4 transition-colors hover:text-ink hover:decoration-ink'
 
 const today = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -27,16 +27,17 @@ export function Overview() {
   const [period, setPeriod] = useState<Exclude<Period, 'this_week'>>('this_month')
   const [currency, setCurrency] = useState<string | null>(null)
 
-
   const summary = useResource(
     (signal) =>
       getJson<Summary>(`/api/ledger/summary?period=${period}${currency ? `&currency=${encodeURIComponent(currency)}` : ''}`, signal),
     `${period}:${currency ?? ''}:${version}`,
   )
+
   const data = summary.data
-  
-  const noAccounts = accounts.data !== undefined && accounts.data.length === 0
-  const periodLabel = PERIODS.find((p) => p.value === period)?.label.toLowerCase()
+  const noAccounts = data !== undefined && data.balances.length === 0
+  const periodLabel = PERIODS.find((p) => p.value === period)?.label.toLowerCase() ?? ''
+  // The user's pick shows at once; once the scope turns out not to hold it, the server's fallback does.
+  const shownCurrency = currency && (!data || data.currencies.includes(currency)) ? currency : (data?.currency ?? null)
 
   return (
     <div className="flex flex-col gap-12">
@@ -48,10 +49,10 @@ export function Overview() {
           !noAccounts && (
             <>
               <Segmented label="Period" value={period} options={PERIODS} onChange={setPeriod} />
-              {data && data.currencies.length > 1 && currency && (
+              {data && data.currencies.length > 1 && shownCurrency && (
                 <Segmented
                   label="Currency"
-                  value={currency}
+                  value={shownCurrency}
                   options={data.currencies.map((c) => ({ value: c, label: c }))}
                   onChange={setCurrency}
                 />
@@ -61,15 +62,16 @@ export function Overview() {
         }
       />
 
-      {accounts.error && <ErrorState title="Couldn't load your accounts" message={accounts.error} onRetry={accounts.reload} />}
-
       {noAccounts ? (
         <ConnectFirst onConnected={invalidate} />
       ) : (
         <>
           <section aria-label="Key figures">
-            {summary.data ? (
-              <Kpis summary={summary.data} period={period} periodLabel={periodLabel ?? ''} />
+            {data ? (
+              <>
+                <Kpis summary={data} period={period} periodLabel={periodLabel} onCurrency={setCurrency} />
+                <AccountsLine balances={data.balances} onOpen={() => navigate('accounts')} />
+              </>
             ) : summary.error ? (
               <ErrorState title="Couldn't load the summary" message={summary.error} onRetry={summary.reload} />
             ) : (
@@ -79,12 +81,12 @@ export function Overview() {
 
           <div className="grid grid-cols-1 gap-12 lg:grid-cols-12 lg:gap-10">
             <section className="lg:col-span-6">
-              <SectionTitle aside={`Spent, ${PERIODS.find((p) => p.value === period)?.label ?? ''}`}>Where it went</SectionTitle>
+              <SectionTitle aside={`Spent, ${periodLabel}`}>Where it went</SectionTitle>
               {data ? <CategoryBars summary={data} /> : summary.error ? null : <Loading rows={4} />}
             </section>
 
             <section className="lg:col-span-6">
-              <SectionTitle aside={PERIODS.find((p) => p.value === period)?.label ?? ''}>Top merchants</SectionTitle>
+              <SectionTitle aside={periodLabel}>Top merchants</SectionTitle>
               {data ? <Merchants summary={data} /> : summary.error ? null : <Loading rows={4} />}
             </section>
           </div>
@@ -149,14 +151,16 @@ function ConnectFirst({ onConnected }: { onConnected: () => void }) {
 
 const isDebt = (b: AccountBalance) => b.kind === 'credit' || b.kind === 'loan'
 
-
 function AccountsLine({ balances, onOpen }: { balances: AccountBalance[]; onOpen: () => void }) {
-  const attention = balances.filter(
+  const counted = balances.filter((b) => b.countsTowardTotals)
+  const attention = counted.filter(
     (b) => b.connectionStatus === 'reauth_required' || b.connectionStatus === 'error' || b.mismatch || b.balance === null,
   ).length
+  const notCounted = balances.length - counted.length
   const parts: string[] = []
   if (attention > 0) parts.push(`${attention} need${attention === 1 ? 's' : ''} attention`)
-  else parts.push('all connected')
+  else if (notCounted === 0) parts.push('all connected')
+  if (notCounted > 0) parts.push(`${notCounted} not counted`)
   return (
     <p className="figures flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-3 text-[13px] text-ink-2">
       <span>
@@ -175,16 +179,32 @@ function AccountsLine({ balances, onOpen }: { balances: AccountBalance[]; onOpen
   )
 }
 
-function Kpis({ summary, period, periodLabel, onCurrency }: { summary: Summary; period: Period; periodLabel: string; onCurrency: (c: string) => void }) {
-  // Totals are per currency; the headline uses the currency most balances are in.
-  const known = summary.balances.flatMap((b) => (b.balance === null ? [] : [{ ...b, balance: b.balance }]))
+const NOT_COUNTED_LABEL: Record<NotCountedKind, string> = {
+  between_accounts: 'moved between your accounts',
+  card_payoffs: 'card payments',
+  invested: 'moved to investments',
+  savings: 'moved to savings',
+}
+
+function Kpis({
+  summary,
+  period,
+  periodLabel,
+  onCurrency,
+}: {
+  summary: Summary
+  period: Period
+  periodLabel: string
+  onCurrency: (currency: string) => void
+}) {
+  // Every figure is the server's chosen currency; balances in other currencies are noted, never added.
+  const currency = summary.currency
+  const known = summary.balances.flatMap((b) => (b.balance === null || !b.countsTowardTotals ? [] : [{ ...b, balance: b.balance }]))
   const totals: Record<string, number> = {}
   for (const b of known) totals[b.currency] = (totals[b.currency] ?? 0) + b.balance
-  const currencies = Object.keys(totals).sort(
-    (a, b) => known.filter((x) => x.currency === b).length - known.filter((x) => x.currency === a).length,
-  )
-  const currency = currencies[0] ?? 'USD'
-  const others = currencies.slice(1)
+  const others = Object.keys(totals)
+    .filter((c) => c !== currency)
+    .sort()
   const inCurrency = known.filter((b) => b.currency === currency)
   const assets = inCurrency.filter((b) => !isDebt(b)).reduce((sum, b) => sum + b.balance, 0)
   const owed = inCurrency.filter(isDebt).reduce((sum, b) => sum - b.balance, 0)
@@ -196,7 +216,7 @@ function Kpis({ summary, period, periodLabel, onCurrency }: { summary: Summary; 
       value: <Money amount={totals[currency] ?? 0} currency={currency} />,
       note:
         `${formatMoney(assets, currency)} assets · ${formatMoney(owed, currency)} owed` +
-        '',
+        (others.length ? ` · plus ${others.map((c) => formatMoney(totals[c], c)).join(', ')}` : ''),
     },
     { label: 'Money in', value: <Money amount={income} currency={currency} />, note: periodLabel },
     {
@@ -212,6 +232,7 @@ function Kpis({ summary, period, periodLabel, onCurrency }: { summary: Summary; 
     },
   ]
   const notCounted = summary.notCounted.filter((n) => n.count > 0)
+  const otherCurrencies = summary.otherCurrencies
 
   return (
     <>
@@ -230,18 +251,36 @@ function Kpis({ summary, period, periodLabel, onCurrency }: { summary: Summary; 
           </div>
         ))}
       </dl>
-      {notCounted.length > 0 && (
+      {(notCounted.length > 0 || otherCurrencies.length > 0) && (
         <p className="figures pt-3 text-[12px] text-ink-3">
           Not counted:{' '}
-          {notCounted.map((n) => `${formatMoney(n.total, currency)} ${NOT_COUNTED_LABEL[n.kind]} (${n.count})`).join(' · ')}
+          {notCounted.map((n, i) => (
+            <span key={n.kind}>
+              {i > 0 && ' · '}
+              {`${formatMoney(n.total, currency)} ${NOT_COUNTED_LABEL[n.kind]} (${n.count})`}
+            </span>
+          ))}
+          {otherCurrencies.map((o, i) => (
+            <span key={o.currency}>
+              {(notCounted.length > 0 || i > 0) && ' · '}
+              <button type="button" onClick={() => onCurrency(o.currency)} title={`Switch the page to ${o.currency}`} className={LINK}>
+                Other currency ({o.currency}){' '}
+                {[o.moneyIn > 0 && `${formatMoney(o.moneyIn, o.currency)} in`, o.moneyOut > 0 && `${formatMoney(o.moneyOut, o.currency)} out`]
+                  .filter(Boolean)
+                  .join(', ')}{' '}
+                ({o.count})
+              </button>
+            </span>
+          ))}
+          {otherCurrencies.length > 0 && ' — not in these totals'}
         </p>
       )}
       {summary.possibleTransfers.count > 0 && (
         <PossibleTransfers
           currency={currency}
           {...summary.possibleTransfers}
-          load={(signal) => listPossibleTransfers(period, signal)}
-          loadKey={period}
+          load={(signal) => listPossibleTransfers(period, currency, signal)}
+          loadKey={`${period}:${currency}`}
         />
       )}
     </>

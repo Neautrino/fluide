@@ -27,6 +27,8 @@ export type LedgerRow = {
   }
   account?: { name: string; type: AccountType }
   category: { label: string | null; detailed: string | null } | null
+  /** false = the row belongs to a replaced login and the successor already counts it. */
+  countsTowardTotals: boolean
 }
 
 export type Category = {
@@ -126,6 +128,10 @@ export type AccountBalance = {
   lastSyncedAt: string | null
   availableBalance: number | null
   creditLimit: number | null
+  /** false = its login was disconnected or replaced, or the user excluded it: never added into a total. */
+  countsTowardTotals: boolean
+  replacedByConnectorId: string | null
+  countedUntil: string | null
 }
 
 /** Every figure is in `currency`; the other currencies present are never added in. */
@@ -172,6 +178,9 @@ export type ConnectionSummary = {
   lastSyncedAt: string | null
   validUntil: string | null
   createdAt: string
+  replacedByConnectorId: string | null
+  /** A replaced login's history counts up to this date; the successor covers the rest. */
+  countedUntil: string | null
   accounts: { name: string; mask: string | null; kind: AccountKind | null }[]
 }
 
@@ -207,6 +216,8 @@ export type CategorizeResult = {
   byTier: { rule: number; jev: number }
 }
 
+/** The logins the tenant already has at the bank a new link landed on; the
+ * server refused to ingest it until the user says which of the three cases it is. */
 export type DuplicateLink = {
   institutionName: string | null
   logins: { id: string; institutionName: string | null; status: ConnectionStatus; lastSyncedAt: string | null; createdAt: string }[]
@@ -223,11 +234,9 @@ export class ApiError extends Error {
 }
 
 export function duplicateLinkOf(error: unknown): DuplicateLink | null {
-  if (error instanceof ApiError && error.status === 409 && error.body && typeof error.body === 'object') {
-    const dup = (error.body as { duplicateOf?: unknown }).duplicateOf
-    if (dup && typeof dup === 'object') return dup as DuplicateLink
-  }
-  return null
+  if (!(error instanceof ApiError) || error.status !== 409) return null
+  const duplicate = (error.body as { duplicateOf?: DuplicateLink } | undefined)?.duplicateOf
+  return duplicate?.logins?.length ? duplicate : null
 }
 
 async function parse<T>(res: Response): Promise<T> {
@@ -285,9 +294,9 @@ export async function sendJson<T>(
   return parse<T>(await request(path, init, timeoutMs))
 }
 
-export async function listPossibleTransfers(period: Period, signal?: AbortSignal): Promise<PossibleTransfer[]> {
+export async function listPossibleTransfers(period: Period, currency: string, signal?: AbortSignal): Promise<PossibleTransfer[]> {
   const { transactions } = await getJson<{ transactions: PossibleTransfer[] }>(
-    `/api/ledger/possible-transfers?period=${period}`,
+    `/api/ledger/possible-transfers?period=${period}&currency=${encodeURIComponent(currency)}`,
     signal,
   )
   return transactions

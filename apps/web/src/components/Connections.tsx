@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { errorMessage, getJson, sendJson, type ConnectionStatus, type ConnectionSummary, type SyncOutcome } from '../lib/api'
 import { useApp } from '../lib/app-context'
-import { formatTimestamp } from '../lib/format'
+import { formatLocalDate, formatTimestamp } from '../lib/format'
 import { useResource } from '../lib/useResource'
 import { ConnectBank } from './ConnectBank'
 import { SyncNotice } from './SyncNotice'
@@ -35,17 +35,40 @@ export function Connections() {
       ) : connections.data.length === 0 ? (
         <Empty title="No bank connected yet">Connect a bank from the Overview.</Empty>
       ) : (
-        <ul className="flex flex-col">
-          {connections.data.map((c) => (
-            <ConnectionRow key={c.id} connection={c} onChanged={invalidate} />
-          ))}
-        </ul>
+        <ConnectionList connections={connections.data} onChanged={invalidate} />
       )}
     </div>
   )
 }
 
-function ConnectionRow({ connection: c, onChanged }: { connection: ConnectionSummary; onChanged: () => void }) {
+/** Accounts a replaced login had that its successor does not carry: from the
+ * cut-over date nothing counts their history. */
+function missingAccounts(successor: ConnectionSummary, all: ConnectionSummary[]): number {
+  const shortfalls = all
+    .filter((p) => p.replacedByConnectorId === successor.id)
+    .map((p) => p.accounts.length - successor.accounts.length)
+  return shortfalls.length === 0 ? 0 : Math.max(0, ...shortfalls)
+}
+
+function ConnectionList({ connections, onChanged }: { connections: ConnectionSummary[]; onChanged: () => void }) {
+  return (
+    <ul className="flex flex-col">
+      {connections.map((c) => (
+        <ConnectionRow key={c.id} connection={c} missing={missingAccounts(c, connections)} onChanged={onChanged} />
+      ))}
+    </ul>
+  )
+}
+
+function ConnectionRow({
+  connection: c,
+  missing,
+  onChanged,
+}: {
+  connection: ConnectionSummary
+  missing: number
+  onChanged: () => void
+}) {
   const [busy, setBusy] = useState<'sync' | 'disconnect' | 'reconnect' | null>(null)
   const [error, setError] = useState<string | null>(null)
   const [outcome, setOutcome] = useState<SyncOutcome | null>(null)
@@ -99,10 +122,17 @@ function ConnectionRow({ connection: c, onChanged }: { connection: ConnectionSum
             {' · '}
             {c.lastSyncedAt ? `last synced ${formatTimestamp(c.lastSyncedAt)}` : 'never synced'}
             {c.validUntil && live && ` · access until ${formatTimestamp(c.validUntil)}`}
+            {c.countedUntil && ` · history counted up to ${formatLocalDate(c.countedUntil)}`}
           </p>
           {c.accounts.length > 0 && (
             <p className="mt-1 text-[13px] text-ink-2">
               {c.accounts.map((a) => (a.mask ? `${a.name} ••${a.mask}` : a.name)).join(' · ')}
+            </p>
+          )}
+          {missing > 0 && (
+            <p className="mt-1 text-[13px] text-amber">
+              {missing} account{missing === 1 ? '' : 's'} from your old login {missing === 1 ? 'is' : 'are'} not in this one —{' '}
+              {missing === 1 ? 'its' : 'their'} recent history isn't counted
             </p>
           )}
         </div>

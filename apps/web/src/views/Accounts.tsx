@@ -6,7 +6,7 @@ import { Empty, ErrorState, Loading } from '../components/ui/States'
 import { Money, PageHeader } from '../components/ui/Typography'
 import { getJson, type AccountBalance, type AccountKind, type ConnectionStatus, type LedgerRow } from '../lib/api'
 import { useApp } from '../lib/app-context'
-import { formatLedgerDate, formatMoney, formatTimestamp } from '../lib/format'
+import { formatLedgerDate, formatLocalDate, formatMoney, formatTimestamp } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
 const CARD = 'rounded-xl border border-rule bg-paper-raised shadow-[0_1px_2px_rgb(27_26_23/0.05)]'
@@ -82,11 +82,11 @@ function timeAgo(iso: string): string {
   return 'just now'
 }
 
-/** Known balances summed per currency — never across currencies — most-used currency first. */
+/** Counted balances summed per currency — never across currencies — most-used currency first. */
 function totalsByCurrency(list: AccountBalance[]): { currency: string; amount: number; count: number }[] {
   const totals = new Map<string, { currency: string; amount: number; count: number }>()
   for (const b of list) {
-    if (b.balance === null) continue
+    if (b.balance === null || !b.countsTowardTotals) continue
     const t = totals.get(b.currency) ?? { currency: b.currency, amount: 0, count: 0 }
     t.amount += owedSign(b, b.balance)
     t.count += 1
@@ -133,10 +133,10 @@ export function Accounts() {
         <Empty title="No accounts yet">Connect a bank above and your accounts will appear here.</Empty>
       ) : (
         <>
-          <Tiles accounts={data} />
+          <Tiles accounts={data.filter((a) => a.connectionStatus !== 'disconnected')} />
           <div className="flex flex-col gap-9">
             {GROUPS.map((g) => {
-              const list = data.filter((a) => g.kinds.includes(a.kind))
+              const list = data.filter((a) => a.connectionStatus !== 'disconnected' && g.kinds.includes(a.kind))
               return (
                 list.length > 0 && (
                   <AccountGroup
@@ -149,6 +149,7 @@ export function Accounts() {
                 )
               )
             })}
+            <NoLongerConnected accounts={data.filter((a) => a.connectionStatus === 'disconnected')} onOpen={select} />
           </div>
         </>
       )}
@@ -174,7 +175,8 @@ function Tiles({ accounts }: { accounts: AccountBalance[] }) {
 function Tile({ kind, label, noun, accounts }: { kind: AccountKind; label: string; noun: string; accounts: AccountBalance[] }) {
   const totals = totalsByCurrency(accounts)
   const [main, ...others] = totals
-  let caption = `${accounts.length} ${noun}${accounts.length === 1 ? '' : 's'}`
+  const counted = accounts.filter((a) => a.countsTowardTotals)
+  let caption = `${counted.length} ${noun}${counted.length === 1 ? '' : 's'}`
   const limited = kind === 'credit' ? accounts.filter((b) => b.creditLimit !== null && b.currency === main?.currency) : []
   if (main && limited.length > 0) {
     const limit = limited.reduce((sum, b) => sum + (b.creditLimit ?? 0), 0)
@@ -250,6 +252,43 @@ function AccountGroup({
             <AccountCard account={b} onOpen={() => onOpen(b.id)} onSettings={onSettings} />
           </li>
         ))}
+      </ul>
+    </section>
+  )
+}
+
+function NoLongerConnected({ accounts, onOpen }: { accounts: AccountBalance[]; onOpen: (id: string) => void }) {
+  if (accounts.length === 0) return null
+  return (
+    <section>
+      <div className="mb-3 flex items-baseline justify-between gap-4 border-b border-rule pb-2">
+        <h2
+          aria-label={`No longer connected, ${accounts.length} account${accounts.length === 1 ? '' : 's'}`}
+          className="font-sans text-[13px] font-semibold tracking-[0.04em] text-ink-3 uppercase"
+        >
+          No longer connected
+          <span className="figures ml-1.5 font-medium tracking-normal text-ink-3">{accounts.length}</span>
+        </h2>
+        <p className="text-[13px] text-ink-3">Not counted in any total</p>
+      </div>
+      <ul className="flex flex-col">
+        {accounts.map((b) => {
+          const asOf = b.bankBalanceAt ?? b.lastSyncedAt
+          const meta = identity(b)
+          return (
+            <li key={b.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-rule py-3">
+              <button type="button" onClick={() => onOpen(b.id)} className="text-left text-[14px] text-ink-2 hover:text-ink">
+                {b.name}
+                {meta && <span className="text-[12.5px] text-ink-3"> · {meta}</span>}
+              </button>
+              <span className="figures text-[12.5px] text-ink-3">
+                {b.balance === null ? 'Unknown' : formatMoney(owedSign(b, b.balance), b.currency)}
+                {asOf && ` — last known balance on ${formatLocalDate(asOf)}`}
+                {b.replacedByConnectorId && ` · replaced by your current ${b.institutionName ?? 'bank'} login`}
+              </span>
+            </li>
+          )
+        })}
       </ul>
     </section>
   )
@@ -509,6 +548,7 @@ function TransactionTable({ rows }: { rows: LedgerRow[] }) {
             <td className="px-5 py-[11px] align-top font-medium text-ink">
               {r.posting.counterpartyRaw || r.description}
               {r.status === 'pending' && <span className="ml-2 text-[12px] font-normal text-amber">Pending</span>}
+              {!r.countsTowardTotals && <span className={`${TAG} ml-2 inline-block`}>not counted (replaced login)</span>}
               <p className="mt-0.5 text-[12px] font-normal text-ink-3 md:hidden">{r.category?.label ?? 'Uncategorized'}</p>
             </td>
             <td className="hidden px-5 py-[11px] align-top md:table-cell">
