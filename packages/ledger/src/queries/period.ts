@@ -1,6 +1,8 @@
-import { and, eq, gte, inArray, ne } from 'drizzle-orm'
-import { accounts, transactions } from '../schema/index.js'
+import { and, eq, gte, inArray, isNull, ne, notExists, or } from 'drizzle-orm'
+import { db } from '../db.js'
+import { accounts, transactions, transferMarks } from '../schema/index.js'
 import { liveTransaction } from './live.js'
+import { EXCLUDING_METHODS, SUGGESTED_MARK, type ExcludedKind } from './transfer-match.js'
 
 export const PERIODS = ['this_week', 'this_month', 'last_30_days', 'this_year', 'all_time'] as const
 export type Period = (typeof PERIODS)[number]
@@ -35,4 +37,48 @@ export function bankPostingsFilter(tenantId: string, period: Period) {
   ]
   if (start) conditions.push(gte(transactions.date, start))
   return and(...conditions)
+}
+
+/** SQL twin of isExcludedMark, built from the same EXCLUDING_METHODS table.
+ * loan_payment is not excluded: it counts in money out, as debt payments. */
+export const excludedMark = or(
+  ...Object.entries(EXCLUDING_METHODS).map(([kind, methods]) =>
+    and(eq(transferMarks.kind, kind as ExcludedKind), inArray(transferMarks.method, [...methods])),
+  ),
+)
+
+/** SQL twin of isSuggestedMark. */
+export const suggestedMark = and(eq(transferMarks.kind, SUGGESTED_MARK.kind), eq(transferMarks.method, SUGGESTED_MARK.method))
+
+/** Bank legs whose movements can be cash flow at all. Loan and investment
+ * accounts never count: the everyday-account side of the movement does. */
+export function cashFlowScopeFilter(tenantId: string, period: Period) {
+  return and(bankPostingsFilter(tenantId, period), or(isNull(accounts.kind), inArray(accounts.kind, ['cash', 'credit', 'other'])))
+}
+
+/** Income and money out (spending + debt payments): in scope and not an
+ * excluded transfer, card payment or investment. Possible transfers count. */
+export function cashFlowPostingsFilter(tenantId: string, period: Period) {
+  return and(
+    cashFlowScopeFilter(tenantId, period),
+    notExists(
+      db
+        .select({ transactionId: transferMarks.transactionId })
+        .from(transferMarks)
+        .where(and(eq(transferMarks.transactionId, transactions.id), excludedMark)),
+    ),
+  )
+}
+
+/** Spending (categories, merchants): cash flow minus debt payments. */
+export function spendingPostingsFilter(tenantId: string, period: Period) {
+  return and(
+    cashFlowScopeFilter(tenantId, period),
+    notExists(
+      db
+        .select({ transactionId: transferMarks.transactionId })
+        .from(transferMarks)
+        .where(and(eq(transferMarks.transactionId, transactions.id), or(excludedMark, eq(transferMarks.kind, 'loan_payment')))),
+    ),
+  )
 }
