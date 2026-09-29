@@ -78,6 +78,13 @@
       "when": 1790616106072,
       "tag": "0010_possible_transfers",
       "breakpoints": true
+    },
+    {
+      "idx": 11,
+      "version": "7",
+      "when": 1790687255793,
+      "tag": "0011_replaced_logins",
+      "breakpoints": true
     }
   ]
 }

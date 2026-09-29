@@ -5,9 +5,11 @@ import {
   text,
   timestamp,
   pgEnum,
+  index,
   primaryKey,
   uniqueIndex,
   check,
+  type AnyPgColumn,
 } from 'drizzle-orm/pg-core'
 
 export const connectorProvider = pgEnum('connector_provider', ['plaid', 'enable-banking'])
@@ -45,6 +47,9 @@ export const providerCredentials = pgTable(
  * apps/server's vault.ts into credentialCiphertext/credentialNonce, with the
  * row id in the AAD — the plaintext is never a column. externalId is the
  * provider's own id for the connection (Plaid item_id), null when it has none.
+ * replacedByConnectorId records that a newer login took this one over;
+ * countedUntil is the derived date from which the successor's history covers
+ * this login, so the two are never counted twice.
  */
 export const connectors = pgTable(
   'connectors',
@@ -64,9 +69,12 @@ export const connectors = pgTable(
     statusReason: text('status_reason'),
     statusChangedAt: timestamp('status_changed_at', { withTimezone: true }).notNull().defaultNow(),
     lastSyncedAt: timestamp('last_synced_at', { withTimezone: true }),
+    replacedByConnectorId: uuid('replaced_by_connector_id').references((): AnyPgColumn => connectors.id),
+    countedUntil: timestamp('counted_until', { withTimezone: true }),
     createdAt: timestamp('created_at', { withTimezone: true }).notNull().defaultNow(),
   },
   (table) => [
+    index('connectors_replaced_by_idx').on(table.replacedByConnectorId),
     uniqueIndex('connectors_tenant_provider_external_id_unique_idx')
       .on(table.tenantId, table.provider, table.externalId)
       .where(sql`${table.externalId} IS NOT NULL`),
