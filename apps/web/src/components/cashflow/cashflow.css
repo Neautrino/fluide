@@ -1,0 +1,381 @@
+.cashflow {
+  --cf-bg: #f6f3ec;
+  --cf-surface: #fbfaf6;
+  --cf-sunk: #eeeae0;
+  --cf-hover: #f2eee5;
+  --cf-ink: #1b1a17;
+  --cf-ink2: #45433d;
+  --cf-ink3: #67635a;
+  --cf-line: #7c766b;
+  --cf-rule: #ddd6c8;
+  --cf-rule2: #bdb3a0;
+  --cf-accent: #1d5a42;
+  --cf-accent2: #143f2e;
+  --cf-on-accent: #fbfaf6;
+  --cf-wash: #e3ebe2;
+  --cf-in: #1d5a42;
+  --cf-out: #a78657;
+  --cf-in-tint: #b8cac0;
+  --cf-out-tint: #eee7dd;
+  --cf-in-wash: #e0e7e0;
+  --cf-out-wash: #f5f2eb;
+  --cf-ribbon: #a39884;
+  --cf-ribbon-a: 0.42;
+  --cf-rib-edge: #948a78;
+  --cf-rib-spend: #ceb38d;
+  --cf-rib-kept: #84a894;
+  --cf-grid: #ebeae6;
+  --cf-shadow: 0 1px 2px rgb(27 26 23 / 0.06), 0 8px 24px -8px rgb(27 26 23 / 0.18);
+  --cf-ease: cubic-bezier(0.23, 1, 0.32, 1);
+  font-variant-numeric: tabular-nums lining-nums;
+  font-feature-settings: "tnum" 1, "lnum" 1;
+}
+
+.cashflow .cf-chart {
+  display: block;
+  overflow: visible;
+  font-family: var(--font-sans);
+}
+.cashflow .cf-chart:focus-visible {
+  outline: 2px solid var(--cf-accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.cashflow .cf-chart .cf-rib:focus-visible {
+  outline: none;
+}
+.cashflow .cf-ax {
+  font-size: 11.5px;
+  fill: var(--cf-ink3);
+}
+.cashflow .cf-hit {
+  fill: transparent;
+  cursor: pointer;
+}
+.cashflow .cf-band {
+  fill: var(--cf-ink);
+  opacity: 0;
+  transition: opacity 0.12s;
+}
+.cashflow .cf-band.on {
+  opacity: 0.05;
+}
+
+.cashflow button.cf-lnk {
+  padding: 0;
+  border: 0;
+  background: none;
+  font: inherit;
+  color: inherit;
+}
+.cashflow .cf-lnk {
+  cursor: pointer;
+  text-decoration: underline dotted var(--cf-line);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+  border-radius: 2px;
+  transition:
+    color 0.14s var(--cf-ease),
+    text-decoration-color 0.14s var(--cf-ease);
+}
+.cashflow .cf-lnk:hover {
+  color: var(--cf-ink);
+  text-decoration-color: var(--cf-ink);
+}
+.cashflow svg .cf-lnk {
+  text-decoration: none;
+}
+.cashflow svg .cf-lnk:hover,
+.cashflow svg .cf-lnk:focus-visible {
+  fill: var(--cf-accent);
+}
+.cashflow svg .cf-lnk:focus-visible {
+  outline: 2px solid var(--cf-accent);
+  outline-offset: 3px;
+}
+
+.cashflow .cf-hatch-in {
+  background: repeating-linear-gradient(-45deg, var(--cf-in) 0 2px, var(--cf-in-wash) 2px 4.5px);
+}
+.cashflow .cf-hatch-out {
+  background: repeating-linear-gradient(-45deg, var(--cf-out) 0 2px, var(--cf-out-wash) 2px 4.5px);
+}
+.cashflow .cf-hatch-no {
+  background: repeating-linear-gradient(-45deg, var(--cf-line) 0 1.25px, transparent 1.25px 6px);
+}
+.cashflow .cf-sw-no {
+  width: 12px;
+  height: 12px;
+  flex-shrink: 0;
+  border-radius: 2px;
+  border: 1.5px dashed var(--cf-line);
+}
+
+/* Sankey */
+.cashflow .cf-rib {
+  fill: var(--cf-ribbon);
+  fill-opacity: var(--cf-ribbon-a);
+  stroke: var(--cf-rib-edge);
+  stroke-width: 1;
+  stroke-opacity: 1;
+  cursor: pointer;
+  transition:
+    fill-opacity 0.15s var(--cf-ease),
+    stroke-opacity 0.15s var(--cf-ease);
+}
+.cashflow .cf-rib.spend {
+  fill: var(--cf-rib-spend);
+}
+.cashflow .cf-rib.kept {
+  fill: var(--cf-rib-kept);
+}
+.cashflow .cf-rib.static {
+  cursor: default;
+}
+.cashflow .cf-sankey.iso .cf-rib {
+  fill-opacity: 0.1;
+  stroke-opacity: 0.15;
+}
+.cashflow .cf-sankey.iso .cf-rib.on {
+  fill-opacity: 0.85;
+  stroke-opacity: 1;
+}
+.cashflow .cf-sankey .cf-rib:focus-visible {
+  stroke: var(--cf-accent);
+  stroke-width: 2;
+  stroke-opacity: 1;
+}
+.cashflow .cf-sk-lab {
+  transition: opacity 0.15s;
+}
+.cashflow .cf-sankey.iso .cf-sk-lab {
+  opacity: 0.4;
+}
+.cashflow .cf-sankey.iso .cf-sk-lab.on {
+  opacity: 1;
+}
+.cashflow .cf-sk-name {
+  font-size: 13px;
+  font-weight: 500;
+  fill: var(--cf-ink2);
+}
+.cashflow .cf-sk-sub {
+  font-size: 12px;
+  font-weight: 400;
+  fill: var(--cf-ink3);
+}
+.cashflow .cf-sk-amt {
+  font-size: 13px;
+  font-weight: 500;
+  fill: var(--cf-ink);
+}
+.cashflow .cf-sk-pct {
+  font-size: 12px;
+  fill: var(--cf-ink3);
+}
+.cashflow .cf-sk-grp {
+  font-size: 10.5px;
+  font-weight: 500;
+  letter-spacing: 0.12em;
+  fill: var(--cf-ink3);
+}
+.cashflow .cf-sk-in {
+  fill: var(--cf-ink);
+}
+
+/* Sankey table */
+.cashflow .cf-sktable {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) minmax(0, 1.4fr);
+  gap: 32px;
+}
+@media (max-width: 720px) {
+  .cashflow .cf-sktable {
+    grid-template-columns: minmax(0, 1fr);
+  }
+}
+.cashflow .cf-sktable table {
+  border-collapse: collapse;
+  width: 100%;
+}
+.cashflow .cf-sktable th {
+  padding: 8px 0;
+  border-bottom: 1px solid var(--cf-rule);
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--cf-ink3);
+}
+.cashflow .cf-sktable td {
+  height: 36px;
+  border-bottom: 1px solid var(--cf-rule);
+  font-size: 13px;
+  color: var(--cf-ink2);
+}
+.cashflow .cf-sktable .r {
+  text-align: right;
+}
+.cashflow .cf-sktable tr.grp td {
+  font-weight: 600;
+  color: var(--cf-ink);
+}
+.cashflow .cf-sktable td.sub {
+  padding-left: 16px;
+}
+
+/* Category bar */
+.cashflow .cf-track {
+  position: relative;
+  display: block;
+  height: 8px;
+}
+.cashflow .cf-track .f {
+  position: absolute;
+  inset: 0 auto 0 0;
+  border-radius: 0 2px 2px 0;
+  background: var(--cf-out);
+  transform-origin: 0 50%;
+  animation: cf-grow-x 500ms var(--cf-ease) both;
+}
+.cashflow .cf-track .f.hl {
+  background: var(--cf-ink2);
+}
+.cashflow .cf-track .avg {
+  position: absolute;
+  top: -4px;
+  bottom: -4px;
+  width: 2px;
+  margin-left: -1px;
+  border-radius: 1px;
+  background: var(--cf-ink);
+}
+
+/* Tooltip (portalled to <body>, wrapped in .cashflow for the tokens) */
+.cashflow .cf-tip {
+  position: fixed;
+  z-index: 50;
+  pointer-events: none;
+  min-width: 172px;
+  max-width: 280px;
+  padding: 10px 12px;
+  border: 1px solid var(--cf-rule);
+  border-radius: 8px;
+  background: var(--cf-surface);
+  box-shadow: var(--cf-shadow);
+  font-family: var(--font-sans);
+  font-size: 12.5px;
+  line-height: 1.45;
+  color: var(--cf-ink2);
+  transform-origin: top left;
+  animation: cf-pop 160ms var(--cf-ease) both;
+}
+.cashflow .cf-tip .h {
+  display: block;
+  margin-bottom: 6px;
+  font-weight: 500;
+  color: var(--cf-ink2);
+}
+.cashflow .cf-tip .tr {
+  display: grid;
+  grid-template-columns: 10px 1fr auto;
+  align-items: center;
+  gap: 8px;
+  line-height: 1.7;
+}
+.cashflow .cf-tip .tr i {
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+}
+.cashflow .cf-tip .tr span:last-child {
+  text-align: right;
+  color: var(--cf-ink);
+}
+.cashflow .cf-tip .tr.tot {
+  margin-top: 4px;
+  padding-top: 4px;
+  border-top: 1px solid var(--cf-rule);
+  font-weight: 600;
+}
+.cashflow .cf-tip .note {
+  display: block;
+  margin-top: 6px;
+  color: var(--cf-ink3);
+}
+
+/* Motion: one load animation per chart, quiet interactions. */
+.cashflow .cf-gu,
+.cashflow .cf-gd {
+  transform-box: fill-box;
+  animation: cf-grow-y 500ms var(--cf-ease) both;
+}
+.cashflow .cf-gu {
+  transform-origin: 50% 100%;
+}
+.cashflow .cf-gd {
+  transform-origin: 50% 0;
+}
+.cashflow .cf-dr {
+  stroke-dasharray: 1;
+  animation: cf-draw 700ms cubic-bezier(0.3, 0.6, 0.2, 1) both;
+}
+.cashflow .cf-rv {
+  animation: cf-reveal 750ms cubic-bezier(0.4, 0.1, 0.2, 1) both;
+}
+.cashflow .cf-fd {
+  animation: cf-fade 300ms ease both;
+}
+@keyframes cf-grow-y {
+  from {
+    transform: scaleY(0);
+  }
+}
+@keyframes cf-grow-x {
+  from {
+    transform: scaleX(0);
+  }
+}
+@keyframes cf-draw {
+  from {
+    stroke-dashoffset: 1;
+  }
+  to {
+    stroke-dashoffset: 0;
+  }
+}
+@keyframes cf-reveal {
+  from {
+    clip-path: inset(0 100% 0 0);
+  }
+  to {
+    clip-path: inset(0 0 0 0);
+  }
+}
+@keyframes cf-fade {
+  from {
+    opacity: 0;
+  }
+}
+@keyframes cf-pop {
+  from {
+    opacity: 0;
+    transform: scale(0.96);
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cashflow *,
+  .cashflow *::before,
+  .cashflow *::after {
+    animation: none !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+@media print {
+  .cashflow *,
+  .cashflow *::before,
+  .cashflow *::after {
+    animation: none !important;
+  }
+}

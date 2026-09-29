@@ -136,6 +136,19 @@ export type Summary = {
   balances: AccountBalance[]
 }
 
+/** An unpaired bank-tagged transfer awaiting the user's decision. `amount` is signed (negative = money out). */
+export type PossibleTransfer = {
+  transactionId: string
+  date: string
+  description: string
+  accountName: string
+  amount: number
+  currency: string
+}
+
+/** `mine`: moved to one of the user's own accounts (left out of cash flow); `payment`: real income/spending. */
+export type TransferDecision = 'mine' | 'payment'
+
 export type ConnectionStatus = 'active' | 'reauth_required' | 'error' | 'disconnected'
 
 export type ConnectionSummary = {
@@ -244,6 +257,136 @@ export async function sendJson<T>(
       ? { method }
       : { method, headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(body) }
   return parse<T>(await request(path, init, timeoutMs))
+}
+
+export async function decideTransfer(transactionId: string, decision: TransferDecision): Promise<void> {
+  await sendJson<{ ok: true }>('POST', `/api/ledger/transfers/${encodeURIComponent(transactionId)}/decision`, { decision })
+}
+
+export type CashFlowCompare = 'average' | 'previous' | 'last_year'
+
+/** `change` = (value − baseline) / |baseline|; null when there is no baseline or it is 0. */
+export type CashFlowDelta = { baseline: number | null; change: number | null }
+
+export type NotCountedKind = 'between_accounts' | 'card_payoffs' | 'invested' | 'savings'
+
+/** One counted leg behind a cash-flow figure. `amount` is signed (negative = money out). */
+export type DrillRow = {
+  transactionId: string
+  date: string
+  description: string
+  accountName: string
+  amount: number
+  currency: string
+  category: string
+  fromBank: boolean
+  pending: boolean
+}
+
+/** Amounts are positive magnitudes in `currency` unless noted; currencies are never summed together. */
+export type CashFlow = {
+  month: string
+  currency: string
+  currencies: string[]
+  partial: boolean
+  daysElapsed: number
+  daysInMonth: number
+  compare: CashFlowCompare
+  baselineMonths: number
+  accounts: { id: string; name: string; kind: string | null; mask: string | null; connectorId: string | null }[]
+  totals: {
+    moneyIn: number
+    moneyOut: number
+    spending: number
+    debtPayments: number
+    /** Signed. */
+    kept: number
+    /** 0..1, signed; null when nothing came in. */
+    savingsRate: number | null
+    invested: number
+    movedToSavings: number
+    vs: { moneyIn: CashFlowDelta; moneyOut: CashFlowDelta; kept: CashFlowDelta; savingsRate: CashFlowDelta }
+  }
+  notCounted: { kind: NotCountedKind; count: number; total: number }[]
+  otherCurrencies: { currency: string; count: number; moneyIn: number; moneyOut: number }[]
+  possibleTransfers: { count: number; total: number }
+  sankey: {
+    sources: { id: string; label: string; amount: number; kind: 'payer' | 'refunds' | 'other_income' | 'from_balance' }[]
+    targets: {
+      id: string
+      label: string
+      amount: number
+      group: 'spending' | 'debt' | 'kept'
+      kind: 'category' | 'other_categories' | 'debt_payments' | 'invested' | 'savings' | 'stayed_in_cash'
+      fromBank?: boolean
+      otherCount?: number
+    }[]
+    moneyIn: number
+  }
+  transfers: {
+    kind: 'invested' | 'savings' | 'card_payoffs' | 'between_accounts' | 'debt_payments'
+    total: number
+    count: number
+    accounts: string[]
+  }[]
+  months: { month: string; moneyIn: number; moneyOut: number; net: number; partial: boolean }[]
+  averages: { moneyIn: number | null; moneyOut: number | null }
+  /** Cumulative money out per day; `current` is null after `daysElapsed`. */
+  pace: { day: number; current: number | null; baseline: number | null }[]
+  categories: {
+    label: string
+    amount: number
+    shareOfSpending: number
+    shareOfIncome: number | null
+    baseline: number | null
+    change: number | null
+    fromBank: boolean
+  }[]
+  merchants: { name: string; amount: number; count: number; average: number; isNew: boolean }[]
+  sources: { name: string; amount: number; share: number; regularity: 'monthly' | 'irregular' | null; kind: 'payer' | 'refunds' }[]
+  largest: DrillRow[]
+}
+
+export type CashFlowParams = { month: string; compare: CashFlowCompare; accounts: string[]; currency: string | null }
+
+/** Filter tokens accepted by `/api/ledger/cashflow/transactions`; the response total equals the figure the page shows. */
+export type CashFlowFilter =
+  | 'in'
+  | 'out'
+  | 'spending'
+  | 'debt'
+  | 'refunds'
+  | 'other_income'
+  | 'other_categories'
+  | 'possible'
+  | 'largest'
+  | `category:${string}`
+  | `merchant:${string}`
+  | `source:${string}`
+  | `notcounted:${NotCountedKind}`
+  | `day:${number}`
+
+function cashFlowQuery(params: CashFlowParams): URLSearchParams {
+  const q = new URLSearchParams({ month: params.month })
+  if (params.accounts.length > 0) q.set('accounts', params.accounts.join(','))
+  if (params.currency) q.set('currency', params.currency)
+  return q
+}
+
+export function getCashFlow(params: CashFlowParams, signal?: AbortSignal): Promise<CashFlow> {
+  const q = cashFlowQuery(params)
+  q.set('compare', params.compare)
+  return getJson<CashFlow>(`/api/ledger/cashflow?${q}`, signal)
+}
+
+export function getCashFlowTransactions(
+  params: CashFlowParams,
+  filter: CashFlowFilter,
+  signal?: AbortSignal,
+): Promise<{ rows: DrillRow[]; total: number; count: number }> {
+  const q = cashFlowQuery(params)
+  q.set('filter', filter)
+  return getJson(`/api/ledger/cashflow/transactions?${q}`, signal)
 }
 
 export function errorMessage(e: unknown): string {

@@ -6,6 +6,7 @@ import { AppContext, type View } from './lib/app-context'
 import { useResource } from './lib/useResource'
 import { Accounts } from './views/Accounts'
 import { Assistant } from './views/Assistant'
+import { CashFlow } from './views/CashFlow'
 import { Overview } from './views/Overview'
 import { Review } from './views/Review'
 import { Rules } from './views/Rules'
@@ -15,6 +16,7 @@ import { Transactions } from './views/Transactions'
 const VIEWS: Record<Exclude<View, 'assistant'>, ComponentType> = {
   overview: Overview,
   accounts: Accounts,
+  cashflow: CashFlow,
   transactions: Transactions,
   review: Review,
   rules: Rules,
@@ -49,7 +51,11 @@ function App() {
       <div className="flex min-h-svh flex-col md:flex-row">
         <Sidebar view={view} onNavigate={navigate} reviewCount={reviewCount} />
         <main className="min-w-0 flex-1">
-          <div className="mx-auto w-full max-w-[1120px] px-5 pt-8 pb-20 md:px-12 md:pt-12">
+          <div
+            className={`mx-auto w-full px-5 pt-8 pb-20 ${
+              view === 'cashflow' ? 'max-w-[1200px] md:px-10 md:pt-10' : 'max-w-[1120px] md:px-12 md:pt-12'
+            }`}
+          >
             <EnableBankingCallback />
             {ActiveView && (
               <div key={`${view}:${visit}`} className="animate-rise">
