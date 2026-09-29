@@ -27,6 +27,8 @@ import { isUuid, uuidParam } from './validate.js'
 export const ledgerRoutes = new Hono()
 
 const MAX_SCOPE_ACCOUNTS = 100
+const CURRENCY_RE = /^[A-Z]{3}$/
+const CURRENCY_ERROR = 'currency must be an ISO 4217 code'
 
 function cashFlowScope(c: Context): CashFlowScopeParams | string {
   const month = c.req.query('month')
@@ -38,8 +40,16 @@ function cashFlowScope(c: Context): CashFlowScopeParams | string {
   if (accounts.some((id) => !isUuid(id))) return 'accounts must be comma-separated UUIDs'
   if (accounts.length > MAX_SCOPE_ACCOUNTS) return `accounts takes at most ${MAX_SCOPE_ACCOUNTS} ids`
   const currency = c.req.query('currency')
-  if (currency !== undefined && !/^[A-Z]{3}$/.test(currency)) return 'currency must be an ISO 4217 code'
+  if (currency !== undefined && !CURRENCY_RE.test(currency)) return CURRENCY_ERROR
   return { month, accounts: accounts.length ? accounts : undefined, currency }
+}
+
+function periodScope(c: Context): { period: Period; currency?: string } | string {
+  const period = (c.req.query('period') ?? 'this_month') as Period
+  if (!PERIODS.includes(period)) return `period must be one of ${PERIODS.join(', ')}`
+  const currency = c.req.query('currency')
+  if (currency !== undefined && !CURRENCY_RE.test(currency)) return CURRENCY_ERROR
+  return { period, currency }
 }
 
 ledgerRoutes.get('/accounts', async (c) => {
@@ -57,19 +67,15 @@ ledgerRoutes.get('/transactions', async (c) => {
 })
 
 ledgerRoutes.get('/summary', async (c) => {
-  const period = (c.req.query('period') ?? 'this_month') as Period
-  if (!PERIODS.includes(period)) {
-    return c.json({ error: `period must be one of ${PERIODS.join(', ')}` }, 400)
-  }
-  return c.json(await getSummary(LOCAL_TENANT_ID, period))
+  const scope = periodScope(c)
+  if (typeof scope === 'string') return c.json({ error: scope }, 400)
+  return c.json(await getSummary(LOCAL_TENANT_ID, scope.period, scope.currency))
 })
 
 ledgerRoutes.get('/possible-transfers', async (c) => {
-  const period = (c.req.query('period') ?? 'this_month') as Period
-  if (!PERIODS.includes(period)) {
-    return c.json({ error: `period must be one of ${PERIODS.join(', ')}` }, 400)
-  }
-  return c.json({ transactions: await listPossibleTransfers(LOCAL_TENANT_ID, period) })
+  const scope = periodScope(c)
+  if (typeof scope === 'string') return c.json({ error: scope }, 400)
+  return c.json({ transactions: await listPossibleTransfers(LOCAL_TENANT_ID, scope.period, scope.currency) })
 })
 
 ledgerRoutes.get('/cashflow', async (c) => {
