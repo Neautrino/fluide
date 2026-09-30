@@ -219,7 +219,7 @@ export function CashFlow() {
             data.notCounted.length === 0 &&
             data.otherCurrencies.length === 0 &&
             data.possibleTransfers.count === 0 ? (
-            <div className="mt-8 border-t border-rule">
+            <div className="mt-8 border-t border-line">
               <Empty title={`Nothing counted in ${monthLong.format(monthStart(data.month))}`}>
                 No money came in or went out of these accounts this month. Pick another month or include more accounts.
               </Empty>
@@ -266,7 +266,7 @@ export function CashFlow() {
 
 function Amt({ children, className = '' }: { children: ReactNode; className?: string }) {
   const hidden = useContext(HiddenContext)
-  return <span className={className}>{hidden ? MASK : children}</span>
+  return <span className={`amt ${className}`}>{hidden ? MASK : children}</span>
 }
 
 function DrillButton({
@@ -333,7 +333,7 @@ function Card({
   children: ReactNode
 }) {
   return (
-    <section className={`min-w-0 rounded-[10px] border border-rule bg-paper-raised ${className}`}>
+    <section className={`min-w-0 rounded-[10px] border border-line bg-surface ${className}`}>
       <div className="flex items-start justify-between gap-4 px-6 pt-5">
         <div className="min-w-0">
           <h2
@@ -363,7 +363,7 @@ function Chevron() {
 }
 
 const CONTROL =
-  'relative inline-flex h-[38px] items-center gap-2 rounded-[3px] border border-rule-strong bg-paper-raised px-3 text-[13px] whitespace-nowrap text-ink transition-colors hover:border-(--cf-line) hover:bg-(--cf-hover)'
+  'relative inline-flex h-[38px] items-center gap-2 rounded-[3px] border border-line-strong bg-surface px-3 text-[13px] whitespace-nowrap text-ink transition-colors hover:border-(--cf-line) hover:bg-(--cf-hover)'
 
 function Popover({
   button,
@@ -414,7 +414,7 @@ function Popover({
           id={id}
           role="dialog"
           aria-label={label}
-          className={`absolute top-full z-30 mt-2 w-max max-w-[340px] rounded-[8px] border border-rule bg-paper-raised p-4 text-[13px] text-ink-2 shadow-[0_1px_2px_rgb(27_26_23/.06),0_8px_24px_-8px_rgb(27_26_23/.18)] ${
+          className={`absolute top-full z-30 mt-2 w-max max-w-[340px] rounded-[8px] border border-line bg-surface p-4 text-[13px] text-ink-2 shadow-[0_1px_2px_rgb(27_26_23/.06),0_8px_24px_-8px_rgb(27_26_23/.18)] ${
             align === 'right' ? 'right-0' : 'left-0'
           }`}
         >
@@ -462,10 +462,10 @@ function Header(p: HeaderProps) {
           >
             <span
               aria-hidden
-              className={`relative h-[18px] w-8 rounded-full transition-colors ${p.hidden ? 'bg-green' : 'bg-(--cf-line)'}`}
+              className={`relative h-[18px] w-8 rounded-full transition-colors ${p.hidden ? 'bg-positive' : 'bg-(--cf-line)'}`}
             >
               <span
-                className={`absolute top-0.5 left-0.5 size-3.5 rounded-full bg-paper-raised shadow-[0_1px_2px_rgb(0_0_0/.3)] transition-transform ${
+                className={`absolute top-0.5 left-0.5 size-3.5 rounded-full bg-surface shadow-[0_1px_2px_rgb(0_0_0/.3)] transition-transform ${
                   p.hidden ? 'translate-x-3.5' : ''
                 }`}
               />
@@ -491,7 +491,7 @@ function Header(p: HeaderProps) {
       </div>
 
       <div className="mt-5 flex flex-wrap items-center gap-2">
-        <label className={`${CONTROL} focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-green`}>
+        <label className={`${CONTROL} focus-within:outline-2 focus-within:outline-offset-2 focus-within:outline-accent`}>
           <svg viewBox="0 0 16 16" className="size-3.5 shrink-0 text-ink-2" aria-hidden>
             <rect x="2" y="3" width="12" height="11" rx="2" fill="none" stroke="currentColor" strokeWidth="1.3" />
             <path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3" stroke="currentColor" strokeWidth="1.3" />
@@ -569,7 +569,7 @@ function AccountFilter({
           type="button"
           onClick={() => onChange([])}
           disabled={selected.length === 0}
-          className="mb-2 self-start text-[12px] font-medium text-green disabled:text-ink-3"
+          className="mb-2 self-start text-[12px] font-medium text-positive disabled:text-ink-3"
         >
           All accounts
         </button>
@@ -581,7 +581,7 @@ function AccountFilter({
                   type="checkbox"
                   checked={selected.length === 0 || selected.includes(a.id)}
                   onChange={() => toggle(a.id)}
-                  className="accent-green"
+                  className="accent-accent"
                 />
                 <span className="truncate text-ink">{a.name}</span>
                 {a.mask && <span className="figures text-[12px] text-ink-3">··{a.mask}</span>}
@@ -634,13 +634,13 @@ function Freshness({
         <span
           aria-hidden
           className={`size-1.5 rounded-full ${
-            first ? 'bg-amber shadow-[0_0_0_3px_var(--color-amber-wash)]' : 'bg-green shadow-[0_0_0_3px_var(--color-green-wash)]'
+            first ? 'bg-warning shadow-[0_0_0_3px_var(--color-warning-wash)]' : 'bg-positive shadow-[0_0_0_3px_var(--color-positive-wash)]'
           }`}
         />
         {oldest ? `Synced ${ago(oldest)}` : 'Not synced yet'}
       </span>
       {first && (
-        <p role="status" className="w-full text-[12px] text-amber">
+        <p role="status" className="w-full text-[12px] text-warning">
           Totals may be incomplete:{' '}
           {first.connection.status !== 'active'
             ? `${first.account} needs to reconnect`
@@ -768,7 +768,7 @@ function Comparison({
   const good = up === goodWhenUp
   return (
     <>
-      <span className={`font-semibold ${good ? 'text-green' : 'text-ink-2'}`}>
+      <span className={`font-semibold ${good ? 'text-positive' : 'text-ink-2'}`}>
         {up ? '▲' : '▼'}
         {delta.change !== null && ` ${Math.abs(delta.change * 100).toFixed(1)}%`}
       </span>{' '}
@@ -791,7 +791,7 @@ function Kpis({ data }: { data: CashFlowData }) {
   return (
     <section
       aria-label="This month in four numbers"
-      className="mt-8 grid grid-cols-2 border-y border-rule lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)]"
+      className="mt-8 grid grid-cols-2 border-y border-line lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,1.3fr)_minmax(0,1fr)]"
     >
       <Kpi label="Money in">
         <p className="self-end font-display text-[30px] leading-none tracking-[-0.02em] text-ink">
@@ -809,7 +809,7 @@ function Kpis({ data }: { data: CashFlowData }) {
         </div>
       </Kpi>
 
-      <Kpi label="Money out" className="border-l border-rule">
+      <Kpi label="Money out" className="border-l border-line">
         <p className="self-end font-display text-[30px] leading-none tracking-[-0.02em] text-ink">
           <DrillButton drill={{ token: 'out', label: 'Money out', amount: totals.moneyOut }}>
             <Amt>
@@ -837,7 +837,7 @@ function Kpis({ data }: { data: CashFlowData }) {
         </div>
       </Kpi>
 
-      <Kpi label="Kept" className="border-t border-rule lg:border-t-0 lg:border-l">
+      <Kpi label="Kept" className="border-t border-line lg:border-t-0 lg:border-l">
         <p className="self-end font-display text-[44px] leading-none tracking-[-0.02em] text-ink xl:text-[52px]">
           <Amt>
             <Figure value={totals.kept} currency={currency} signed />
@@ -869,7 +869,7 @@ function Kpis({ data }: { data: CashFlowData }) {
         </div>
       </Kpi>
 
-      <Kpi label="Savings rate" className="border-t border-l border-rule lg:border-t-0">
+      <Kpi label="Savings rate" className="border-t border-l border-line lg:border-t-0">
         <div className="flex items-end justify-between gap-2 self-end">
           <p className="figures font-display text-[30px] leading-none tracking-[-0.02em] text-ink">
             {rate === null ? (
@@ -920,7 +920,7 @@ function KeptDelta({ value, delta, noun, currency }: { value: number; delta: Cas
   const up = diff > 0
   return (
     <>
-      <span className={`font-semibold ${up ? 'text-green' : 'text-ink-2'}`}>
+      <span className={`font-semibold ${up ? 'text-positive' : 'text-ink-2'}`}>
         {Math.abs(diff) < 0.005 ? '=' : up ? '▲' : '▼'}
         {delta.change !== null && Math.abs(diff) >= 0.005 && ` ${Math.abs(delta.change * 100).toFixed(1)}%`}
       </span>{' '}
@@ -935,7 +935,7 @@ function RateDelta({ rate, base, noun }: { rate: number; base: number; noun: str
   if (Math.abs(pts) < 0.05) return <>Same as {noun} ({percent(base)})</>
   return (
     <>
-      <span className={`font-semibold ${pts > 0 ? 'text-green' : 'text-ink-2'}`}>
+      <span className={`font-semibold ${pts > 0 ? 'text-positive' : 'text-ink-2'}`}>
         {pts > 0 ? '▲' : '▼'} {Math.abs(pts).toFixed(1)} pts
       </span>{' '}
       {pts > 0 ? 'above' : 'below'} {noun} ({percent(base)})
@@ -973,14 +973,9 @@ function NotCounted({ data, onCurrency }: { data: CashFlowData; onCurrency: (c: 
                 className={LINK}
               >
                 Other currency ({o.currency}){' '}
-                <Amt>
-                  {[
-                    o.moneyIn > 0 && `${formatMoney(o.moneyIn, o.currency)} in`,
-                    o.moneyOut > 0 && `${formatMoney(o.moneyOut, o.currency)} out`,
-                  ]
-                    .filter(Boolean)
-                    .join(', ')}
-                </Amt>{' '}
+                {o.moneyIn > 0 && <><span className="amt">{formatMoney(o.moneyIn, o.currency)}</span> in</>}
+                {o.moneyIn > 0 && o.moneyOut > 0 && ', '}
+                {o.moneyOut > 0 && <><span className="amt">{formatMoney(o.moneyOut, o.currency)}</span> out</>}{' '}
                 ({o.count})
               </button>
             </span>
@@ -1006,7 +1001,7 @@ const TRANSFER_SWATCH: Record<CashFlowData['transfers'][number]['kind'], string>
   invested: 'bg-(--cf-in)',
   savings: 'bg-(--cf-in-tint) shadow-[inset_0_0_0_1.5px_var(--cf-in)]',
   card_payoffs: 'border-[1.5px] border-dashed border-(--cf-line)',
-  between_accounts: 'border-[1.5px] border-dashed border-(--cf-line) bg-paper-sunk',
+  between_accounts: 'border-[1.5px] border-dashed border-(--cf-line) bg-surface-2',
   debt_payments: 'bg-(--cf-out)',
 }
 
@@ -1042,7 +1037,7 @@ function Transfers({ data }: { data: CashFlowData }) {
             {rows.map((t) => (
               <li
                 key={t.kind}
-                className="-mx-2 grid min-h-14 grid-cols-[12px_1fr_auto] items-center gap-3 rounded-[6px] border-b border-rule p-2 last:border-b-0 hover:bg-(--cf-hover)"
+                className="-mx-2 grid min-h-14 grid-cols-[12px_1fr_auto] items-center gap-3 rounded-[6px] border-b border-line p-2 last:border-b-0 hover:bg-(--cf-hover)"
               >
                 <span aria-hidden className={`size-2.5 rounded-[2px] ${TRANSFER_SWATCH[t.kind]}`} />
                 <div className="min-w-0">
@@ -1068,7 +1063,7 @@ function Transfers({ data }: { data: CashFlowData }) {
           </ul>
         </div>
       )}
-      <p className="mt-auto flex items-center gap-2 border-t border-rule px-6 py-3 text-[12.5px] text-ink-3">
+      <p className="mt-auto flex items-center gap-2 border-t border-line px-6 py-3 text-[12.5px] text-ink-3">
         <span aria-hidden className="cf-sw-no size-3 shrink-0 rounded-[2px] border-[1.5px] border-dashed border-(--cf-line)" />
         {rows.some((t) => t.kind === 'debt_payments')
           ? 'These moved between your own accounts, so they’re not spending. Debt payments still count in Money out.'
@@ -1229,7 +1224,7 @@ function Categories({ data }: { data: CashFlowData }) {
           <span
             tabIndex={0}
             title="Categories from your bank: until Fluide has a category for a transaction, it shows the one your bank assigned."
-            className="inline-flex h-6 shrink-0 cursor-help items-center gap-1 rounded-[4px] border border-rule px-2 text-[12px] font-medium whitespace-nowrap text-ink-3"
+            className="inline-flex h-6 shrink-0 cursor-help items-center gap-1 rounded-[4px] border border-line px-2 text-[12px] font-medium whitespace-nowrap text-ink-3"
           >
             <svg viewBox="0 0 16 16" className="size-3" aria-hidden>
               <path d="M2 6.5 8 3l6 3.5M3.5 7v5M6.5 7v5M9.5 7v5M12.5 7v5M2 13.5h12" fill="none" stroke="currentColor" strokeWidth="1.3" />
@@ -1240,7 +1235,7 @@ function Categories({ data }: { data: CashFlowData }) {
       }
     >
       <div className="overflow-x-auto px-6 pt-2 pb-4">
-        <div className={`${CAT_GRID} h-8 border-b border-rule`}>
+        <div className={`${CAT_GRID} h-8 border-b border-line`}>
           {['Category', `vs ${data.compare === 'average' ? 'avg' : data.compare === 'previous' ? 'prev' : 'last yr'}`, 'Spent', '% spend', '% in', 'Change'].map(
             (h, i) => (
               <span
@@ -1259,7 +1254,7 @@ function Categories({ data }: { data: CashFlowData }) {
             return (
               <li
                 key={c.label}
-                className={`${CAT_GRID} -mx-2 h-10 rounded-[6px] border-b border-rule px-2 text-[13px] last:border-b-0 hover:bg-(--cf-hover)`}
+                className={`${CAT_GRID} -mx-2 h-10 rounded-[6px] border-b border-line px-2 text-[13px] last:border-b-0 hover:bg-(--cf-hover)`}
               >
                 <DrillButton drill={drill} plain className="truncate text-left font-medium text-ink">
                   {c.label}
@@ -1296,9 +1291,9 @@ function DeltaChip({ amount, baseline, currency }: { amount: number; baseline: n
   const base = 'inline-flex h-6 min-w-16 items-center justify-center rounded-[4px] px-1.5 text-[12px] font-medium whitespace-nowrap'
   if (baseline === null) return <span className={`${base} text-ink-3`}>new</span>
   const diff = amount - baseline
-  if (Math.abs(diff) < 1) return <span className={`${base} text-ink-3 shadow-[inset_0_0_0_1px_var(--color-rule)]`}>= avg</span>
+  if (Math.abs(diff) < 1) return <span className={`${base} text-ink-3 shadow-[inset_0_0_0_1px_var(--color-line)]`}>= avg</span>
   return (
-    <span className={`${base} ${diff > 0 ? 'bg-paper-sunk text-ink-2' : 'bg-green-wash text-green-deep'}`}>
+    <span className={`${base} ${diff > 0 ? 'bg-surface-2 text-ink-2' : 'bg-positive-wash text-positive'}`}>
       {diff > 0 ? '▲' : '▼'}&nbsp;<Amt>{formatWhole(diff, currency)}</Amt>
     </span>
   )
@@ -1328,7 +1323,7 @@ function Merchants({ data }: { data: CashFlowData }) {
     >
       {rows.length > 0 && (
         <div className="px-6 pt-2 pb-4">
-          <div className={`${grid} h-8 border-b border-rule text-[11px] font-medium tracking-[0.08em] text-ink-3 uppercase`}>
+          <div className={`${grid} h-8 border-b border-line text-[11px] font-medium tracking-[0.08em] text-ink-3 uppercase`}>
             <span>#</span>
             <span>Merchant</span>
             <span className="text-right">Txns</span>
@@ -1341,7 +1336,7 @@ function Merchants({ data }: { data: CashFlowData }) {
               return (
                 <li
                   key={m.name}
-                  className={`${grid} -mx-2 min-h-10 rounded-[6px] border-b border-rule px-2 py-1 text-[13px] last:border-b-0 hover:bg-(--cf-hover)`}
+                  className={`${grid} -mx-2 min-h-10 rounded-[6px] border-b border-line px-2 py-1 text-[13px] last:border-b-0 hover:bg-(--cf-hover)`}
                 >
                   <span className="figures text-[12px] text-ink-3">{i + 1}</span>
                   <span className="flex min-w-0 items-center gap-2 font-medium text-ink">
@@ -1349,7 +1344,7 @@ function Merchants({ data }: { data: CashFlowData }) {
                       {m.name}
                     </span>
                     {m.isNew && (
-                      <span className="inline-flex h-[18px] shrink-0 items-center rounded-[4px] bg-green px-1.5 text-[10px] font-semibold tracking-[0.08em] text-paper-raised">
+                      <span className="inline-flex h-[18px] shrink-0 items-center rounded-[4px] bg-positive px-1.5 text-[10px] font-semibold tracking-[0.08em] text-surface">
                         NEW
                       </span>
                     )}
@@ -1408,7 +1403,7 @@ function Sources({ data }: { data: CashFlowData }) {
             )}
             {other > 0.0005 && <i className="block min-w-1 rounded-[2px] bg-(--cf-line)" style={{ flexGrow: other }} />}
           </div>
-          <p className="figures flex justify-between gap-2 border-b border-rule pt-2 pb-3 text-[12px] text-ink-3 [&_b]:font-semibold [&_b]:text-ink">
+          <p className="figures flex justify-between gap-2 border-b border-line pt-2 pb-3 text-[12px] text-ink-3 [&_b]:font-semibold [&_b]:text-ink">
             <span>
               <b>{percent(regular, 0)}</b> regular
             </span>
@@ -1421,7 +1416,7 @@ function Sources({ data }: { data: CashFlowData }) {
           </p>
           <ul>
             {rows.map((s) => (
-              <li key={`${s.kind}:${s.name}`} className="border-b border-rule py-3 last:border-b-0">
+              <li key={`${s.kind}:${s.name}`} className="border-b border-line py-3 last:border-b-0">
                 <div className="flex items-baseline justify-between gap-2 text-[13px]">
                   <span className="truncate font-medium text-ink">{s.name}</span>
                   <DrillButton
@@ -1433,13 +1428,13 @@ function Sources({ data }: { data: CashFlowData }) {
                 </div>
                 <p className="mt-2 flex items-center text-[12px] text-ink-3">
                   {s.regularity && (
-                    <span className="mr-2 inline-flex h-[18px] items-center rounded-[4px] border border-rule px-1.5 text-[11px] font-medium">
+                    <span className="mr-2 inline-flex h-[18px] items-center rounded-[4px] border border-line px-1.5 text-[11px] font-medium">
                       {s.regularity}
                     </span>
                   )}
                   {percent(s.share)} of money in
                 </p>
-                <div aria-hidden className="mt-2 h-1 rounded-[2px] bg-paper-sunk">
+                <div aria-hidden className="mt-2 h-1 rounded-[2px] bg-surface-2">
                   <i className="block h-full rounded-[2px] bg-(--cf-in)" style={{ width: `${Math.min(100, s.share * 100)}%` }} />
                 </div>
               </li>
@@ -1474,12 +1469,12 @@ function Largest({ data, className }: { data: CashFlowData; className: string })
           {rows.map((r) => (
             <li
               key={r.transactionId}
-              className="-mx-2 grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[6px] border-b border-rule p-2 last:border-b-0 hover:bg-(--cf-hover)"
+              className="-mx-2 grid min-h-14 grid-cols-[minmax(0,1fr)_auto] items-center gap-3 rounded-[6px] border-b border-line p-2 last:border-b-0 hover:bg-(--cf-hover)"
             >
               <div className="min-w-0">
                 <p className="truncate text-[14px] font-medium text-ink">
                   {r.description}
-                  {r.pending && <span className="ml-2 text-[12px] font-normal text-amber">Pending</span>}
+                  {r.pending && <span className="ml-2 text-[12px] font-normal text-warning">Pending</span>}
                 </p>
                 <p className="truncate text-[12px] text-ink-3">
                   {r.category}
@@ -1544,11 +1539,11 @@ function DrillDrawer({
           ) : (
             <ul>
               {res.data.rows.map((r, i) => (
-                <li key={`${r.transactionId}:${i}`} className="flex items-baseline justify-between gap-4 border-b border-rule py-3">
+                <li key={`${r.transactionId}:${i}`} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
                   <div className="min-w-0">
                     <p className="truncate text-[14px] text-ink">
                       {r.description}
-                      {r.pending && <span className="ml-2 text-[12px] text-amber">Pending</span>}
+                      {r.pending && <span className="ml-2 text-[12px] text-warning">Pending</span>}
                     </p>
                     <p className="figures mt-0.5 text-[12px] text-ink-3">
                       {formatLedgerDate(r.date)} · {r.accountName} · {r.category}

@@ -106,9 +106,9 @@ export function Rules() {
               </thead>
               <tbody>
                 {shown.map((r) => (
-                  <tr key={r.id} className="border-b border-rule align-middle">
+                  <tr key={r.id} className="border-b border-line align-middle">
                     <td className="py-3 pr-4">
-                      <code className="rounded-[2px] bg-paper-sunk px-1.5 py-0.5 font-mono text-[13px] text-ink">{r.pattern}</code>
+                      <code className="rounded-[2px] bg-surface-2 px-1.5 py-0.5 font-mono text-[13px] text-ink">{r.pattern}</code>
                     </td>
                     <td className="py-3 pr-4 text-ink">{categories.data?.byId[r.categoryId]?.label ?? '—'}</td>
                     <td className="py-3 pr-4 text-ink-2">

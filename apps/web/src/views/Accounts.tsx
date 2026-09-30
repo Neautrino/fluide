@@ -9,9 +9,9 @@ import { useApp } from '../lib/app-context'
 import { formatLedgerDate, formatLocalDate, formatMoney, formatTimestamp } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
-const CARD = 'rounded-xl border border-rule bg-paper-raised shadow-[0_1px_2px_rgb(27_26_23/0.05)]'
-const STRIP = 'bg-paper-sunk/60'
-const TAG = 'shrink-0 rounded-[5px] border border-rule px-1.5 text-[11px] leading-[18px] font-medium text-ink-3'
+const CARD = 'rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(27_26_23/0.05)]'
+const STRIP = 'bg-surface-2/60'
+const TAG = 'shrink-0 rounded-[5px] border border-line px-1.5 text-[11px] leading-[18px] font-medium text-ink-3'
 const PREVIEW_ROWS = 10
 
 const TILES: { kind: AccountKind; label: string; noun: string }[] = [
@@ -30,9 +30,9 @@ const GROUPS: { title: string; kinds: (AccountKind | null)[] }[] = [
 ]
 
 const STATUS_DOT: Record<ConnectionStatus, string> = {
-  active: 'bg-green',
-  reauth_required: 'bg-amber',
-  error: 'bg-red',
+  active: 'bg-positive',
+  reauth_required: 'bg-warning',
+  error: 'bg-broken',
   disconnected: 'bg-ink-3',
 }
 
@@ -59,8 +59,8 @@ function identity(b: AccountBalance): string {
   return [subtype, b.mask ? `•••• ${b.mask}` : null].filter(Boolean).join(' ')
 }
 
-function mismatchNote(b: AccountBalance, sep = ' · '): string {
-  return `Bank reports ${formatMoney(owedSign(b, b.bankBalance ?? 0), b.currency)}${sep}ledger shows ${formatMoney(owedSign(b, b.ledgerBalance), b.currency)}`
+function mismatchNote(b: AccountBalance, sep = ' · '): ReactNode {
+  return <>Bank reports <span className="amt">{formatMoney(owedSign(b, b.bankBalance ?? 0), b.currency)}</span>{sep}ledger shows <span className="amt">{formatMoney(owedSign(b, b.ledgerBalance), b.currency)}</span></>
 }
 
 const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
@@ -176,14 +176,14 @@ function Tile({ kind, label, noun, accounts }: { kind: AccountKind; label: strin
   const totals = totalsByCurrency(accounts)
   const [main, ...others] = totals
   const counted = accounts.filter((a) => a.countsTowardTotals)
-  let caption = `${counted.length} ${noun}${counted.length === 1 ? '' : 's'}`
+  let caption: ReactNode = `${counted.length} ${noun}${counted.length === 1 ? '' : 's'}`
   const limited = kind === 'credit' ? accounts.filter((b) => b.creditLimit !== null && b.currency === main?.currency) : []
   if (main && limited.length > 0) {
     const limit = limited.reduce((sum, b) => sum + (b.creditLimit ?? 0), 0)
     const pct = limited.every((b) => b.balance !== null)
       ? usedPercent(limited.reduce((sum, b) => sum + owedSign(b, b.balance ?? 0), 0), limit)
       : null
-    caption = `Limit ${formatMoney(limit, main.currency)}${pct === null ? '' : ` (${pct}% used)`}`
+    caption = <>Limit <span className="amt">{formatMoney(limit, main.currency)}</span>{pct === null ? '' : ` (${pct}% used)`}</>
   }
 
   return (
@@ -197,7 +197,7 @@ function Tile({ kind, label, noun, accounts }: { kind: AccountKind; label: strin
           <>
             <Money amount={main.amount} currency={main.currency} />
             {others.map((t) => (
-              <span key={t.currency} className="figures font-sans text-[13px] font-medium tracking-normal whitespace-nowrap text-ink-3">
+              <span key={t.currency} className="figures amt font-sans text-[13px] font-medium tracking-normal whitespace-nowrap text-ink-3">
                 · {formatMoney(t.amount, t.currency)}
               </span>
             ))}
@@ -226,7 +226,7 @@ function AccountGroup({
   const count = `${accounts.length} account${accounts.length === 1 ? '' : 's'}`
   return (
     <section>
-      <div className="mb-3 flex items-baseline justify-between gap-4 border-b border-rule pb-2">
+      <div className="mb-3 flex items-baseline justify-between gap-4 border-b border-line pb-2">
         <h2
           aria-label={`${title}, ${count}`}
           className="font-sans text-[13px] font-semibold tracking-[0.04em] text-ink-2 uppercase"
@@ -240,7 +240,7 @@ function AccountGroup({
             {totals.map((t, i) => (
               <span key={t.currency} className="whitespace-nowrap">
                 {i > 0 && <span className="text-ink-3"> · </span>}
-                {formatMoney(t.amount, t.currency)}
+                <span className="amt">{formatMoney(t.amount, t.currency)}</span>
               </span>
             ))}
           </p>
@@ -261,7 +261,7 @@ function NoLongerConnected({ accounts, onOpen }: { accounts: AccountBalance[]; o
   if (accounts.length === 0) return null
   return (
     <section>
-      <div className="mb-3 flex items-baseline justify-between gap-4 border-b border-rule pb-2">
+      <div className="mb-3 flex items-baseline justify-between gap-4 border-b border-line pb-2">
         <h2
           aria-label={`No longer connected, ${accounts.length} account${accounts.length === 1 ? '' : 's'}`}
           className="font-sans text-[13px] font-semibold tracking-[0.04em] text-ink-3 uppercase"
@@ -276,13 +276,13 @@ function NoLongerConnected({ accounts, onOpen }: { accounts: AccountBalance[]; o
           const asOf = b.bankBalanceAt ?? b.lastSyncedAt
           const meta = identity(b)
           return (
-            <li key={b.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-rule py-3">
+            <li key={b.id} className="flex flex-wrap items-baseline justify-between gap-x-4 gap-y-0.5 border-b border-line py-3">
               <button type="button" onClick={() => onOpen(b.id)} className="text-left text-[14px] text-ink-2 hover:text-ink">
                 {b.name}
                 {meta && <span className="text-[12.5px] text-ink-3"> · {meta}</span>}
               </button>
               <span className="figures text-[12.5px] text-ink-3">
-                {b.balance === null ? 'Unknown' : formatMoney(owedSign(b, b.balance), b.currency)}
+                {b.balance === null ? 'Unknown' : <span className="amt">{formatMoney(owedSign(b, b.balance), b.currency)}</span>}
                 {asOf && ` — last known balance on ${formatLocalDate(asOf)}`}
                 {b.replacedByConnectorId && ` · replaced by your current ${b.institutionName ?? 'bank'} login`}
               </span>
@@ -299,7 +299,7 @@ function AccountCard({ account: b, onOpen, onSettings }: { account: AccountBalan
   const meta = identity(b)
   return (
     <article
-      className={`group relative flex h-full flex-col overflow-hidden ${CARD} transition-[translate,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-rule-strong hover:shadow-[0_10px_24px_-12px_rgb(27_26_23/0.25),0_2px_4px_rgb(27_26_23/0.05)] ${
+      className={`group relative flex h-full flex-col overflow-hidden ${CARD} transition-[translate,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[0_10px_24px_-12px_rgb(27_26_23/0.25),0_2px_4px_rgb(27_26_23/0.05)] ${
         b.connectionStatus === 'disconnected' ? 'opacity-60' : ''
       }`}
     >
@@ -334,13 +334,13 @@ function AccountCard({ account: b, onOpen, onSettings }: { account: AccountBalan
             />
           )}
           {b.bankBalanceIsFallback && (
-            <span className="pointer-events-none relative rounded-[5px] border border-rule bg-paper-sunk/60 px-1.5 text-[11px] leading-[18px] font-medium tracking-[0.02em] text-ink-2">
+            <span className="pointer-events-none relative rounded-[5px] border border-line bg-surface-2/60 px-1.5 text-[11px] leading-[18px] font-medium tracking-[0.02em] text-ink-2">
               <span aria-hidden>est.</span>
               <span className="sr-only">balance estimated by the bank</span>
             </span>
           )}
           {b.mismatch && (
-            <span className="pointer-events-none relative text-[16px] font-medium text-amber">
+            <span className="pointer-events-none relative text-[16px] font-medium text-warning">
               <span aria-hidden>≠</span>
               <span className="sr-only">{mismatchNote(b, ', ')}</span>
             </span>
@@ -359,7 +359,7 @@ function CardFooter({ account: b, onSettings }: { account: AccountBalance; onSet
     return (
       <div
         className={`mt-auto flex items-center justify-between gap-3 border-t px-4 py-2.5 text-[12.5px] font-medium ${
-          reauth ? 'border-amber/30 bg-amber-wash text-amber' : 'border-red/25 bg-red-wash text-red'
+          reauth ? 'border-warning/30 bg-warning-wash text-warning' : 'border-broken/25 bg-broken-wash text-broken'
         }`}
       >
         <span>{reauth ? 'Reconnect needed' : 'Sync failed'}</span>
@@ -378,14 +378,14 @@ function CardFooter({ account: b, onSettings }: { account: AccountBalance; onSet
   if (b.kind === 'cash' && b.availableBalance !== null) {
     detail = (
       <>
-        Available <b className="font-medium text-ink-2">{formatMoney(b.availableBalance, b.currency)}</b>
+        Available <b className="font-medium text-ink-2 amt">{formatMoney(b.availableBalance, b.currency)}</b>
       </>
     )
   } else if (isDebt(b) && b.creditLimit !== null) {
     const pct = b.balance === null ? null : usedPercent(owedSign(b, b.balance), b.creditLimit)
     detail = (
       <>
-        Limit <b className="font-medium text-ink-2">{formatMoney(b.creditLimit, b.currency)}</b>
+        Limit <b className="font-medium text-ink-2 amt">{formatMoney(b.creditLimit, b.currency)}</b>
         {pct !== null && ` · ${pct}% used`}
       </>
     )
@@ -394,9 +394,9 @@ function CardFooter({ account: b, onSettings }: { account: AccountBalance; onSet
   }
 
   return (
-    <div className={`mt-auto flex items-center justify-between gap-3 border-t border-rule ${STRIP} px-4 py-2.5 text-[12.5px] text-ink-3`}>
+    <div className={`mt-auto flex items-center justify-between gap-3 border-t border-line ${STRIP} px-4 py-2.5 text-[12.5px] text-ink-3`}>
       <span className="figures min-w-0 truncate">{detail}</span>
-      <span aria-hidden className="font-medium whitespace-nowrap text-ink-2 transition-colors group-hover:text-green">
+      <span aria-hidden className="font-medium whitespace-nowrap text-ink-2 transition-colors group-hover:text-positive">
         View →
       </span>
     </div>
@@ -446,13 +446,13 @@ function AccountDetail({ account: b, onBack }: { account: AccountBalance; onBack
                 className="mt-0.5 block font-display text-[38px] leading-[1.1] font-[350] tracking-[-0.02em] text-ink sm:text-[46px]"
               />
             )}
-            {b.mismatch && <p className="figures mt-1.5 text-[12.5px] text-amber">≠ {mismatchNote(b)}</p>}
+            {b.mismatch && <p className="figures mt-1.5 text-[12.5px] text-warning">≠ {mismatchNote(b)}</p>}
             {b.bankBalanceIsFallback && <p className="mt-1 text-[12.5px] text-ink-3">Estimated by the bank</p>}
           </div>
         </div>
-        <dl className={`grid grid-cols-1 rounded-b-xl border-t border-rule ${STRIP} sm:grid-cols-3`}>
-          <Fact label={reach.label}>{reach.value === null ? '—' : formatMoney(reach.value, b.currency)}</Fact>
-          <Fact label="Pending">{formatMoney(owedSign(b, b.pendingBalance), b.currency)}</Fact>
+        <dl className={`grid grid-cols-1 rounded-b-xl border-t border-line ${STRIP} sm:grid-cols-3`}>
+          <Fact label={reach.label}>{reach.value === null ? '—' : <span className="amt">{formatMoney(reach.value, b.currency)}</span>}</Fact>
+          <Fact label="Pending"><span className="amt">{formatMoney(owedSign(b, b.pendingBalance), b.currency)}</span></Fact>
           <Fact label="Last synced">
             {b.lastSyncedAt ? (
               <>
@@ -487,7 +487,7 @@ function AccountDetail({ account: b, onBack }: { account: AccountBalance; onBack
             <Loading label="Loading transactions" rows={6} />
           </div>
         ) : tx.data.length === 0 ? (
-          <div className="border-t border-rule px-5 pb-2">
+          <div className="border-t border-line px-5 pb-2">
             <Empty title="This bank reports a balance only — no transactions imported." />
           </div>
         ) : (
@@ -497,7 +497,7 @@ function AccountDetail({ account: b, onBack }: { account: AccountBalance; onBack
               <button
                 type="button"
                 onClick={() => setShowAll(true)}
-                className="figures w-full border-t border-rule px-5 py-3 text-[13px] font-medium text-ink-2 transition-colors hover:bg-paper-sunk/40 hover:text-ink"
+                className="figures w-full border-t border-line px-5 py-3 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface-2/40 hover:text-ink"
               >
                 Show all {tx.data.length} transactions
               </button>
@@ -511,7 +511,7 @@ function AccountDetail({ account: b, onBack }: { account: AccountBalance; onBack
 
 function Fact({ label, children }: { label: string; children: ReactNode }) {
   return (
-    <div className="border-t border-rule px-[22px] py-[13px] first:border-t-0 sm:border-t-0 sm:border-l sm:first:border-l-0">
+    <div className="border-t border-line px-[22px] py-[13px] first:border-t-0 sm:border-t-0 sm:border-l sm:first:border-l-0">
       <dt className="text-[12px] text-ink-3">{label}</dt>
       <dd className="figures flex items-center gap-[7px] text-[15px] font-medium text-ink">{children}</dd>
     </div>
@@ -519,7 +519,7 @@ function Fact({ label, children }: { label: string; children: ReactNode }) {
 }
 
 function TransactionTable({ rows }: { rows: LedgerRow[] }) {
-  const th = `border-y border-rule ${STRIP} px-5 py-2.5 text-[12px] font-medium text-ink-3`
+  const th = `border-y border-line ${STRIP} px-5 py-2.5 text-[12px] font-medium text-ink-3`
   return (
     <table className="w-full border-collapse text-[13.5px]">
       <thead>
@@ -542,12 +542,12 @@ function TransactionTable({ rows }: { rows: LedgerRow[] }) {
         {rows.map((r) => (
           <tr
             key={r.posting.id ?? `${r.id}:${r.posting.accountId}`}
-            className="border-b border-rule transition-colors last:border-b-0 hover:bg-paper-sunk/40"
+            className="border-b border-line transition-colors last:border-b-0 hover:bg-surface-2/40"
           >
             <td className="px-5 py-[11px] align-top whitespace-nowrap text-ink-3">{formatLedgerDate(r.date, true)}</td>
             <td className="px-5 py-[11px] align-top font-medium text-ink">
               {r.posting.counterpartyRaw || r.description}
-              {r.status === 'pending' && <span className="ml-2 text-[12px] font-normal text-amber">Pending</span>}
+              {r.status === 'pending' && <span className="ml-2 text-[12px] font-normal text-warning">Pending</span>}
               {!r.countsTowardTotals && <span className={`${TAG} ml-2 inline-block`}>not counted (replaced login)</span>}
               <p className="mt-0.5 text-[12px] font-normal text-ink-3 md:hidden">{r.category?.label ?? 'Uncategorized'}</p>
             </td>
@@ -555,7 +555,7 @@ function TransactionTable({ rows }: { rows: LedgerRow[] }) {
               {r.category?.label ? (
                 <span className="text-ink-2">{r.category.label}</span>
               ) : (
-                <span className="inline-block rounded-md border border-dashed border-rule-strong px-2 text-[12px] leading-5 text-ink-3">
+                <span className="inline-block rounded-md border border-dashed border-line-strong px-2 text-[12px] leading-5 text-ink-3">
                   Uncategorized
                 </span>
               )}

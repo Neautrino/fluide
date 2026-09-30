@@ -213,8 +213,8 @@ export function Transactions() {
                 <tr
                   key={r.key}
                   onClick={() => setSelectedKey(r.key)}
-                  className={`cursor-pointer border-b border-rule transition-colors hover:bg-paper-sunk/70 ${
-                    r.key === selectedKey ? 'bg-paper-sunk' : ''
+                  className={`cursor-pointer border-b border-line transition-colors hover:bg-surface-2/70 ${
+                    r.key === selectedKey ? 'bg-surface-2' : ''
                   }`}
                 >
                   <td className="figures py-3 pr-4 align-top whitespace-nowrap text-ink-3">{formatLedgerDate(r.date)}</td>
@@ -225,13 +225,13 @@ export function Transactions() {
                         e.stopPropagation()
                         setSelectedKey(r.key)
                       }}
-                      className="text-left text-ink hover:underline hover:decoration-rule-strong hover:underline-offset-4"
+                      className="text-left text-ink hover:underline hover:decoration-line-strong hover:underline-offset-4"
                     >
                       {r.merchant}
                     </button>
-                    {r.status === 'pending' && <span className="ml-2 text-[12px] text-amber">Pending</span>}
+                    {r.status === 'pending' && <span className="ml-2 text-[12px] text-warning">Pending</span>}
                     {!r.countsTowardTotals && (
-                      <span className="ml-2 inline-block rounded-[5px] border border-rule px-1.5 text-[11px] leading-[18px] font-medium text-ink-3">
+                      <span className="ml-2 inline-block rounded-[5px] border border-line px-1.5 text-[11px] leading-[18px] font-medium text-ink-3">
                         not counted (replaced login)
                       </span>
                     )}

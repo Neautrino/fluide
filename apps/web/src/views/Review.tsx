@@ -96,7 +96,7 @@ export function Review() {
               const busy = actingOn === item.id
               const merchant = item.posting?.counterpartyRaw || item.posting?.description || 'Unknown merchant'
               return (
-                <li key={item.id} className="grid grid-cols-1 gap-5 border-b border-rule py-6 md:grid-cols-12 md:gap-8">
+                <li key={item.id} className="grid grid-cols-1 gap-5 border-b border-line py-6 md:grid-cols-12 md:gap-8">
                   <div className="md:col-span-4">
                     <p className="text-[17px] leading-snug text-ink">{merchant}</p>
                     {item.posting && (
@@ -137,7 +137,7 @@ export function Review() {
                       </>
                     )}
                     {item.reason && (
-                      <p className="border-l border-rule-strong pl-3 text-[13px] leading-relaxed text-ink-2">{item.reason}</p>
+                      <p className="border-l border-line-strong pl-3 text-[13px] leading-relaxed text-ink-2">{item.reason}</p>
                     )}
                   </div>
 

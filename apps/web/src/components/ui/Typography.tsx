@@ -14,7 +14,7 @@ export function PageHeader({
   actions?: ReactNode
 }) {
   return (
-    <header className="flex flex-col gap-5 border-b border-ink pb-6 md:flex-row md:items-end md:justify-between">
+    <header className="flex flex-col gap-5 border-b border-line-strong pb-6 md:flex-row md:items-end md:justify-between">
       <div className="max-w-2xl">
         {eyebrow && <p className="eyebrow mb-2">{eyebrow}</p>}
         <h1 className="text-[40px] leading-[1.05] text-ink md:text-[48px]">{title}</h1>
@@ -27,7 +27,7 @@ export function PageHeader({
 
 export function SectionTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
   return (
-    <div className="mb-3 flex items-baseline justify-between gap-4 border-b border-rule pb-2">
+    <div className="mb-3 flex items-baseline justify-between gap-4 border-b border-line pb-2">
       <h2 className="text-[22px] leading-tight text-ink">{children}</h2>
       {aside && <div className="text-[13px] text-ink-3">{aside}</div>}
     </div>
@@ -44,18 +44,18 @@ type MoneyProps = {
 
 export function Money({ amount, currency = 'USD', tone = 'plain', className = '' }: MoneyProps) {
   const n = toNumber(amount)
-  const color = tone === 'flow' && n > 0 ? 'text-green' : ''
+  const color = tone === 'flow' && n > 0 ? 'text-positive' : ''
   return (
-    <span className={`figures whitespace-nowrap ${color} ${className}`}>
+    <span className={`figures amt whitespace-nowrap ${color} ${className}`}>
       {formatMoney(n, currency, tone === 'flow' ? 'always' : 'auto')}
     </span>
   )
 }
 
 const BAND_STYLE: Record<ConfidenceBand, { dot: string; text: string }> = {
-  high: { dot: 'bg-green', text: 'text-green' },
-  medium: { dot: 'bg-amber', text: 'text-amber' },
-  low: { dot: 'bg-red', text: 'text-red' },
+  high: { dot: 'bg-positive', text: 'text-positive' },
+  medium: { dot: 'bg-warning', text: 'text-warning' },
+  low: { dot: 'bg-broken', text: 'text-broken' },
 }
 
 export function Confidence({ band, value }: { band: ConfidenceBand; value: string | number | null }) {

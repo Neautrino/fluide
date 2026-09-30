@@ -18,7 +18,7 @@ const PERIODS: { value: Exclude<Period, 'this_week'>; label: string }[] = [
   { value: 'all_time', label: 'All time' },
 ]
 
-const LINK = 'cursor-pointer underline decoration-rule-strong underline-offset-4 transition-colors hover:text-ink hover:decoration-ink'
+const LINK = 'cursor-pointer underline decoration-line-strong underline-offset-4 transition-colors hover:text-ink hover:decoration-ink'
 
 const today = new Intl.DateTimeFormat(undefined, { weekday: 'long', day: 'numeric', month: 'long', year: 'numeric' })
 
@@ -118,7 +118,7 @@ export function Overview() {
 
 function ConnectFirst({ onConnected }: { onConnected: () => void }) {
   return (
-    <section className="grid grid-cols-1 gap-8 border-y border-rule py-10 md:grid-cols-12">
+    <section className="grid grid-cols-1 gap-8 border-y border-line py-10 md:grid-cols-12">
       <div className="md:col-span-7">
         <p className="eyebrow mb-3">Getting started</p>
         <h2 className="text-[34px] leading-tight text-ink">Connect your first account.</h2>
@@ -131,7 +131,7 @@ function ConnectFirst({ onConnected }: { onConnected: () => void }) {
           <ConnectEuropeanBank variant="secondary" />
         </div>
       </div>
-      <ul className="flex flex-col gap-4 text-sm text-ink-2 md:col-span-5 md:border-l md:border-rule md:pl-8">
+      <ul className="flex flex-col gap-4 text-sm text-ink-2 md:col-span-5 md:border-l md:border-line md:pl-8">
         <li>
           <p className="font-medium text-ink">Read-only by design</p>
           No payments, no transfers — the connection only reads.
@@ -162,7 +162,7 @@ function AccountsLine({ balances, onOpen }: { balances: AccountBalance[]; onOpen
   else if (notCounted === 0) parts.push('all connected')
   if (notCounted > 0) parts.push(`${notCounted} not counted`)
   return (
-    <p className="figures flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-rule py-3 text-[13px] text-ink-2">
+    <p className="figures flex flex-wrap items-baseline justify-between gap-x-4 gap-y-1 border-b border-line py-3 text-[13px] text-ink-2">
       <span>
         {balances.length} account{balances.length === 1 ? '' : 's'}
         {parts.map((part) => (
@@ -215,19 +215,23 @@ function Kpis({
       label: 'Net worth',
       value: <Money amount={totals[currency] ?? 0} currency={currency} />,
       note:
-        `${formatMoney(assets, currency)} assets · ${formatMoney(owed, currency)} owed` +
-        (others.length ? ` · plus ${others.map((c) => formatMoney(totals[c], c)).join(', ')}` : ''),
+        (
+        <>
+          <span className="amt">{formatMoney(assets, currency)}</span> assets · <span className="amt">{formatMoney(owed, currency)}</span> owed
+          {others.length > 0 && <> · plus {others.map((c, i) => <span key={c}>{i > 0 && ', '}<span className="amt">{formatMoney(totals[c], c)}</span></span>)}</>}
+        </>
+      ),
     },
     { label: 'Money in', value: <Money amount={income} currency={currency} />, note: periodLabel },
     {
       label: 'Money out',
       value: <Money amount={expense} currency={currency} />,
       note: periodLabel,
-      detail: debtPayments > 0 ? `incl. ${formatMoney(debtPayments, currency)} debt payments` : undefined,
+      detail: debtPayments > 0 ? <>incl. <span className="amt">{formatMoney(debtPayments, currency)}</span> debt payments</> : undefined,
     },
     {
       label: 'Net',
-      value: <Money amount={net} currency={currency} tone="flow" className={net < 0 ? 'text-red' : ''} />,
+      value: <Money amount={net} currency={currency} tone="flow" className={net < 0 ? 'text-broken' : ''} />,
       note: net >= 0 ? 'more in than out' : 'more out than in',
     },
   ]
@@ -236,12 +240,12 @@ function Kpis({
 
   return (
     <>
-      <dl className="grid grid-cols-2 border-y border-rule lg:grid-cols-4">
+      <dl className="grid grid-cols-2 border-y border-line lg:grid-cols-4">
         {cells.map((c, i) => (
           <div
             key={c.label}
-            className={`flex flex-col gap-2 px-0 py-5 lg:px-6 lg:first:pl-0 ${i % 2 === 1 ? 'border-l border-rule pl-5' : ''} ${
-              i >= 2 ? 'border-t border-rule lg:border-t-0' : ''
+            className={`flex flex-col gap-2 px-0 py-5 lg:px-6 lg:first:pl-0 ${i % 2 === 1 ? 'border-l border-line pl-5' : ''} ${
+              i >= 2 ? 'border-t border-line lg:border-t-0' : ''
             } ${i === 2 ? 'lg:border-l' : ''}`}
           >
             <dt className="eyebrow">{c.label}</dt>
@@ -257,7 +261,7 @@ function Kpis({
           {notCounted.map((n, i) => (
             <span key={n.kind}>
               {i > 0 && ' · '}
-              {`${formatMoney(n.total, currency)} ${NOT_COUNTED_LABEL[n.kind]} (${n.count})`}
+              {<><span className="amt">{formatMoney(n.total, currency)}</span> {NOT_COUNTED_LABEL[n.kind]} ({n.count})</>}
             </span>
           ))}
           {otherCurrencies.map((o, i) => (
@@ -265,9 +269,9 @@ function Kpis({
               {(notCounted.length > 0 || i > 0) && ' · '}
               <button type="button" onClick={() => onCurrency(o.currency)} title={`Switch the page to ${o.currency}`} className={LINK}>
                 Other currency ({o.currency}){' '}
-                {[o.moneyIn > 0 && `${formatMoney(o.moneyIn, o.currency)} in`, o.moneyOut > 0 && `${formatMoney(o.moneyOut, o.currency)} out`]
-                  .filter(Boolean)
-                  .join(', ')}{' '}
+                {o.moneyIn > 0 && <><span className="amt">{formatMoney(o.moneyIn, o.currency)}</span> in</>}
+                {o.moneyIn > 0 && o.moneyOut > 0 && ', '}
+                {o.moneyOut > 0 && <><span className="amt">{formatMoney(o.moneyOut, o.currency)}</span> out</>}{' '}
                 ({o.count})
               </button>
             </span>
@@ -296,14 +300,14 @@ function CategoryBars({ summary }: { summary: Summary }) {
   return (
     <ul className="flex flex-col">
       {rows.map((r) => (
-        <li key={r.category} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1.5 border-b border-rule py-3">
+        <li key={r.category} className="grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-x-4 gap-y-1.5 border-b border-line py-3">
           <span className="truncate text-[14px] text-ink">{r.category}</span>
           <span className="flex items-baseline gap-3">
             {spent > 0 && <span className="figures text-[12px] text-ink-3">{Math.round((r.total / spent) * 100)}%</span>}
             <Money amount={r.total} currency={currency} className="text-[14px]" />
           </span>
-          <span aria-hidden className="col-span-2 block h-1 bg-paper-sunk">
-            <span className="block h-full bg-green" style={{ width: `${(r.total / max) * 100}%` }} />
+          <span aria-hidden className="col-span-2 block h-1 bg-surface-2">
+            <span className="block h-full bg-positive" style={{ width: `${(r.total / max) * 100}%` }} />
           </span>
         </li>
       ))}
@@ -326,7 +330,7 @@ function Merchants({ summary }: { summary: Summary }) {
       </thead>
       <tbody>
         {rows.map((m, i) => (
-          <tr key={m.merchant} className="border-b border-rule">
+          <tr key={m.merchant} className="border-b border-line">
             <td className="py-3 pr-4 text-ink">
               <span className="figures mr-3 inline-block w-5 text-[12px] text-ink-3">{i + 1}</span>
               {m.merchant}

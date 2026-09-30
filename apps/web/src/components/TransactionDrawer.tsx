@@ -54,14 +54,14 @@ export function TransactionDrawer({ row, onClose }: { row: DrawerRow; onClose: (
           </p>
         </div>
 
-        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 border-t border-rule text-[14px]">
+        <dl className="grid grid-cols-[auto_minmax(0,1fr)] gap-x-6 border-t border-line text-[14px]">
           {facts.map(([k, v]) => (
-            <div key={k} className="col-span-2 grid grid-cols-subgrid border-b border-rule py-2.5">
+            <div key={k} className="col-span-2 grid grid-cols-subgrid border-b border-line py-2.5">
               <dt className="text-ink-3">{k}</dt>
               <dd className="text-right text-ink">{v}</dd>
             </div>
           ))}
-          <div className="col-span-2 grid grid-cols-subgrid border-b border-rule py-2.5">
+          <div className="col-span-2 grid grid-cols-subgrid border-b border-line py-2.5">
             <dt className="text-ink-3">Posting</dt>
             <dd className="truncate text-right font-mono text-[12px] text-ink-3" title={postingId}>
               {postingId ?? '—'}
@@ -97,13 +97,13 @@ export function TransactionDrawer({ row, onClose }: { row: DrawerRow; onClose: (
               Nothing has categorized this posting. Run categorization or choose a category above.
             </Empty>
           ) : (
-            <ol className="relative flex flex-col gap-5 border-l border-rule-strong pl-5">
+            <ol className="relative flex flex-col gap-5 border-l border-line-strong pl-5">
               {audit.data.map((e) => (
                 <li key={e.id} className="relative">
                   <span
                     aria-hidden
-                    className={`absolute top-[7px] -left-[25.5px] size-2.5 rounded-full ring-4 ring-paper-raised ${
-                      e.actor === 'human' ? 'bg-ink' : 'bg-green'
+                    className={`absolute top-[7px] -left-[25.5px] size-2.5 rounded-full ring-4 ring-surface ${
+                      e.actor === 'human' ? 'bg-ink' : 'bg-positive'
                     }`}
                   />
                   <p className="text-[14px] font-medium text-ink">

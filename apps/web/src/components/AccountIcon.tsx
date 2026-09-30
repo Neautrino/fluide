@@ -46,11 +46,11 @@ const PATHS: Record<Glyph, ReactNode> = {
 }
 
 const STYLE = {
-  cash: { tint: 'bg-green-wash text-green', glyph: 'bank' },
-  credit: { tint: 'bg-paper-sunk text-ink-2', glyph: 'card' },
-  loan: { tint: 'bg-amber-wash text-amber', glyph: 'doc' },
-  investment: { tint: 'bg-green-wash/55 text-green-deep', glyph: 'trend' },
-  other: { tint: 'bg-paper-sunk text-ink-3', glyph: 'circle' },
+  cash: { tint: 'bg-positive-wash text-positive', glyph: 'bank' },
+  credit: { tint: 'bg-surface-2 text-ink-2', glyph: 'card' },
+  loan: { tint: 'bg-warning-wash text-warning', glyph: 'doc' },
+  investment: { tint: 'bg-positive-wash/55 text-positive', glyph: 'trend' },
+  other: { tint: 'bg-surface-2 text-ink-3', glyph: 'circle' },
 } as const satisfies Record<string, { tint: string; glyph: Glyph }>
 
 /** Tinted square with a line glyph for the account's kind; mortgages and home-equity loans get a house. */

@@ -7,8 +7,8 @@
   --cf-ink2: #45433d;
   --cf-ink3: #67635a;
   --cf-line: #7c766b;
-  --cf-rule: #ddd6c8;
-  --cf-rule2: #bdb3a0;
+  --cf-line: #ddd6c8;
+  --cf-line2: #bdb3a0;
   --cf-accent: #1d5a42;
   --cf-accent2: #143f2e;
   --cf-on-accent: #fbfaf6;
@@ -200,7 +200,7 @@
 }
 .cashflow .cf-sktable th {
   padding: 8px 0;
-  border-bottom: 1px solid var(--cf-rule);
+  border-bottom: 1px solid var(--cf-line);
   font-size: 11px;
   font-weight: 500;
   letter-spacing: 0.1em;
@@ -210,7 +210,7 @@
 }
 .cashflow .cf-sktable td {
   height: 36px;
-  border-bottom: 1px solid var(--cf-rule);
+  border-bottom: 1px solid var(--cf-line);
   font-size: 13px;
   color: var(--cf-ink2);
 }
@@ -260,7 +260,7 @@
   min-width: 172px;
   max-width: 280px;
   padding: 10px 12px;
-  border: 1px solid var(--cf-rule);
+  border: 1px solid var(--cf-line);
   border-radius: 8px;
   background: var(--cf-surface);
   box-shadow: var(--cf-shadow);
@@ -296,7 +296,7 @@
 .cashflow .cf-tip .tr.tot {
   margin-top: 4px;
   padding-top: 4px;
-  border-top: 1px solid var(--cf-rule);
+  border-top: 1px solid var(--cf-line);
   font-weight: 600;
 }
 .cashflow .cf-tip .note {

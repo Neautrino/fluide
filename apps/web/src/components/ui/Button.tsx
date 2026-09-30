@@ -5,12 +5,12 @@ type Size = 'sm' | 'md'
 
 const VARIANT: Record<Variant, string> = {
   primary:
-    'bg-green text-paper-raised border border-green hover:bg-green-deep hover:border-green-deep active:translate-y-px disabled:bg-paper-sunk disabled:border-rule disabled:text-ink-3',
+    'bg-surface-inverse text-ink-inverse border border-surface-inverse hover:opacity-90 active:translate-y-px disabled:bg-surface-2 disabled:border-line disabled:text-ink-3',
   secondary:
-    'bg-paper-raised text-ink border border-rule-strong hover:border-ink-3 hover:bg-paper active:bg-paper-sunk disabled:text-ink-3 disabled:border-rule disabled:bg-paper',
-  ghost: 'text-ink-2 border border-transparent hover:text-ink hover:bg-paper-sunk active:bg-rule/60 disabled:text-ink-3',
+    'bg-surface text-ink border border-line-strong hover:border-ink-3 hover:bg-canvas active:bg-surface-2 disabled:text-ink-3 disabled:border-line disabled:bg-canvas',
+  ghost: 'text-ink-2 border border-transparent hover:text-ink hover:bg-surface-2 active:bg-line/60 disabled:text-ink-3',
   danger:
-    'bg-paper-raised text-red border border-rule-strong hover:border-red hover:bg-red-wash active:bg-red-wash disabled:text-ink-3 disabled:border-rule',
+    'bg-surface text-broken border border-line-strong hover:border-broken hover:bg-broken-wash active:bg-broken-wash disabled:text-ink-3 disabled:border-line',
 }
 
 const SIZE: Record<Size, string> = {
@@ -32,7 +32,7 @@ export function Button({ variant = 'secondary', size = 'md', busy = false, class
       {...rest}
       disabled={disabled || busy}
       aria-busy={busy || undefined}
-      className={`inline-flex shrink-0 items-center justify-center rounded-[3px] font-medium whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed ${VARIANT[variant]} ${SIZE[size]} ${className}`}
+      className={`inline-flex shrink-0 items-center justify-center rounded-full font-medium whitespace-nowrap transition-colors duration-150 disabled:cursor-not-allowed ${VARIANT[variant]} ${SIZE[size]} ${className}`}
     >
       {busy && <Spinner />}
       {children}

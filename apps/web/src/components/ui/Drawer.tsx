@@ -61,14 +61,14 @@ export function Drawer({ title, onClose, children }: Props) {
         aria-modal="true"
         aria-label={title}
         tabIndex={-1}
-        className="relative flex h-full w-full max-w-[480px] animate-drawer flex-col border-l border-rule-strong bg-paper-raised shadow-[-12px_0_32px_-24px_rgba(27,26,23,0.45)] outline-none"
+        className="relative flex h-full w-full max-w-[480px] animate-drawer flex-col border-l border-line-strong bg-surface shadow-2 outline-none"
       >
-        <div className="flex items-center justify-between border-b border-rule px-6 py-3">
+        <div className="flex items-center justify-between border-b border-line px-6 py-3">
           <p className="eyebrow">{title}</p>
           <button
             type="button"
             onClick={onClose}
-            className="-mr-2 inline-flex size-9 items-center justify-center rounded-[3px] text-ink-2 hover:bg-paper-sunk hover:text-ink"
+            className="-mr-2 inline-flex size-9 items-center justify-center rounded-full text-ink-2 hover:bg-surface-2 hover:text-ink"
             aria-label="Close"
           >
             <svg viewBox="0 0 16 16" className="size-4" aria-hidden>

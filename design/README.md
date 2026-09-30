@@ -15,6 +15,6 @@ Fonts (Archivo, Plus Jakarta Sans, Geist Mono) load from Google Fonts, so they n
 - `pages/overview.html`, `transactions.html`, `accounts.html`, `cashflow.html`, `upcoming.html`, `review.html`, `rules.html`, `assistant.html`, `settings.html`: the app page mockups.
 - `OVERVIEW-SPEC.md`: the agreed spec for the Overview page.
 
-## Not yet in the app
+## In the app
 
-`apps/web/src/index.css` still uses the older tokens. Moving the app onto `design/shared/tokens.css` is a separate change.
+`apps/web/src/index.css` carries its own copy of these tokens (fonts bundled via `@fontsource-variable`, no Google Fonts). A token change goes in both files. Pages are being moved onto the design one feature at a time.

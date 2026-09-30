@@ -10,9 +10,9 @@ import { Empty, ErrorState, Loading, Notice } from './ui/States'
 import { SectionTitle } from './ui/Typography'
 
 const STATUS: Record<ConnectionStatus, { label: string; className: string }> = {
-  active: { label: 'Active', className: 'text-green' },
-  reauth_required: { label: 'Needs reconnect', className: 'text-amber' },
-  error: { label: 'Sync failed', className: 'text-red' },
+  active: { label: 'Active', className: 'text-positive' },
+  reauth_required: { label: 'Needs reconnect', className: 'text-warning' },
+  error: { label: 'Sync failed', className: 'text-broken' },
   disconnected: { label: 'Disconnected', className: 'text-ink-3' },
 }
 
@@ -110,7 +110,7 @@ function ConnectionRow({
   }
 
   return (
-    <li className="flex flex-col gap-3 border-b border-rule py-4">
+    <li className="flex flex-col gap-3 border-b border-line py-4">
       <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
         <div className="min-w-0">
           <p className="text-[15px] text-ink">
@@ -130,7 +130,7 @@ function ConnectionRow({
             </p>
           )}
           {missing > 0 && (
-            <p className="mt-1 text-[13px] text-amber">
+            <p className="mt-1 text-[13px] text-warning">
               {missing} account{missing === 1 ? '' : 's'} from your old login {missing === 1 ? 'is' : 'are'} not in this one —{' '}
               {missing === 1 ? 'its' : 'their'} recent history isn't counted
             </p>

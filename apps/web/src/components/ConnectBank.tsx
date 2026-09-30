@@ -90,7 +90,7 @@ export function ConnectBank({ onConnected, variant = 'primary', size, showSandbo
       </Button>
       {duplicate && <DuplicateChoice duplicate={duplicate} onChoose={start} onCancel={() => setDuplicate(null)} />}
       {error && (
-        <p role="alert" className="text-[13px] text-red">
+        <p role="alert" className="text-[13px] text-broken">
           {error}
         </p>
       )}

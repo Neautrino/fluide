@@ -7,8 +7,8 @@ export function Loading({ label = 'Loading…', rows = 3 }: { label?: string; ro
       <span className="sr-only">{label}</span>
       {Array.from({ length: rows }, (_, i) => (
         <div key={i} className="flex items-center justify-between gap-6">
-          <div className="h-3 animate-pulse rounded-sm bg-paper-sunk" style={{ width: `${56 - i * 9}%` }} />
-          <div className="h-3 w-16 animate-pulse rounded-sm bg-paper-sunk" />
+          <div className="h-3 animate-pulse rounded-sm bg-surface-2" style={{ width: `${56 - i * 9}%` }} />
+          <div className="h-3 w-16 animate-pulse rounded-sm bg-surface-2" />
         </div>
       ))}
     </div>
@@ -17,7 +17,7 @@ export function Loading({ label = 'Loading…', rows = 3 }: { label?: string; ro
 
 export function ErrorState({ title, message, onRetry }: { title: string; message: string | null; onRetry?: () => void }) {
   return (
-    <div role="alert" className="flex flex-col items-start gap-3 border-l-2 border-red py-1 pl-4">
+    <div role="alert" className="flex flex-col items-start gap-3 border-l-2 border-broken py-1 pl-4">
       <div>
         <p className="text-sm font-medium text-ink">{title}</p>
         {message && <p className="mt-0.5 text-[13px] text-ink-3">{message}</p>}
@@ -43,16 +43,16 @@ export function Empty({ title, children }: { title: string; children?: ReactNode
 type Tone = 'success' | 'info' | 'error'
 
 const TONE: Record<Tone, string> = {
-  success: 'border-green bg-green-wash text-green-deep',
-  info: 'border-rule-strong bg-paper-sunk text-ink-2',
-  error: 'border-red bg-red-wash text-red',
+  success: 'border-positive bg-positive-wash text-positive',
+  info: 'border-line-strong bg-surface-2 text-ink-2',
+  error: 'border-broken bg-broken-wash text-broken',
 }
 
 export function Notice({ tone = 'info', children }: { tone?: Tone; children: ReactNode }) {
   return (
     <div
       role={tone === 'error' ? 'alert' : 'status'}
-      className={`rounded-[3px] border-l-2 px-3 py-2 text-[13px] leading-relaxed ${TONE[tone]}`}
+      className={`rounded-sm border-l-2 px-3 py-2 text-[13px] leading-relaxed ${TONE[tone]}`}
     >
       {children}
     </div>

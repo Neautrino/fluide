@@ -29,7 +29,7 @@ export function PossibleTransfers({ currency, count, total, load, loadKey, hidde
     <div className="pt-2">
       <div className="figures flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-3">
         <p>
-          Possible transfers: {hidden ? MASK : formatMoney(total, currency)} ({count}) — counted until you check them
+          Possible transfers: {hidden ? MASK : <span className="amt">{formatMoney(total, currency)}</span>} ({count}) — counted until you check them
         </p>
         <Button
           variant="ghost"
@@ -88,7 +88,7 @@ function PossibleTransferList({
   return (
     <div id={id} className="mt-3 max-w-3xl">
       {error && (
-        <p role="alert" className="pb-2 text-[13px] text-red">
+        <p role="alert" className="pb-2 text-[13px] text-broken">
           {error}
         </p>
       )}
@@ -96,11 +96,11 @@ function PossibleTransferList({
         rows.length === 0 ? (
           <p className="py-3 text-[13px] text-ink-3">Nothing left to check for this period.</p>
         ) : (
-          <ul className="border-t border-rule">
+          <ul className="border-t border-line">
             {rows.map((r) => {
               const busy = pending.has(r.transactionId)
               return (
-                <li key={r.transactionId} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-rule py-3">
+                <li key={r.transactionId} className="flex flex-wrap items-center gap-x-4 gap-y-2 border-b border-line py-3">
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-[14px] text-ink">{r.description}</p>
                     <p className="figures mt-0.5 text-[12px] text-ink-3">

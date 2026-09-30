@@ -191,7 +191,7 @@ function GateForm({ initial }: { initial: GateSettings }) {
           )
         })}
 
-        <div className="flex flex-col gap-3 border-t border-rule pt-5">
+        <div className="flex flex-col gap-3 border-t border-line pt-5">
           {serverError && <Notice tone="error">The server rejected these settings: {serverError}</Notice>}
           {justSaved && <Notice tone="success">Saved. The next categorization run uses these thresholds.</Notice>}
           <div className="flex flex-wrap gap-2">
@@ -226,13 +226,13 @@ function GateDiagram({ low, high }: { low: number; high: number }) {
   const l = ok ? low * 100 : 50
   const h = ok ? high * 100 : 75
   const bands = [
-    { label: 'No suggestion', width: l, className: 'bg-red-wash text-red' },
-    { label: 'Review', width: h - l, className: 'bg-amber-wash text-amber' },
-    { label: 'May auto-apply', width: 100 - h, className: 'bg-green-wash text-green-deep' },
+    { label: 'No suggestion', width: l, className: 'bg-broken-wash text-broken' },
+    { label: 'Review', width: h - l, className: 'bg-warning-wash text-warning' },
+    { label: 'May auto-apply', width: 100 - h, className: 'bg-positive-wash text-positive' },
   ]
   return (
     <figure className="pt-2">
-      <div className="flex h-9 overflow-hidden rounded-[2px] border border-rule text-[11px] font-medium" aria-hidden>
+      <div className="flex h-9 overflow-hidden rounded-[2px] border border-line text-[11px] font-medium" aria-hidden>
         {bands.map((b) => (
           <div
             key={b.label}
@@ -309,7 +309,7 @@ function ProviderCredentialsForm({
   }
 
   return (
-    <div className="flex flex-col gap-4 border-t border-rule pt-7">
+    <div className="flex flex-col gap-4 border-t border-line pt-7">
       <SectionTitle
         aside={
           status.data

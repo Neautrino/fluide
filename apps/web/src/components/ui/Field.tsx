@@ -1,7 +1,7 @@
 import type { InputHTMLAttributes, ReactNode, SelectHTMLAttributes } from 'react'
 
 const CONTROL =
-  'h-10 w-full rounded-[3px] border border-rule-strong bg-paper-raised px-3 text-sm text-ink placeholder:text-ink-3 transition-colors hover:border-ink-3 focus-visible:border-green focus-visible:outline-green disabled:cursor-not-allowed disabled:bg-paper disabled:text-ink-3 aria-[invalid=true]:border-red'
+  'h-10 w-full rounded-[3px] border border-line-strong bg-surface px-3 text-sm text-ink placeholder:text-ink-3 transition-colors hover:border-ink-3 focus-visible:border-accent focus-visible:outline-accent disabled:cursor-not-allowed disabled:bg-canvas disabled:text-ink-3 aria-[invalid=true]:border-broken'
 
 export function Input({ className = '', ...rest }: InputHTMLAttributes<HTMLInputElement>) {
   return <input {...rest} className={`${CONTROL} ${className}`} />
@@ -46,7 +46,7 @@ export function Field({ id, label, help, error, children }: FieldProps) {
         </p>
       )}
       {error && (
-        <p id={`${id}-error`} className="text-[13px] font-medium text-red">
+        <p id={`${id}-error`} className="text-[13px] font-medium text-broken">
           {error}
         </p>
       )}
