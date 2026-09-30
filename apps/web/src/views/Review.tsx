@@ -1,15 +1,40 @@
-import { useState } from 'react'
-import { RecategorizeControl } from '../components/RecategorizeControl'
+import { useEffect, useRef, useState } from 'react'
+import { AfterDecide } from '../components/review/AfterDecide'
+import { AtStake } from '../components/review/AtStake'
+import { ConfidenceSplit } from '../components/review/ConfidenceSplit'
+import { useConnections, usePossibleTransfers, usePostingAccounts, useRulePatterns } from '../components/review/data'
+import { Hero } from '../components/review/Hero'
+import { QueueCard } from '../components/review/QueueCard'
+import { atStakeByCurrency, itemAmount, itemName, tilesFor } from '../components/review/helpers'
+import { TransferCard } from '../components/review/TransferCard'
+import { TrustLine } from '../components/review/TrustLine'
+import { Segmented } from '../components/ui/Segmented'
 import { Button } from '../components/ui/Button'
-import { Empty, ErrorState, Loading, Notice } from '../components/ui/States'
-import { Confidence, Money, PageHeader } from '../components/ui/Typography'
-import { errorMessage, getJson, sendJson, type ReviewItem } from '../lib/api'
+import { ErrorState, Loading, Notice } from '../components/ui/States'
+import {
+  decideTransfer,
+  errorMessage,
+  getJson,
+  sendJson,
+  type ConfidenceBand,
+  type GateSettings,
+  type PossibleTransfer,
+  type ReviewItem,
+  type TransferDecision,
+} from '../lib/api'
 import { useApp } from '../lib/app-context'
 import { useCategories } from '../lib/categories'
-import { formatLedgerDate, sourceLabel } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
 type Outcome = { id: string; tone: 'success' | 'error'; text: string; proposedRule: boolean }
+type Filter = 'all' | ConfidenceBand
+type Pending = { key: string; kind: 'approve' | 'reject' | 'file' }
+type Refocus = { id: string; nextId: string | null; heading: 'queue' | 'transfers' }
+
+const nextAfter = (ids: string[], id: string) => {
+  const i = ids.indexOf(id)
+  return ids[i + 1] ?? ids[i - 1] ?? null
+}
 
 export function Review() {
   const { version, invalidate, navigate } = useApp()
@@ -18,165 +43,241 @@ export function Review() {
     (signal) => getJson<{ items: ReviewItem[] }>('/api/assistant/review-queue', signal).then((r) => r.items),
     version,
   )
-  const [actingOn, setActingOn] = useState<string | null>(null)
+  const gate = useResource((signal) => getJson<{ settings: GateSettings }>('/api/assistant/gate', signal).then((r) => r.settings))
+  const transfers = usePossibleTransfers(version)
+  const connections = useConnections()
+  const rulePatterns = useRulePatterns(version)
+  const items = queue.data
+  const accounts = usePostingAccounts(
+    (items ?? []).map((i) => i.postingId),
+    version,
+  )
+
+  const [pending, setPending] = useState<Pending | null>(null)
   const [outcomes, setOutcomes] = useState<Outcome[]>([])
+  const [filter, setFilter] = useState<Filter>('all')
+  const [decided, setDecided] = useState<ReadonlySet<string>>(new Set())
+  const [transferError, setTransferError] = useState<string | null>(null)
+  const wrapRef = useRef<HTMLDivElement>(null)
+  const refocus = useRef<Refocus | null>(null)
+
+  // A disabled button drops focus to <body>; park it on the page while a write is in flight.
+  useEffect(() => {
+    if (pending) wrapRef.current?.focus()
+  }, [pending])
+
+  // Once the lists have refreshed, put focus on what the user was working on: the same card if it
+  // is still there (a failed write), else the next card's first action, else the list heading.
+  useEffect(() => {
+    const r = refocus.current
+    if (!r || pending || queue.loading || transfers.loading) return
+    refocus.current = null
+    const first = (id: string | null) =>
+      id ? document.querySelector<HTMLElement>(`[data-review-id="${id}"] :is(select, button):not(:disabled)`) : null
+    const target = first(r.id) ?? first(r.nextId) ?? document.querySelector<HTMLElement>(`[data-review-heading="${r.heading}"]`)
+    target?.focus()
+  })
 
   const record = (o: Outcome) => setOutcomes((prev) => [o, ...prev.filter((p) => p.id !== o.id)].slice(0, 5))
 
-  const resolve = async (item: ReviewItem, decision: 'approve' | 'reject') => {
-    setActingOn(item.id)
-    const who = item.posting?.counterpartyRaw || item.posting?.description || 'Item'
+  const act = async (p: Pending, focus: Refocus, fn: () => Promise<void>) => {
+    refocus.current = focus
+    setPending(p)
     try {
-      if (decision === 'approve') {
-        const res = await sendJson<{ approved: string; proposedRuleId: string | null }>(
-          'POST',
-          `/api/assistant/review-queue/${item.id}/approve`,
-        )
-        record({ id: item.id, tone: 'success', text: `${who}: suggestion approved.`, proposedRule: !!res.proposedRuleId })
-      } else {
-        await sendJson('POST', `/api/assistant/review-queue/${item.id}/reject`)
-        record({ id: item.id, tone: 'success', text: `${who}: suggestion rejected — it stays uncategorized.`, proposedRule: false })
-      }
-      invalidate()
-    } catch (e) {
-      record({ id: item.id, tone: 'error', text: `${who}: ${errorMessage(e)}`, proposedRule: false })
-      queue.reload()
+      await fn()
     } finally {
-      setActingOn(null)
+      setPending(null)
     }
   }
 
-  const items = queue.data
+  const gateBounds = gate.data ? { high: gate.data.highConfidence, low: gate.data.lowConfidence } : null
+  const list = items ?? []
+  const currencyOrder = [...new Set(list.map((i) => i.posting?.currency ?? ''))]
+  const visible = list
+    .filter((i) => filter === 'all' || i.confidenceBand === filter)
+    .sort(
+      (a, b) =>
+        currencyOrder.indexOf(a.posting?.currency ?? '') - currencyOrder.indexOf(b.posting?.currency ?? '') ||
+        Math.abs(itemAmount(b)) - Math.abs(itemAmount(a)),
+    )
+  const transferGroups = (transfers.data ?? [])
+    .map((g) => ({ ...g, rows: g.rows.filter((r) => !decided.has(r.transactionId)) }))
+    .filter((g) => g.rows.length > 0)
+
+  const queueFocus = (item: ReviewItem): Refocus => ({
+    id: item.id,
+    nextId: nextAfter(visible.map((i) => i.id), item.id),
+    heading: 'queue',
+  })
+
+  const transferFocus = (row: PossibleTransfer): Refocus => ({
+    id: row.transactionId,
+    nextId: nextAfter(transferGroups.flatMap((g) => g.rows.map((r) => r.transactionId)), row.transactionId),
+    heading: 'transfers',
+  })
+
+  const categoryLabel = (id: string | null) => (id ? categories.data?.byId[id]?.label : undefined) ?? 'the suggested category'
+
+  const resolve = (item: ReviewItem, kind: 'approve' | 'reject') =>
+    act({ key: item.id, kind }, queueFocus(item), async () => {
+      const who = itemName(item)
+      try {
+        if (kind === 'approve') {
+          const res = await sendJson<{ approved: string; proposedRuleId: string | null }>(
+            'POST',
+            `/api/assistant/review-queue/${item.id}/approve`,
+          )
+          record({
+            id: item.id,
+            tone: 'success',
+            text: `${who}: filed under ${categoryLabel(item.suggestedCategoryId)}.`,
+            proposedRule: !!res.proposedRuleId,
+          })
+        } else {
+          await sendJson('POST', `/api/assistant/review-queue/${item.id}/reject`)
+          record({ id: item.id, tone: 'success', text: `${who}: rejected — it stays uncategorized and counted.`, proposedRule: false })
+        }
+      } catch (e) {
+        record({ id: item.id, tone: 'error', text: `${who}: ${errorMessage(e)}`, proposedRule: false })
+      }
+      invalidate()
+    })
+
+  const file = (item: ReviewItem, categoryId: string) =>
+    act({ key: item.id, kind: 'file' }, queueFocus(item), async () => {
+      const who = itemName(item)
+      try {
+        const res = await sendJson<{ proposedRuleId: string | null }>('POST', `/api/ledger/postings/${item.postingId}/category`, {
+          categoryId,
+        })
+        record({ id: item.id, tone: 'success', text: `${who}: filed under ${categoryLabel(categoryId)}.`, proposedRule: !!res.proposedRuleId })
+        invalidate()
+      } catch (e) {
+        record({ id: item.id, tone: 'error', text: `${who}: ${errorMessage(e)}`, proposedRule: false })
+      }
+    })
+
+  const decide = (row: PossibleTransfer, decision: TransferDecision) =>
+    act({ key: `transfer:${row.transactionId}:${decision}`, kind: 'file' }, transferFocus(row), async () => {
+      setTransferError(null)
+      try {
+        await decideTransfer(row.transactionId, decision)
+        setDecided((prev) => new Set(prev).add(row.transactionId))
+        invalidate()
+      } catch (e) {
+        setTransferError(errorMessage(e))
+        invalidate()
+      }
+    })
+
+  if (!items && !queue.error) return <Loading label="Loading review queue" rows={4} />
+
+  const counts: Record<ConfidenceBand, number> = { high: 0, medium: 0, low: 0 }
+  for (const i of list) counts[i.confidenceBand] += 1
+
+  const stake = atStakeByCurrency(list)
+  const tiles = items ? tilesFor(items, accounts.data) : null
 
   return (
-    <div className="flex flex-col gap-8">
-      <PageHeader
-        eyebrow="Categorization"
-        lede="Suggestions the confidence gate wasn't sure enough to apply on its own. Nothing here touches the ledger until you decide."
-      />
-
-      {outcomes.length > 0 && (
-        <div className="flex flex-col gap-2" aria-live="polite">
-          {outcomes.map((o) => (
-            <Notice key={o.id} tone={o.tone}>
-              {o.text}
-              {o.proposedRule && (
-                <>
-                  {' '}
-                  Rule proposed —{' '}
-                  <button type="button" className="font-medium underline underline-offset-2" onClick={() => navigate('rules')}>
-                    review it under Rules
-                  </button>
-                  .
-                </>
-              )}
-            </Notice>
-          ))}
+    <div ref={wrapRef} tabIndex={-1} className="flex flex-col gap-6 outline-none">
+      {items && items.length > 0 && <Hero count={items.length} stake={stake} high={gateBounds?.high ?? null} />}
+      {items && <TrustLine count={items.length} stake={stake} transfers={transferGroups} connections={connections.data} />}
+      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-x-[26px]">
+        <div className="flex min-w-0 flex-col gap-4">
+          {outcomes.length > 0 && (
+            <div className="flex flex-col gap-2" aria-live="polite">
+              {outcomes.map((o) => (
+                <Notice key={o.id} tone={o.tone}>
+                  {o.text}
+                  {o.proposedRule && (
+                    <>
+                      {' '}
+                      Rule proposed —{' '}
+                      <button type="button" className="font-medium underline underline-offset-2" onClick={() => navigate('rules')}>
+                        review it under Rules
+                      </button>
+                      .
+                    </>
+                  )}
+                </Notice>
+              ))}
+            </div>
+          )}
+          {categories.error && <Notice tone="error">Categories unavailable: {categories.error}</Notice>}
+          {!items ? (
+            <ErrorState title="Couldn't load the review queue" message={queue.error} onRetry={queue.reload} />
+          ) : items.length === 0 ? (
+            <div className="rounded-lg border border-line bg-surface px-6 py-8 shadow-1">
+              <p tabIndex={-1} data-review-heading="queue" className="font-display text-xl font-bold text-ink outline-none">
+                Nothing waiting for review
+              </p>
+              <p className="mt-1 max-w-prose text-sm text-ink-3">
+                New suggestions appear after you run categorization on Transactions. Anything the model auto-applies never lands
+                here.
+              </p>
+              <div className="mt-4">
+                <Button size="sm" onClick={() => navigate('transactions')}>
+                  Open Transactions
+                </Button>
+              </div>
+            </div>
+          ) : (
+            <>
+              <ConfidenceSplit counts={counts} bounds={gateBounds} minVendor={gate.data?.minVendorOccurrences ?? null} />
+              <div className="flex flex-wrap items-center justify-between gap-3">
+                <h2
+                  tabIndex={-1}
+                  data-review-heading="queue"
+                  className="font-display text-[17px] font-bold text-ink outline-none"
+                >
+                  Waiting <span className="font-normal text-ink-3">· largest amount first</span>
+                </h2>
+                <Segmented<Filter>
+                  label="Filter by confidence"
+                  value={filter}
+                  onChange={setFilter}
+                  options={[
+                    { value: 'all', label: `All ${items.length}` },
+                    { value: 'high', label: `High ${counts.high}` },
+                    { value: 'medium', label: `Medium ${counts.medium}` },
+                    { value: 'low', label: `Low ${counts.low}` },
+                  ]}
+                />
+              </div>
+              {visible.length === 0 && <p className="text-sm text-ink-3">Nothing in this band.</p>}
+              <div className="flex flex-col gap-3">
+                {visible.map((item) => (
+                  <QueueCard
+                    key={item.id}
+                    item={item}
+                    catalogue={categories.data}
+                    catalogueFailed={!!categories.error}
+                    threshold={gateBounds?.high ?? null}
+                    account={accounts.data?.get(item.postingId)?.name}
+                    ruleExists={!!item.posting?.counterpartyRaw && !!rulePatterns.data?.has(item.posting.counterpartyRaw.toLowerCase())}
+                    disabled={pending !== null}
+                    pendingKind={pending?.key === item.id ? pending.kind : null}
+                    onApprove={() => resolve(item, 'approve')}
+                    onReject={() => resolve(item, 'reject')}
+                    onFile={(id) => file(item, id)}
+                  />
+                ))}
+              </div>
+            </>
+          )}
         </div>
-      )}
-
-      {queue.error ? (
-        <ErrorState title="Couldn't load the review queue" message={queue.error} onRetry={queue.reload} />
-      ) : !items ? (
-        <Loading label="Loading review queue" rows={4} />
-      ) : items.length === 0 ? (
-        <Empty title="Nothing to review.">
-          Every suggestion either applied automatically or has been decided. Run categorization from Transactions to
-          process new postings.
-        </Empty>
-      ) : (
-        <>
-          <p className="figures -mb-4 text-[13px] text-ink-3">
-            {items.length} pending {items.length === 1 ? 'item' : 'items'}
-          </p>
-          <ul className="border-t border-ink">
-            {items.map((item) => {
-              const suggestion = item.suggestedCategoryId ? categories.data?.byId[item.suggestedCategoryId] : undefined
-              const busy = actingOn === item.id
-              const merchant = item.posting?.counterpartyRaw || item.posting?.description || 'Unknown merchant'
-              return (
-                <li key={item.id} className="grid grid-cols-1 gap-5 border-b border-line py-6 md:grid-cols-12 md:gap-8">
-                  <div className="md:col-span-4">
-                    <p className="text-[17px] leading-snug text-ink">{merchant}</p>
-                    {item.posting && (
-                      <p className="mt-1 flex items-baseline gap-3 text-[13px] text-ink-3">
-                        <Money
-                          amount={item.posting.amount}
-                          currency={item.posting.currency}
-                          tone="flow"
-                          className="font-display text-[20px] text-ink"
-                        />
-                        <span className="figures">{formatLedgerDate(item.posting.date)}</span>
-                      </p>
-                    )}
-                    {item.posting?.description && item.posting.description !== merchant && (
-                      <p className="mt-1 truncate text-[12px] text-ink-3">{item.posting.description}</p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2 md:col-span-5">
-                    {item.suggestedCategoryId ? (
-                      <>
-                        <p className="text-[13px] text-ink-3">
-                          Suggested by {sourceLabel(item.source)}
-                        </p>
-                        <p className="font-display text-[22px] leading-tight text-ink">
-                          {suggestion?.label ?? (categories.error ? 'Unknown category' : '…')}
-                        </p>
-                        <Confidence band={item.confidenceBand} value={item.confidence} />
-                      </>
-                    ) : (
-                      <>
-                        <p className="font-display text-[20px] leading-tight text-ink">No suggestion</p>
-                        <p className="text-[13px] text-ink-3">
-                          {sourceLabel(item.source)}'s confidence was below the threshold for suggesting anything.
-                          Choose the category yourself.
-                        </p>
-                        <Confidence band={item.confidenceBand} value={item.confidence} />
-                      </>
-                    )}
-                    {item.reason && (
-                      <p className="border-l border-line-strong pl-3 text-[13px] leading-relaxed text-ink-2">{item.reason}</p>
-                    )}
-                  </div>
-
-                  <div className="flex flex-col gap-2 md:col-span-3 md:items-end">
-                    {item.suggestedCategoryId ? (
-                      <div className="flex gap-2">
-                        <Button variant="primary" busy={busy} onClick={() => resolve(item, 'approve')}>
-                          Approve
-                        </Button>
-                        <Button disabled={busy} onClick={() => resolve(item, 'reject')}>
-                          Reject
-                        </Button>
-                      </div>
-                    ) : (
-                      <div className="flex w-full flex-col gap-2">
-                        <RecategorizeControl
-                          postingId={item.postingId}
-                          submitLabel="Apply category"
-                          layout="stacked"
-                          onDone={(res) =>
-                            record({
-                              id: item.id,
-                              tone: 'success',
-                              text: `${merchant}: category applied.`,
-                              proposedRule: !!res.proposedRuleId,
-                            })
-                          }
-                        />
-                        <Button variant="ghost" size="sm" disabled={busy} onClick={() => resolve(item, 'reject')} className="self-start md:self-end">
-                          Dismiss without a category
-                        </Button>
-                      </div>
-                    )}
-                  </div>
-                </li>
-              )
-            })}
-          </ul>
-        </>
-      )}
+        <aside className="flex min-w-0 flex-col gap-4">
+          {tiles && <AtStake tiles={tiles} />}
+          <TransferCard
+            groups={transferGroups}
+            disabled={pending !== null}
+            pendingKey={pending?.key ?? null}
+            error={transferError}
+            onDecide={decide}
+          />
+          <AfterDecide />
+        </aside>
+      </div>
     </div>
   )
 }
