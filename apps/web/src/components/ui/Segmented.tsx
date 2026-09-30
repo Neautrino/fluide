@@ -14,7 +14,7 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
     <div
       role="group"
       aria-label={label}
-      className="inline-flex max-w-full overflow-x-auto rounded-md border border-line-strong bg-surface p-0.5"
+      className="inline-flex h-9 max-w-full items-center overflow-x-auto rounded-full border border-line bg-surface-2 p-[3px]"
     >
       {options.map((o) => {
         const active = o.value === value
@@ -24,8 +24,8 @@ export function Segmented<T extends string>({ label, value, options, onChange }:
             type="button"
             aria-pressed={active}
             onClick={() => onChange(o.value)}
-            className={`h-8 shrink-0 rounded-sm px-3 text-[13px] whitespace-nowrap transition-colors ${
-              active ? 'bg-surface-inverse font-medium text-ink-inverse' : 'text-ink-2 hover:bg-surface-2 hover:text-ink'
+            className={`h-7 shrink-0 rounded-full px-[13px] text-[12px] font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent ${
+              active ? 'bg-surface text-ink ring-1 ring-line-strong' : 'text-ink-2 hover:text-ink'
             }`}
           >
             {o.label}

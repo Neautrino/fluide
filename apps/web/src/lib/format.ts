@@ -31,6 +31,20 @@ export function formatMoney(value: number | string, currency = 'USD', sign: 'aut
   return sign === 'always' ? `+${body}` : body
 }
 
+/** `whole` is everything before the decimal separator; `fraction` is the decimal, fraction digits and any trailing literal or currency. */
+export function formatMoneyParts(value: number | string, currency = 'USD', sign: 'auto' | 'always' | 'never' = 'auto'): { whole: string; fraction: string } {
+  const n = toNumber(value)
+  const parts = moneyFormatter(currency).formatToParts(Math.abs(n))
+  const decimalAt = parts.findIndex((p) => p.type === 'decimal')
+  const split = decimalAt === -1 ? parts.length : decimalAt
+  const whole = parts.slice(0, split).map((p) => p.value).join('')
+  const fraction = parts.slice(split).map((p) => p.value).join('')
+
+  if (sign === 'never' || n === 0) return { whole, fraction }
+  if (n < 0) return { whole: MINUS + whole, fraction }
+  return { whole: sign === 'always' ? `+${whole}` : whole, fraction }
+}
+
 const shortDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', timeZone: 'UTC' })
 const longDate = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short', year: 'numeric', timeZone: 'UTC' })
 const dateTime = new Intl.DateTimeFormat(undefined, {

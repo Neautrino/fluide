@@ -18,12 +18,24 @@ export type CallbackOutcome = { ok: true; summary: ConnectedSummary } | { ok: fa
 // bank offers, so allow far more than the default request deadline.
 const SESSION_TIMEOUT_MS = 180_000
 
+/** The bank's address must be https: a `javascript:` or relative URL from the server must never reach location.assign. */
+export function bankRedirectUrl(raw: string): string {
+  let url: URL
+  try {
+    url = new URL(raw)
+  } catch {
+    throw new Error('The server sent an invalid bank address, so Fluide did not open it.')
+  }
+  if (url.protocol !== 'https:') throw new Error('The server sent a bank address that is not https, so Fluide did not open it.')
+  return url.href
+}
+
 export async function startEnableBankingConnect(bank: EnableBankingBank) {
   const { url } = await sendJson<{ url: string }>('POST', '/api/providers/enable-banking/auth', {
     aspspName: bank.name,
     country: bank.country,
   })
-  window.location.assign(url)
+  window.location.assign(bankRedirectUrl(url))
 }
 
 let consumed: Promise<CallbackOutcome> | null = null

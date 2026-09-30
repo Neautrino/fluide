@@ -15,7 +15,7 @@ export function useTheme() {
       }
       try {
         localStorage.setItem('fluide.theme', next)
-      } catch (e) {}
+      } catch {}
       return next
     })
   }, [])
@@ -38,7 +38,7 @@ export function useHiddenAmounts() {
       }
       try {
         localStorage.setItem('fluide.amountsHidden', next ? '1' : '0')
-      } catch (e) {}
+      } catch {}
       return next
     })
   }, [])

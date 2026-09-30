@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { sendJson } from '../lib/api'
-import { useApp } from '../lib/app-context'
+import { useApp, type View } from '../lib/app-context'
 import { useHiddenAmounts, useTheme } from '../lib/prefs'
 import { NAV } from './Sidebar'
 
@@ -19,8 +19,22 @@ function getDaysLeft(date: Date) {
   return `${daysLeft} days left in ${monthName}`
 }
 
+const SUBTITLE: Partial<Record<View, string>> = {
+  transactions: 'every account, one list',
+  accounts: 'what you have and owe',
+  cashflow: 'money in and out',
+  rules: 'categorization',
+  settings: 'connections and categorization',
+  assistant: 'answers from your ledger',
+}
+
+function subtitleFor(view: View, reviewCount: number | null) {
+  if (view === 'review') return reviewCount === null ? 'waiting' : `${reviewCount} waiting`
+  return SUBTITLE[view]
+}
+
 export function Header() {
-  const { view, invalidate, ask } = useApp()
+  const { view, invalidate, ask, reviewCount } = useApp()
   const { hiddenAmounts, toggleHiddenAmounts } = useHiddenAmounts()
   const { theme, toggleTheme } = useTheme()
   const [syncing, setSyncing] = useState(false)
@@ -28,8 +42,10 @@ export function Header() {
   
   const title = NAV.find((n) => n.view === view)?.label || 'Overview'
   const date = new Date()
-  const greeting = getGreeting(date)
-  const daysLeft = getDaysLeft(date)
+
+  const dateStr = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(date)
+  const subtitle = subtitleFor(view, reviewCount)
+  const topLine = subtitle ? `${dateStr} · ${subtitle}` : `${getGreeting(date)} · ${getDaysLeft(date)}`
 
   const handleSync = async () => {
     if (syncing) return
@@ -38,7 +54,7 @@ export function Header() {
     try {
       await sendJson('POST', '/api/providers/sync', undefined, 120_000)
       invalidate()
-    } catch (e) {
+    } catch {
       setSyncError('Sync failed')
     } finally {
       setSyncing(false)
@@ -70,7 +86,7 @@ export function Header() {
     <header className="flex items-center gap-4 pt-[26px]">
       <div>
         <small className="mb-[3px] block text-[13px] text-ink-2">
-          {greeting} · {daysLeft}
+          {topLine}
         </small>
         <h1 className="whitespace-nowrap font-display text-[23px] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">
           {title}
