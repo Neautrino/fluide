@@ -53,19 +53,41 @@ const STYLE = {
   other: { tint: 'bg-surface-2 text-ink-3', glyph: 'circle' },
 } as const satisfies Record<string, { tint: string; glyph: Glyph }>
 
+const MARK_TILES = ['bg-tile-1', 'bg-tile-2', 'bg-tile-3', 'bg-tile-4']
+
+function initials(label: string): string {
+  const words = label.replace(/\([^)]*\)/g, '').split(/\s+/).filter(Boolean)
+  const letters = words.length > 1 ? words[0][0] + words[1][0] : (words[0] ?? '').slice(0, 2)
+  return letters.toUpperCase()
+}
+
 /** Tinted square with a line glyph for the account's kind; mortgages and home-equity loans get a house. */
 export function AccountIcon({
   kind,
   subtype = null,
   size = 'sm',
+  label = null,
 }: {
   kind: AccountKind | null
   subtype?: string | null
   size?: 'sm' | 'lg'
+  /** The small mark shows these initials (the institution) on a tile colour instead of a kind glyph. */
+  label?: string | null
 }) {
+  if (size === 'sm' && label) {
+    const tile = MARK_TILES[[...label].reduce((sum, ch) => sum + ch.charCodeAt(0), 0) % MARK_TILES.length]
+    return (
+      <span
+        aria-hidden
+        className={`grid size-[34px] shrink-0 place-items-center rounded-full border border-line-strong font-display text-[10.5px] font-extrabold tracking-[0.02em] text-tile-ink ${tile}`}
+      >
+        {initials(label)}
+      </span>
+    )
+  }
   const style = STYLE[kind === 'cash' || kind === 'credit' || kind === 'loan' || kind === 'investment' ? kind : 'other']
   const glyph = kind === 'loan' && subtype && /mortgage|home/i.test(subtype) ? 'house' : style.glyph
-  const box = size === 'lg' ? 'size-11 rounded-[11px]' : 'size-[30px] rounded-lg'
+  const box = size === 'lg' ? 'size-11 rounded-[11px]' : 'size-[34px] rounded-full'
   const icon = size === 'lg' ? 'size-[22px]' : 'size-4'
   return (
     <span aria-hidden className={`grid shrink-0 place-items-center ${box} ${style.tint}`}>

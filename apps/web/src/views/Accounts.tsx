@@ -1,98 +1,44 @@
-import { useState, type ReactNode } from 'react'
+import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AccountIcon } from '../components/AccountIcon'
+import { BalanceSheet } from '../components/accounts/BalanceSheet'
+import { DataAge } from '../components/accounts/DataAge'
+import { NeedsYou } from '../components/accounts/NeedsYou'
+import { NetWorthCard } from '../components/accounts/NetWorthCard'
+import { OweCard } from '../components/accounts/OweCard'
+import { balanceLabel, balanceText, CARD, displayBalance, identity, isDebt, isLive, TAG, totalsByCurrency } from '../components/accounts/model'
+import { MismatchNote } from '../components/accounts/shared'
 import { ConnectBank } from '../components/ConnectBank'
 import { ConnectEuropeanBank } from '../components/ConnectEuropeanBank'
 import { Empty, ErrorState, Loading } from '../components/ui/States'
-import { Money, PageHeader } from '../components/ui/Typography'
-import { getJson, type AccountBalance, type AccountKind, type ConnectionStatus, type LedgerRow } from '../lib/api'
+import { Money } from '../components/ui/Typography'
+import { getJson, type AccountBalance, type ConnectionStatus, type ConnectionSummary, type LedgerRow } from '../lib/api'
 import { useApp } from '../lib/app-context'
+import { summarizeConnections, timeAgo } from '../lib/connection-health'
 import { formatLedgerDate, formatLocalDate, formatMoney, formatTimestamp } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
-const CARD = 'rounded-xl border border-line bg-surface shadow-[0_1px_2px_rgb(27_26_23/0.05)]'
 const STRIP = 'bg-surface-2/60'
-const TAG = 'shrink-0 rounded-[5px] border border-line px-1.5 text-[11px] leading-[18px] font-medium text-ink-3'
 const PREVIEW_ROWS = 10
-
-const TILES: { kind: AccountKind; label: string; noun: string }[] = [
-  { kind: 'cash', label: 'Cash on hand', noun: 'account' },
-  { kind: 'credit', label: 'Credit cards owed', noun: 'card' },
-  { kind: 'loan', label: 'Loans owed', noun: 'loan' },
-  { kind: 'investment', label: 'Investments', noun: 'account' },
-]
-
-const GROUPS: { title: string; kinds: (AccountKind | null)[] }[] = [
-  { title: 'Cash', kinds: ['cash'] },
-  { title: 'Credit cards', kinds: ['credit'] },
-  { title: 'Loans', kinds: ['loan'] },
-  { title: 'Investments', kinds: ['investment'] },
-  { title: 'Other', kinds: ['property', 'vehicle', 'crypto', 'other', null] },
-]
 
 const STATUS_DOT: Record<ConnectionStatus, string> = {
   active: 'bg-positive',
-  reauth_required: 'bg-warning',
+  reauth_required: 'bg-broken',
   error: 'bg-broken',
   disconnected: 'bg-ink-3',
 }
 
-const isDebt = (b: AccountBalance) => b.kind === 'credit' || b.kind === 'loan'
+const ADD_CONNECTION = '#add-connection'
 
-/** Liabilities are stored negative; this page shows what is owed as a positive amount. */
-const owedSign = (b: AccountBalance, n: number) => (isDebt(b) ? -n : n)
-
-/** Share of a credit limit in use, clamped at 0 for accounts in credit; null without a limit. */
-function usedPercent(owed: number, limit: number): number | null {
-  return limit > 0 ? Math.max(0, Math.round((owed / limit) * 100)) : null
-}
-
-function balanceLabel(kind: AccountKind | null): string {
-  if (kind === 'credit' || kind === 'loan') return 'Owed'
-  if (kind === 'investment' || kind === 'property' || kind === 'vehicle' || kind === 'crypto') return 'Value'
-  return 'Current balance'
-}
-
-/** "Checking •••• 0000", omitting whichever part the bank didn't report; short subtypes (cd, hsa, ira) are acronyms. */
-function identity(b: AccountBalance): string {
-  const s = b.subtype
-  const subtype = !s ? null : /^[a-z]{2,3}$/.test(s) ? s.toUpperCase() : s.charAt(0).toUpperCase() + s.slice(1)
-  return [subtype, b.mask ? `•••• ${b.mask}` : null].filter(Boolean).join(' ')
-}
-
-function mismatchNote(b: AccountBalance, sep = ' · '): ReactNode {
-  return <>Bank reports <span className="amt">{formatMoney(owedSign(b, b.bankBalance ?? 0), b.currency)}</span>{sep}ledger shows <span className="amt">{formatMoney(owedSign(b, b.ledgerBalance), b.currency)}</span></>
-}
-
-const relative = new Intl.RelativeTimeFormat(undefined, { numeric: 'auto' })
-const UNITS = [
-  ['year', 31_536_000],
-  ['month', 2_592_000],
-  ['week', 604_800],
-  ['day', 86_400],
-  ['hour', 3_600],
-  ['minute', 60],
-] as const
-
-function timeAgo(iso: string): string {
-  const seconds = (new Date(iso).getTime() - Date.now()) / 1000
-  if (Number.isNaN(seconds)) return iso
-  for (const [unit, size] of UNITS) {
-    if (Math.abs(seconds) >= size) return relative.format(Math.round(seconds / size), unit)
+/** Settings mounts after `navigate`; bring its "Add a connection" section into view as soon as it exists. */
+function showAddConnection(tries = 20) {
+  const section = document.querySelector<HTMLElement>(ADD_CONNECTION)
+  if (section) {
+    section.tabIndex = -1
+    section.scrollIntoView({ block: 'start' })
+    section.focus({ preventScroll: true })
+  } else if (tries > 0) {
+    requestAnimationFrame(() => showAddConnection(tries - 1))
   }
-  return 'just now'
-}
-
-/** Counted balances summed per currency — never across currencies — most-used currency first. */
-function totalsByCurrency(list: AccountBalance[]): { currency: string; amount: number; count: number }[] {
-  const totals = new Map<string, { currency: string; amount: number; count: number }>()
-  for (const b of list) {
-    if (b.balance === null || !b.countsTowardTotals) continue
-    const t = totals.get(b.currency) ?? { currency: b.currency, amount: 0, count: 0 }
-    t.amount += owedSign(b, b.balance)
-    t.count += 1
-    totals.set(b.currency, t)
-  }
-  return [...totals.values()].sort((a, b) => b.count - a.count || a.currency.localeCompare(b.currency))
 }
 
 export function Accounts() {
@@ -102,158 +48,128 @@ export function Accounts() {
     (signal) => getJson<{ accounts: AccountBalance[] }>('/api/ledger/account-balances', signal).then((r) => r.accounts),
     version,
   )
+  const connections = useResource(
+    (signal) => getJson<{ connections: ConnectionSummary[] }>('/api/providers/connections', signal).then((r) => r.connections),
+    version,
+  )
+
+  const returnTo = useRef<string | null>(null)
 
   const select = (id: string | null) => {
+    if (id === null) returnTo.current = selectedId
     setSelectedId(id)
     window.scrollTo({ top: 0 })
   }
 
   const data = accounts.data
   const selected = data?.find((a) => a.id === selectedId)
+  const listShown = !selected && data !== undefined
+  useEffect(() => {
+    if (!listShown || returnTo.current === null) return
+    document.querySelector<HTMLElement>(`[data-account-row="${CSS.escape(returnTo.current)}"]`)?.focus()
+    returnTo.current = null
+  }, [listShown])
   if (selected) return <AccountDetail key={selected.id} account={selected} onBack={() => select(null)} />
 
   return (
-    <div className="flex flex-col gap-10">
-      <PageHeader
-        lede="Your bank accounts, cards, loans and investments — read-only."
-        actions={
-          <>
-            <ConnectBank onConnected={invalidate} variant="secondary" showSandboxHint={false} />
-            <ConnectEuropeanBank variant="secondary" />
-          </>
-        }
-      />
-
+    <div className="flex flex-col gap-5">
       {accounts.error ? (
         <ErrorState title="Couldn't load your accounts" message={accounts.error} onRetry={accounts.reload} />
       ) : !data ? (
         <Loading label="Loading accounts" rows={4} />
       ) : data.length === 0 ? (
-        <Empty title="No accounts yet">Connect a bank above and your accounts will appear here.</Empty>
-      ) : (
-        <>
-          <Tiles accounts={data.filter((a) => a.connectionStatus !== 'disconnected')} />
-          <div className="flex flex-col gap-9">
-            {GROUPS.map((g) => {
-              const list = data.filter((a) => a.connectionStatus !== 'disconnected' && g.kinds.includes(a.kind))
-              return (
-                list.length > 0 && (
-                  <AccountGroup
-                    key={g.title}
-                    title={g.title}
-                    accounts={list}
-                    onOpen={select}
-                    onSettings={() => navigate('settings')}
-                  />
-                )
-              )
-            })}
-            <NoLongerConnected accounts={data.filter((a) => a.connectionStatus === 'disconnected')} onOpen={select} />
+        <Empty title="No accounts yet">
+          Connect a bank and your accounts will appear here.
+          <div className="mt-3 flex flex-wrap items-center gap-2">
+            <ConnectBank onConnected={invalidate} variant="secondary" showSandboxHint={false} />
+            <ConnectEuropeanBank variant="secondary" />
           </div>
-        </>
+        </Empty>
+      ) : (
+        <AccountsBody
+          accounts={data}
+          connections={connections.data}
+          connectionsError={connections.error}
+          onOpen={select}
+          onSettings={() => navigate('settings')}
+          onAddBank={() => {
+            navigate('settings')
+            requestAnimationFrame(() => showAddConnection())
+          }}
+        />
       )}
     </div>
   )
 }
 
-function Tiles({ accounts }: { accounts: AccountBalance[] }) {
-  const tiles = TILES.flatMap((t) => {
-    const list = accounts.filter((a) => a.kind === t.kind)
-    return list.length > 0 ? [{ ...t, list }] : []
-  })
-  if (tiles.length === 0) return null
-  return (
-    <section aria-label="Totals" className="grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-4">
-      {tiles.map((t) => (
-        <Tile key={t.kind} kind={t.kind} label={t.label} noun={t.noun} accounts={t.list} />
-      ))}
-    </section>
-  )
-}
-
-function Tile({ kind, label, noun, accounts }: { kind: AccountKind; label: string; noun: string; accounts: AccountBalance[] }) {
-  const totals = totalsByCurrency(accounts)
-  const [main, ...others] = totals
-  const counted = accounts.filter((a) => a.countsTowardTotals)
-  let caption: ReactNode = `${counted.length} ${noun}${counted.length === 1 ? '' : 's'}`
-  const limited = kind === 'credit' ? accounts.filter((b) => b.creditLimit !== null && b.currency === main?.currency) : []
-  if (main && limited.length > 0) {
-    const limit = limited.reduce((sum, b) => sum + (b.creditLimit ?? 0), 0)
-    const pct = limited.every((b) => b.balance !== null)
-      ? usedPercent(limited.reduce((sum, b) => sum + owedSign(b, b.balance ?? 0), 0), limit)
-      : null
-    caption = <>Limit <span className="amt">{formatMoney(limit, main.currency)}</span>{pct === null ? '' : ` (${pct}% used)`}</>
-  }
-
-  return (
-    <article className={`@container ${CARD} px-[18px] pt-[18px] pb-4`}>
-      <div className="flex items-center gap-2.5 text-[13px] font-medium text-ink-2">
-        <AccountIcon kind={kind} />
-        {label}
-      </div>
-      <p className="mt-4 flex flex-wrap items-baseline gap-x-1.5 font-display text-[28px] leading-[1.1] tracking-[-0.02em] text-ink xl:flex-nowrap xl:text-[length:clamp(24px,calc(18cqi_-_7px),32px)]">
-        {main ? (
-          <>
-            <Money amount={main.amount} currency={main.currency} />
-            {others.map((t) => (
-              <span key={t.currency} className="figures amt font-sans text-[13px] font-medium tracking-normal whitespace-nowrap text-ink-3">
-                · {formatMoney(t.amount, t.currency)}
-              </span>
-            ))}
-          </>
-        ) : (
-          <span className="text-ink-3">—</span>
-        )}
-      </p>
-      <p className="figures mt-2 text-[12.5px] text-ink-3">{caption}</p>
-    </article>
-  )
-}
-
-function AccountGroup({
-  title,
+function AccountsBody({
   accounts,
+  connections,
+  connectionsError,
   onOpen,
   onSettings,
+  onAddBank,
 }: {
-  title: string
   accounts: AccountBalance[]
+  connections: ConnectionSummary[] | undefined
+  connectionsError: string | null
   onOpen: (id: string) => void
   onSettings: () => void
+  onAddBank: () => void
 }) {
-  const totals = totalsByCurrency(accounts)
-  const count = `${accounts.length} account${accounts.length === 1 ? '' : 's'}`
+  const live = accounts.filter(isLive)
+  const totals = totalsByCurrency(live)
+  const main = totals[0]
+  // Like the summary's currency (ADR 029): the currency with the most counted accounts, else the first by code.
+  const mainCurrency = main?.currency ?? [...new Set(live.map((a) => a.currency))].sort()[0]
+  const otherTotals = totals.slice(1)
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the clock whenever connections are (re)loaded
+  const now = useMemo(() => Date.now(), [connections])
+  const { live: liveConnections, syncStamp: stamp } = summarizeConnections(connections ?? [], now)
+  const hasDebt = main !== undefined && main.owed > 0
+  const showAge = liveConnections.length > 0
+
   return (
-    <section>
-      <div className="mb-3 flex items-baseline justify-between gap-4 border-b border-line pb-2">
-        <h2
-          aria-label={`${title}, ${count}`}
-          className="font-sans text-[13px] font-semibold tracking-[0.04em] text-ink-2 uppercase"
-        >
-          {title}
-          <span className="figures ml-1.5 font-medium tracking-normal text-ink-3">{accounts.length}</span>
-        </h2>
-        {totals.length > 0 && (
-          <p className="figures text-right text-[13px] font-medium text-ink-2">
-            {accounts.every(isDebt) && <span className="font-normal text-ink-3">owed </span>}
-            {totals.map((t, i) => (
-              <span key={t.currency} className="whitespace-nowrap">
-                {i > 0 && <span className="text-ink-3"> · </span>}
-                <span className="amt">{formatMoney(t.amount, t.currency)}</span>
-              </span>
-            ))}
-          </p>
-        )}
-      </div>
-      <ul className="grid grid-cols-1 gap-3.5 md:grid-cols-2 xl:grid-cols-3">
-        {accounts.map((b) => (
-          <li key={b.id}>
-            <AccountCard account={b} onOpen={() => onOpen(b.id)} onSettings={onSettings} />
-          </li>
-        ))}
-      </ul>
-    </section>
+    <>
+      <NeedsYou connections={connections} error={connectionsError} now={now} onSettings={onSettings} />
+      {!main && live.length > 0 && (
+        <p role="status" className="rounded-md border border-line bg-surface px-3.5 py-2.5 text-[13px] text-ink-2">
+          No net worth to show: every account is either left out of net worth or has no known balance.
+        </p>
+      )}
+      {main && (
+        <NetWorthCard
+          totals={main}
+          otherCurrencies={uniqueCurrencies(live, main.currency)}
+          uncounted={live.filter((a) => !a.countsTowardTotals).length}
+          stamp={stamp}
+        />
+      )}
+      {(hasDebt || showAge) && (
+        <div className={`grid gap-4 ${hasDebt && showAge ? 'lg:grid-cols-2' : ''}`}>
+          {main && hasDebt && <OweCard totals={main} others={otherTotals.filter((t) => t.owed > 0)} accounts={live} />}
+          {showAge && <DataAge connections={liveConnections} stamp={stamp} now={now} />}
+        </div>
+      )}
+      {mainCurrency && (
+        <BalanceSheet
+          accounts={live}
+          connections={connections}
+          main={mainCurrency}
+          mainTotals={main}
+          now={now}
+          onOpen={onOpen}
+          onSettings={onSettings}
+          onAddBank={onAddBank}
+        />
+      )}
+      <NoLongerConnected accounts={accounts.filter((a) => !isLive(a))} onOpen={onOpen} />
+    </>
   )
+}
+
+function uniqueCurrencies(list: AccountBalance[], except: string): string[] {
+  return [...new Set(list.filter((a) => a.currency !== except).map((a) => a.currency))].sort()
 }
 
 function NoLongerConnected({ accounts, onOpen }: { accounts: AccountBalance[]; onOpen: (id: string) => void }) {
@@ -281,7 +197,7 @@ function NoLongerConnected({ accounts, onOpen }: { accounts: AccountBalance[]; o
                 {meta && <span className="text-[12.5px] text-ink-3"> · {meta}</span>}
               </button>
               <span className="figures text-[12.5px] text-ink-3">
-                {b.balance === null ? 'Unknown' : <span className="amt">{formatMoney(owedSign(b, b.balance), b.currency)}</span>}
+                {b.balance === null ? 'Unknown' : <span className="amt">{balanceText(b, b.balance)}</span>}
                 {asOf && ` — last known balance on ${formatLocalDate(asOf)}`}
                 {b.replacedByConnectorId && ` · replaced by your current ${b.institutionName ?? 'bank'} login`}
               </span>
@@ -290,115 +206,6 @@ function NoLongerConnected({ accounts, onOpen }: { accounts: AccountBalance[]; o
         })}
       </ul>
     </section>
-  )
-}
-
-function AccountCard({ account: b, onOpen, onSettings }: { account: AccountBalance; onOpen: () => void; onSettings: () => void }) {
-  const broken = b.connectionStatus === 'reauth_required' || b.connectionStatus === 'error'
-  const meta = identity(b)
-  return (
-    <article
-      className={`group relative flex h-full flex-col overflow-hidden ${CARD} transition-[translate,box-shadow,border-color] duration-200 hover:-translate-y-0.5 hover:border-line-strong hover:shadow-[0_10px_24px_-12px_rgb(27_26_23/0.25),0_2px_4px_rgb(27_26_23/0.05)] ${
-        b.connectionStatus === 'disconnected' ? 'opacity-60' : ''
-      }`}
-    >
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`View ${b.name}`}
-        className="absolute inset-0 rounded-xl focus-visible:rounded-xl focus-visible:outline-offset-[-2px]"
-      />
-      <div className="flex items-center gap-3 px-4 pt-4">
-        <AccountIcon kind={b.kind} subtype={b.subtype} />
-        <div className="min-w-0 flex-1">
-          <h3 className="truncate font-sans text-[14.5px] leading-[1.3] font-medium tracking-normal text-ink">{b.name}</h3>
-          {meta && <p className="mt-px truncate text-[12.5px] text-ink-3">{meta}</p>}
-        </div>
-        {b.excludeFromNetWorth && <span className={TAG}>Not in net worth</span>}
-      </div>
-
-      <div className="px-4 pt-[18px] pb-4">
-        <p className="mb-0.5 text-[12px] text-ink-3">{balanceLabel(b.kind)}</p>
-        <p className="flex items-center gap-2">
-          {b.balance === null ? (
-            <>
-              <span className="font-display text-[27px] leading-[1.2] text-ink-3">—</span>
-              <span className="text-[13px] text-ink-3 italic">Unknown</span>
-            </>
-          ) : (
-            <Money
-              amount={owedSign(b, b.balance)}
-              currency={b.currency}
-              className={`font-display text-[27px] leading-[1.2] tracking-[-0.02em] ${broken ? 'text-ink-2' : 'text-ink'}`}
-            />
-          )}
-          {b.bankBalanceIsFallback && (
-            <span className="pointer-events-none relative rounded-[5px] border border-line bg-surface-2/60 px-1.5 text-[11px] leading-[18px] font-medium tracking-[0.02em] text-ink-2">
-              <span aria-hidden>est.</span>
-              <span className="sr-only">balance estimated by the bank</span>
-            </span>
-          )}
-          {b.mismatch && (
-            <span className="pointer-events-none relative text-[16px] font-medium text-warning">
-              <span aria-hidden>≠</span>
-              <span className="sr-only">{mismatchNote(b, ', ')}</span>
-            </span>
-          )}
-        </p>
-      </div>
-
-      <CardFooter account={b} onSettings={onSettings} />
-    </article>
-  )
-}
-
-function CardFooter({ account: b, onSettings }: { account: AccountBalance; onSettings: () => void }) {
-  if (b.connectionStatus === 'reauth_required' || b.connectionStatus === 'error') {
-    const reauth = b.connectionStatus === 'reauth_required'
-    return (
-      <div
-        className={`mt-auto flex items-center justify-between gap-3 border-t px-4 py-2.5 text-[12.5px] font-medium ${
-          reauth ? 'border-warning/30 bg-warning-wash text-warning' : 'border-broken/25 bg-broken-wash text-broken'
-        }`}
-      >
-        <span>{reauth ? 'Reconnect needed' : 'Sync failed'}</span>
-        <button
-          type="button"
-          onClick={onSettings}
-          className="relative whitespace-nowrap underline-offset-4 hover:underline"
-        >
-          Settings →
-        </button>
-      </div>
-    )
-  }
-
-  let detail: ReactNode = null
-  if (b.kind === 'cash' && b.availableBalance !== null) {
-    detail = (
-      <>
-        Available <b className="font-medium text-ink-2 amt">{formatMoney(b.availableBalance, b.currency)}</b>
-      </>
-    )
-  } else if (isDebt(b) && b.creditLimit !== null) {
-    const pct = b.balance === null ? null : usedPercent(owedSign(b, b.balance), b.creditLimit)
-    detail = (
-      <>
-        Limit <b className="font-medium text-ink-2 amt">{formatMoney(b.creditLimit, b.currency)}</b>
-        {pct !== null && ` · ${pct}% used`}
-      </>
-    )
-  } else if (b.lastSyncedAt) {
-    detail = `Synced ${timeAgo(b.lastSyncedAt)}`
-  }
-
-  return (
-    <div className={`mt-auto flex items-center justify-between gap-3 border-t border-line ${STRIP} px-4 py-2.5 text-[12.5px] text-ink-3`}>
-      <span className="figures min-w-0 truncate">{detail}</span>
-      <span aria-hidden className="font-medium whitespace-nowrap text-ink-2 transition-colors group-hover:text-positive">
-        View →
-      </span>
-    </div>
   )
 }
 
@@ -411,9 +218,13 @@ function AccountDetail({ account: b, onBack }: { account: AccountBalance; onBack
       ),
     `${b.id}:${version}`,
   )
+  const [now] = useState(() => Date.now())
   const idLine = [b.institutionName, identity(b), b.currency].filter(Boolean).join(' · ')
   const reach = isDebt(b) ? { label: 'Limit', value: b.creditLimit } : { label: 'Available', value: b.availableBalance }
   const [showAll, setShowAll] = useState(false)
+  const shown = b.balance === null ? null : displayBalance(b, b.balance)
+  const heading = useRef<HTMLHeadingElement>(null)
+  useEffect(() => heading.current?.focus(), [])
 
   return (
     <div className="flex animate-rise flex-col gap-6">
@@ -426,39 +237,41 @@ function AccountDetail({ account: b, onBack }: { account: AccountBalance; onBack
           <div className="flex min-w-0 items-start gap-3.5">
             <AccountIcon kind={b.kind} subtype={b.subtype} size="lg" />
             <div className="min-w-0">
-              <h1 className="text-[30px] leading-[1.2] tracking-[-0.015em] text-ink">{b.name}</h1>
+              <h1 ref={heading} tabIndex={-1} className="text-[30px] leading-[1.2] tracking-[-0.015em] text-ink outline-none">
+                {b.name}
+              </h1>
               {b.officialName && <p className="mt-0.5 text-[13.5px] text-ink-2">{b.officialName}</p>}
               {idLine && <p className="mt-px text-[13px] text-ink-3">{idLine}</p>}
               {b.excludeFromNetWorth && <span className={`mt-2 inline-block ${TAG}`}>Not in net worth</span>}
             </div>
           </div>
           <div className="shrink-0 sm:text-right">
-            <p className="text-[12px] text-ink-3">{balanceLabel(b.kind)}</p>
+            <p className="text-[12px] text-ink-3">{shown?.credit ? 'In credit' : balanceLabel(b.kind)}</p>
             {b.balance === null ? (
               <p className="mt-0.5 font-display text-[38px] leading-[1.1] text-ink-3 sm:text-[46px]">
                 — <span className="font-sans text-[14px] italic">Unknown</span>
               </p>
             ) : (
               <Money
-                amount={owedSign(b, b.balance)}
+                amount={shown?.value ?? 0}
                 currency={b.currency}
                 className="mt-0.5 block font-display text-[38px] leading-[1.1] font-[350] tracking-[-0.02em] text-ink sm:text-[46px]"
               />
             )}
-            {b.mismatch && <p className="figures mt-1.5 text-[12.5px] text-warning">≠ {mismatchNote(b)}</p>}
+            {b.mismatch && <p className="figures mt-1.5 text-[12.5px] text-warning">≠ <MismatchNote account={b} /></p>}
             {b.bankBalanceIsFallback && <p className="mt-1 text-[12.5px] text-ink-3">Estimated by the bank</p>}
           </div>
         </div>
         <dl className={`grid grid-cols-1 rounded-b-xl border-t border-line ${STRIP} sm:grid-cols-3`}>
           <Fact label={reach.label}>{reach.value === null ? '—' : <span className="amt">{formatMoney(reach.value, b.currency)}</span>}</Fact>
-          <Fact label="Pending"><span className="amt">{formatMoney(owedSign(b, b.pendingBalance), b.currency)}</span></Fact>
+          <Fact label="Pending"><span className="amt">{balanceText(b, b.pendingBalance)}</span></Fact>
           <Fact label="Last synced">
             {b.lastSyncedAt ? (
               <>
                 {b.connectionStatus && (
                   <span aria-hidden className={`inline-block size-1.5 rounded-full ${STATUS_DOT[b.connectionStatus]}`} />
                 )}
-                <span title={formatTimestamp(b.lastSyncedAt)}>{timeAgo(b.lastSyncedAt)}</span>
+                <span title={formatTimestamp(b.lastSyncedAt)}>{timeAgo(b.lastSyncedAt, now)}</span>
               </>
             ) : (
               '—'
