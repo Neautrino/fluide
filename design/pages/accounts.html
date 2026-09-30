@@ -1,0 +1,596 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fluide · Accounts</title>
+<link rel="stylesheet" href="../shared/tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--canvas);color:var(--ink);font-family:var(--font-ui);font-size:14px;-webkit-font-smoothing:antialiased}
+body{min-width:1280px;padding:24px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+svg text{font-family:var(--font-ui)}
+.num,.amt{font-variant-numeric:tabular-nums lining-nums}
+.amt{white-space:nowrap}
+html.amounts-hidden .amt{filter:blur(7px)}
+.p{font-size:.62em;color:var(--ink-3);font-weight:inherit}
+.muted{color:var(--ink-2)}.faint{color:var(--ink-3)}
+
+/* ── frame (ov-01) ── */
+.app{max-width:1392px;margin:0 auto;display:grid;grid-template-columns:232px minmax(0,1fr);grid-template-rows:auto 1fr;
+  background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-xl);box-shadow:var(--shadow-2);overflow:hidden;min-height:852px}
+.side{grid-row:1/3;border-right:1px solid var(--line);padding:26px 18px 22px;display:flex;flex-direction:column;gap:26px;background:var(--surface-2)}
+.logo{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.02em;padding-left:8px}
+.logo i{font-style:normal;color:var(--ink-3)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);color:var(--ink-2);text-decoration:none;font-weight:500;border:1px solid transparent}
+.nav a:hover{color:var(--ink)}
+.nav a svg{width:17px;height:17px;flex:none;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.nav a.on{color:var(--ink);background:var(--surface);border-color:var(--line-strong);font-weight:600}
+.nav .badge{margin-left:auto;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:grid;place-items:center;background:var(--surface-inverse);color:var(--ink-inverse);padding:0 6px}
+.foot{margin-top:auto;font-size:11.5px;color:var(--ink-3);line-height:1.5;padding-left:10px}
+
+.top{display:flex;align-items:center;gap:16px;padding:26px 28px 0}
+.hello small{display:block;color:var(--ink-2);font-size:13px;margin-bottom:3px}
+.hello h1{white-space:nowrap;font-family:var(--font-display);font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.hello h1 span{color:var(--ink-3);font-weight:600}
+.ask{margin-left:auto;position:relative;flex:0 0 420px}
+@media (max-width:1359px){.ask{flex-basis:360px}.hello h1 span{display:none}}
+.ask label{display:flex;align-items:center;gap:9px;height:40px;border:1px solid var(--line);border-radius:20px;padding:0 6px 0 14px;background:var(--surface);cursor:text}
+.ask input{border:0;outline:0;background:none;flex:1;font:inherit;font-size:13px;color:var(--ink);min-width:0}
+.ask input::placeholder{color:var(--ink-3)}
+.ask svg{width:16px;height:16px;flex:none;color:var(--ink-2)}
+.ask kbd{font:600 10.5px var(--font-mono);color:var(--ink-3);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.ask ul{list-style:none;position:absolute;top:46px;left:0;right:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-2);padding:6px;display:none;z-index:5}
+.ask:focus-within ul{display:block}
+.ask li{padding:8px 10px;border-radius:var(--radius-sm);font-size:13px;color:var(--ink-2);cursor:pointer}
+.ask li:hover{background:var(--surface-2);color:var(--ink)}
+.ask li em{font-style:normal;color:var(--ink-3);font-size:11px;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em}
+.circles{display:flex;gap:8px}
+.cbtn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;background:var(--surface);flex:none}
+.cbtn:hover{background:var(--surface-2)}
+.cbtn svg{width:17px;height:17px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--tile-2);color:var(--tile-ink);display:grid;place-items:center;font-weight:700;font-family:var(--font-display);border:1px solid var(--line-strong)}
+
+.main{padding:20px 28px 30px;display:flex;flex-direction:column;gap:20px;min-width:0}
+
+/* ── DS-01 components ── */
+.stamp{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.stamp::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--positive);margin-right:6px;vertical-align:1px}
+.stamp.manual::before{background:transparent;box-shadow:inset 0 0 0 1.4px var(--warning)}
+.stamp.stale::before{background:var(--broken);border-radius:1px;transform:rotate(45deg)}
+.trust{display:flex;align-items:center;gap:14px;padding:10px 12px 10px 14px;border-radius:var(--radius-md);border:1px solid var(--line);background:var(--surface);font-size:13px;flex-wrap:wrap}
+.trust .state{display:flex;align-items:center;gap:8px;font-weight:700;white-space:nowrap}
+.trust .state .ring{width:10px;height:10px;border-radius:50%;background:var(--warning);box-shadow:0 0 0 3px var(--warning-wash)}
+.trust .sep{width:1px;height:18px;background:var(--line)}
+.trust .srcs{display:flex;gap:6px;flex-wrap:wrap}
+.trust .end{margin-left:auto;display:flex;gap:8px;align-items:center}
+.src{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);white-space:nowrap}
+.src::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--positive)}
+.src.warn{border-color:var(--warning);color:var(--warning)}
+.src.warn::before{background:var(--warning)}
+.src.bad{border-color:var(--broken);color:var(--broken);background:var(--broken-wash)}
+.src.bad::before{background:var(--broken);border-radius:1px;transform:rotate(45deg)}
+.src.man::before{background:transparent;box-shadow:inset 0 0 0 1.4px var(--warning)}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap;background:var(--surface)}
+.pill.pos{background:var(--positive-wash);border-color:transparent;color:var(--positive)}
+.pill.warn{background:var(--warning-wash);border-color:transparent;color:var(--warning)}
+.pill.bad{background:var(--broken-wash);border-color:transparent;color:var(--broken)}
+.pill.inv{background:var(--surface-inverse);color:var(--ink-inverse);border-color:transparent}
+.pill.hatched{background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1px,transparent 1px 5px),var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.pill.hatched span{background:var(--surface);padding:0 3px;border-radius:3px}
+.btn{font-size:13px;font-weight:700;height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn.sm{height:30px;font-size:12px;padding:0 12px}
+.btn.xs{height:24px;font-size:11.5px;padding:0 10px}
+.btn.danger{border-color:var(--broken);color:var(--broken);background:var(--surface)}
+.seg{display:inline-flex;align-items:center;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2)}
+.seg .sl{font-size:11px;color:var(--ink-3);font-weight:600;padding:0 8px 0 10px;text-transform:uppercase;letter-spacing:.06em}
+.seg button{font-size:12px;font-weight:600;color:var(--ink-2);height:28px;padding:0 13px;border-radius:999px}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line-strong)}
+.card{border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);padding:16px 18px 14px;background:var(--surface);min-width:0;display:flex;flex-direction:column}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:2px 10px;flex-wrap:wrap;margin-bottom:10px}
+.card-h h3{font-family:var(--font-display);font-weight:700;font-size:17px;line-height:1.2;letter-spacing:-.01em;white-space:nowrap}
+.chart-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:auto;padding-top:8px;font-size:11.5px;color:var(--ink-3)}
+.hsw{display:inline-block;width:18px;height:10px;border:1px solid var(--chart-1);border-radius:2px;background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1.2px,var(--surface) 1.2px 4.5px);vertical-align:-1px}
+.dchip{width:44px;height:44px;flex:none;border-radius:var(--radius-md);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;background:var(--surface-2)}
+.dchip b{font-family:var(--font-display);font-weight:800;font-size:16px}
+.dchip span{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:3px}
+.dchip.exp{border-style:dashed;background:var(--surface)}
+.prog{position:relative;height:12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);margin:26px 0 24px}
+.prog .fill{position:absolute;left:0;top:-1px;bottom:-1px;border-radius:999px;background:var(--chart-1)}
+.prog .mk{position:absolute;top:-10px;bottom:-10px;width:2px;background:var(--ink);border-radius:1px}
+.prog .mk span{position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:700;background:var(--surface-inverse);color:var(--ink-inverse);padding:2px 8px;border-radius:999px}
+.prog .typ{position:absolute;top:-5px;bottom:-5px;border-left:1.5px dotted var(--ink)}
+.prog .ax{position:absolute;top:calc(100% + 6px);font-size:10.5px;color:var(--ink-3);transform:translateX(-50%);white-space:nowrap}
+.tiles{display:grid;gap:12px}
+.tile{border-radius:var(--radius-md);padding:14px;color:var(--tile-ink);border:1px solid var(--line-strong);min-height:150px;display:flex;flex-direction:column;position:relative;gap:4px}
+html[data-theme="dark"] .tile:not(.stale){--surface:#fff;--broken:#c02a2a;--warning:#8a5300;--positive:#1b7447;--surface-inverse:#0b0b0c;--ink-inverse:#fff}
+html[data-theme="dark"] .tile .umeter{border-color:var(--tile-ink)}
+html[data-theme="dark"] .tile:not(.stale){border-color:var(--line-strong);box-shadow:inset 0 0 0 2px var(--tile-ring-gap)}
+/* dark: small text inside light tiles at full tile ink; hierarchy by size, not opacity */
+html[data-theme="dark"] .tile:not(.stale) .tv small,html[data-theme="dark"] .tile:not(.stale) .tn{opacity:1}
+.tile .th{display:flex;justify-content:space-between;align-items:flex-start;font-size:11.5px;font-weight:700;letter-spacing:.04em;text-transform:uppercase}
+.tile .sym{font-family:var(--font-display);font-weight:800;font-size:20px;line-height:1}
+.tile .tv{margin-top:auto;font-family:var(--font-display);font-weight:800;font-size:24px;letter-spacing:-.02em}
+.tile .tv small{font-size:.58em;opacity:.65}
+.tile .tn{font-size:12px;opacity:.85;display:flex;justify-content:space-between;align-items:center;gap:6px}
+.tile .tsrc{font-size:11.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap;padding-top:8px;margin-top:4px;border-top:1px solid color-mix(in srgb,var(--tile-ink) 25%,transparent)}
+.tile .tsrc svg{width:13px;height:13px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.tile.t1{background:var(--tile-1)}.tile.t2{background:var(--tile-2)}.tile.t3{background:var(--tile-3)}.tile.t4{background:var(--tile-4)}
+.tile.stale,html[data-theme="dark"] .tile.stale{background:var(--surface-2);color:var(--ink);border:1px dashed var(--ink-3)}
+.tile.stale .tsrc{border-top-color:var(--line)}
+.tile.stale .tv{opacity:.6}
+.tile .flag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--surface);color:var(--broken);border:1px solid var(--broken)}
+.tile .flag.w{color:var(--warning);border-color:var(--warning)}
+.tile .btn{border-color:var(--tile-ink);color:var(--tile-ink);background:transparent;margin-left:auto}
+.tile .btn.danger{background:var(--surface);color:var(--broken);border-color:var(--broken)}
+
+/* freshness dot shapes: current ● · manual-dated ○ · broken ◆ */
+.dot{width:9px;height:9px;border-radius:50%;flex:none;display:inline-block}
+.d-ok{background:var(--positive)}
+.d-man{background:transparent;box-shadow:inset 0 0 0 2px var(--warning)}
+.d-bad{border-radius:2px;background:var(--broken);transform:rotate(45deg);width:8px;height:8px}
+
+/* ── hero: net worth band ── */
+.band{display:grid;grid-template-columns:minmax(0,.95fr) minmax(0,1.05fr);border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);background:var(--surface);overflow:hidden}
+.band-l{padding:20px 24px 18px;min-width:0}
+.band-r{padding:20px 22px 14px;background:var(--surface-2);border-left:1px solid var(--line);min-width:0;display:flex;flex-direction:column}
+.bh{display:flex;align-items:center;justify-content:space-between;gap:12px;flex-wrap:wrap;row-gap:2px}
+.bh h3{font-family:var(--font-display);font-weight:700;font-size:17px;line-height:1.2;letter-spacing:-.01em;white-space:nowrap}
+.bh h3 span{color:var(--ink-3);font-weight:600}
+.nw{font-family:var(--font-display);font-size:56px;line-height:1;letter-spacing:-.03em;font-weight:800;margin:12px 0 10px}
+.nw .cur{font-size:.58em;vertical-align:.36em;margin-right:3px;font-weight:700}
+.nw-sub{display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:13px;color:var(--ink-2)}
+.split{margin-top:20px;display:grid;grid-template-columns:48px 1fr 100px;gap:9px 12px;align-items:center;font-size:12px}
+.split .lab{color:var(--ink-2);font-weight:600}
+.split .val{text-align:right;font-weight:700;font-size:13px;white-space:nowrap}
+.sbar{height:20px;border-radius:6px;display:flex;overflow:hidden;border:1px solid var(--line-strong)}
+.sbar i{display:block;height:100%}
+.sbar i+i{border-left:1px solid var(--line-strong)}
+.otrack{height:20px;position:relative}
+.otrack .sbar{position:absolute;left:0;top:0;bottom:0}
+.otrack .gap{position:absolute;top:10px;border-top:1px dashed var(--ink-3)}
+.otrack .gapl{position:absolute;top:2px;font-size:11px;color:var(--ink-2);background:var(--surface);padding:0 6px;white-space:nowrap}
+.legend{display:grid;grid-template-columns:repeat(4,auto);justify-content:start;gap:6px 20px;margin-top:14px;font-size:12px;color:var(--ink-2)}
+.legend span{display:flex;flex-direction:column;gap:2px}
+.legend span em{font-style:normal;display:inline-flex;align-items:center;gap:6px}
+.legend b{font-weight:700;color:var(--ink);font-size:12.5px;padding-left:16px}
+.sw{width:10px;height:10px;border-radius:3px;border:1px solid var(--line-strong);display:inline-block;flex:none}
+.excl{margin-top:14px;padding-top:12px;border-top:1px dashed var(--line);font-size:12px;color:var(--ink-3);display:flex;gap:8px;align-items:flex-start;line-height:1.45}
+.excl svg{flex:none;width:14px;height:14px;margin-top:1px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round}
+.excl b{color:var(--ink-2);font-weight:600}
+.nwchart{width:100%;height:auto;display:block;margin-top:6px;overflow:visible}
+.mpills{display:grid;grid-template-columns:36px repeat(12,1fr);gap:3px;margin-top:4px;padding-right:4px}
+.mpills span{font-size:10.5px;text-align:center;border:1px solid var(--line);border-radius:999px;height:20px;line-height:18px;color:var(--ink-3);background:var(--surface);white-space:nowrap;overflow:hidden}
+.mpills span.on{background:var(--surface-inverse);color:var(--ink-inverse);border-color:transparent;font-weight:700}
+.mpills span:first-child{border:0;background:none}
+
+/* ── supporting row ── */
+.support{display:grid;grid-template-columns:minmax(0,1.05fr) minmax(0,1fr) minmax(0,1fr);gap:14px}
+.emph{background:var(--surface-inverse);color:var(--ink-inverse);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);padding:16px 18px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.emph .eh{display:flex;justify-content:space-between;align-items:baseline;gap:2px 10px;flex-wrap:wrap}
+.emph .eh h3{font-family:var(--font-display);font-weight:700;font-size:17px;line-height:1.2;letter-spacing:-.01em;white-space:nowrap}
+.emph .eh span{font-size:11.5px;opacity:.65;white-space:nowrap}
+.emph .fig{font-family:var(--font-display);font-weight:800;font-size:30px;letter-spacing:-.02em;line-height:1}
+.emph .fig small{font-family:var(--font-ui);font-size:12px;font-weight:500;opacity:.7;letter-spacing:0;margin-left:6px}
+.emph .due{display:grid;grid-template-columns:44px 1fr auto;gap:10px;align-items:center;padding-top:9px;border-top:1px solid color-mix(in srgb,var(--ink-inverse) 18%,transparent)}
+.emph .dchip{background:transparent;border-color:color-mix(in srgb,var(--ink-inverse) 45%,transparent)}
+.emph .dchip span{color:var(--ink-inverse);opacity:.65}
+.emph .due b{font-weight:700;font-size:13px;display:block}
+.emph .due small{font-size:11.5px;opacity:.65}
+.emph .due .v{font-weight:700;font-size:14px;text-align:right;white-space:nowrap}
+.emph .due .v small{display:block;font-weight:500}
+.emph .foot2{font-size:11px;opacity:.6;margin-top:auto}
+.agebars{display:flex;flex-direction:column;gap:9px;margin-top:2px}
+.ab{display:grid;grid-template-columns:104px 1fr 62px;gap:10px;align-items:center;font-size:12px}
+.ab .nm{display:flex;align-items:center;gap:7px;font-weight:600;white-space:nowrap;overflow:hidden}
+.ab .tr{height:10px;position:relative;border-left:1px solid var(--line-strong)}
+.ab .tr i{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0;background:var(--chart-muted)}
+.ab .tr i.man{background:none;border:1px dashed var(--warning);border-left:0}
+.ab .tr i.bad{background:none;border:1px dashed var(--broken);border-left:0}
+.ab .w{text-align:right;color:var(--ink-2);font-weight:600;white-space:nowrap}
+.ab .w.bad{color:var(--broken)}
+.abax{display:grid;grid-template-columns:104px 1fr 62px;gap:10px;font-size:10.5px;color:var(--ink-3);margin-top:2px}
+.abax div{display:flex;justify-content:space-between}
+
+/* ── balance sheet ── */
+.sheet{border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);background:var(--surface);overflow:hidden}
+.sheet-h{display:flex;align-items:center;gap:14px;padding:16px 24px 14px}
+.sheet-h h2{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.01em}
+.sheet-h .sub{font-size:12px;color:var(--ink-3);margin-top:3px}
+.sheet-h .r{margin-left:auto;display:flex;align-items:center;gap:8px;flex-wrap:wrap;justify-content:flex-end}
+.sheet-h .pill .dot{width:8px;height:8px}
+.row{display:grid;grid-template-columns:minmax(200px,1.35fr) minmax(220px,1.3fr) minmax(150px,1fr) minmax(140px,.7fr);gap:18px;align-items:center;padding:0 24px}
+.thead{height:32px;border-top:1px solid var(--line);border-bottom:1px solid var(--line);font-size:11px;text-transform:uppercase;letter-spacing:.07em;color:var(--ink-3);font-weight:600;background:var(--surface-2)}
+.r{text-align:right}
+.group{border-bottom:1px solid var(--line)}
+.ghead{min-height:64px}
+.gname{display:flex;align-items:center;gap:10px;min-width:0}
+.gname b{font-family:var(--font-display);font-size:16px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.gname .n{font-size:11px;color:var(--ink-3);font-weight:600;border:1px solid var(--line);border-radius:10px;padding:1px 7px}
+.gsw{width:12px;height:12px;border-radius:3px;border:1px solid var(--line-strong);flex:none}
+.gmeta{font-size:12px;color:var(--ink-2);line-height:1.4}
+.gmeta b{font-weight:600;color:var(--ink)}
+.gbar{display:flex;flex-direction:column;gap:5px}
+.track{height:10px;border-radius:5px;background:var(--surface-2);border:1px solid var(--line);overflow:hidden;position:relative;display:block}
+.track i{position:absolute;left:0;top:0;bottom:0;border-right:1px solid var(--line-strong)}
+.gbar small{font-size:11px;color:var(--ink-3)}
+.gtotal{text-align:right;font-family:var(--font-display);font-size:20px;font-weight:800;letter-spacing:-.02em;white-space:nowrap}
+.gtotal small{display:block;font-family:var(--font-ui);font-size:11px;color:var(--ink-3);font-weight:500;letter-spacing:0;margin-top:2px}
+.acct{min-height:60px;border-top:1px dashed var(--line);padding-top:9px;padding-bottom:9px}
+.acct:hover{background:var(--surface-2)}
+.aname{display:flex;align-items:center;gap:12px;min-width:0}
+.mark{flex:none;width:34px;height:34px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;font-size:10.5px;font-weight:800;letter-spacing:.02em;color:var(--tile-ink);font-family:var(--font-display)}
+.mark.t1{background:var(--tile-1)}.mark.t2{background:var(--tile-2)}.mark.t3{background:var(--tile-3)}.mark.t4{background:var(--tile-4)}
+.aname .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.aname .ty{font-size:12px;color:var(--ink-3)}
+.srccol{display:flex;flex-direction:column;gap:5px;font-size:12px;min-width:0}
+.prov{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;font-weight:600;padding:2px 9px;border-radius:999px;border:1px solid var(--line-strong);color:var(--ink-2);width:max-content;background:var(--surface)}
+.prov svg{width:12px;height:12px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.frl{display:flex;align-items:center;gap:8px;flex-wrap:wrap}
+.fr{display:inline-flex;align-items:center;gap:7px;font-weight:600;white-space:nowrap}
+.fr .w{font-weight:500;color:var(--ink-3)}
+.match{display:inline-flex;align-items:center;gap:4px;font-size:11px;font-weight:600;color:var(--positive)}
+.match svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round}
+.share{display:flex;align-items:center;gap:10px;font-size:12px;color:var(--ink-2)}
+.share .track{flex:1;height:6px;border-radius:3px}
+.share .track i{border-right:0}
+.share .pc{width:38px;text-align:right;font-weight:600;color:var(--ink)}
+.bal{text-align:right;font-weight:700;font-size:15px;white-space:nowrap}
+.bal small{display:block;font-size:11px;font-weight:500;color:var(--ink-3)}
+.acct .prog{margin:22px 0 20px;height:10px}
+.acct .prog .fill{background:var(--chart-3);border:1px solid var(--line-strong)}
+.fxwrap{padding:14px 24px 18px;border-bottom:1px solid var(--line)}
+.fxhead{display:flex;align-items:center;gap:12px;margin-bottom:12px}
+.fxhead b{font-family:var(--font-display);font-size:16px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.fxhead span{font-size:12px;color:var(--ink-3);white-space:nowrap}
+.fxhead:after{content:"";flex:1;border-top:1px dashed var(--line-strong);opacity:.5}
+.fxgrid{display:grid;grid-template-columns:1fr 1fr minmax(0,.9fr);gap:12px}
+.fxnote{align-self:start;border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);background:var(--surface);padding:14px;font-size:12px;color:var(--ink-2);line-height:1.5;display:flex;flex-direction:column;gap:8px}
+html[data-theme="dark"] .fxnote{background:var(--surface-2)}
+.fxnote b{color:var(--ink)}
+.sheet-foot{display:grid;grid-template-columns:repeat(3,auto) 1fr;gap:32px;align-items:end;padding:14px 24px 16px;background:var(--surface-2)}
+.sheet-foot .k{font-size:11px;color:var(--ink-3);text-transform:uppercase;letter-spacing:.07em;font-weight:600}
+.sheet-foot .v{font-family:var(--font-display);font-size:18px;font-weight:800;letter-spacing:-.01em;white-space:nowrap}
+.sheet-foot .note{font-size:12px;color:var(--ink-3);text-align:right;line-height:1.45}
+
+@media (max-width:1360px){
+  .nw{font-size:46px}
+  .row{grid-template-columns:minmax(180px,1.3fr) minmax(200px,1.3fr) minmax(130px,1fr) minmax(125px,.7fr);gap:14px;padding:0 18px}
+  .gtotal{font-size:18px}
+  .legend{gap:6px 12px}
+  .ab{grid-template-columns:92px 1fr 56px}.abax{grid-template-columns:92px 1fr 56px}
+  .support{grid-template-columns:minmax(0,1.3fr) minmax(0,1fr) minmax(0,.95fr)}
+  .emph .fig{font-size:26px}
+  .emph .fig small{display:block;margin:6px 0 0}
+  .emph .eh{flex-direction:column;gap:2px}
+  .trust .end .btn:last-child{display:none}
+}
+.trust .quiet{font-size:12.5px;color:var(--ink-3);text-decoration:none;white-space:nowrap}
+.trust .quiet:hover{color:var(--ink)}
+.leg3{display:inline-flex;align-items:center;gap:6px}
+/* dark-only contrast fixes (verify-dark D1–D8, I1–I6); light unchanged */
+html[data-theme="dark"] .tile.stale .tv small{opacity:1}
+</style>
+</head>
+<body>
+<div class="app">
+  <aside class="side">
+    <div class="logo">fluide<i>_</i></div>
+    <nav class="nav">
+      <a href="overview.html"><svg viewBox="0 0 16 16"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>Overview</a>
+      <a href="transactions.html"><svg viewBox="0 0 16 16"><path d="M3 4h10M3 8h10M3 12h6"/></svg>Transactions</a>
+      <a class="on" href="accounts.html" aria-current="page"><svg viewBox="0 0 16 16"><path d="M1.5 6 8 2l6.5 4M3 6.5v6M6.3 6.5v6M9.7 6.5v6M13 6.5v6M1.5 14h13"/></svg>Accounts</a>
+      <a href="cashflow.html"><svg viewBox="0 0 16 16"><path d="M2 14V9M6 14V5M10 14V7M14 14V2"/></svg>Cash flow</a>
+      <a href="upcoming.html"><svg viewBox="0 0 16 16"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>Upcoming</a>
+      <a href="review.html"><svg viewBox="0 0 16 16"><path d="M2.5 8.5 6 12l7.5-8"/></svg>Review<span class="badge num">4</span></a>
+      <a href="rules.html"><svg viewBox="0 0 16 16"><path d="M2 2h6l6 6-6 6-6-6z"/><circle cx="5.3" cy="5.3" r="1"/></svg>Rules</a>
+      <a href="assistant.html"><svg viewBox="0 0 16 16"><path d="M8 1.8 9.3 6.7 14.2 8 9.3 9.3 8 14.2 6.7 9.3 1.8 8 6.7 6.7z"/></svg>Assistant</a>
+      <a href="settings.html"><svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>Settings</a>
+    </nav>
+    <div class="foot">Read-only · self-hosted</div>
+  </aside>
+
+  <header class="top">
+    <div class="hello">
+      <small>Tue 29 Sep · 9 accounts at 8 institutions</small>
+      <h1>Accounts <span>· what you have and owe</span></h1>
+    </div>
+    <div class="ask">
+      <label>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 1.8 9.3 6.7 14.2 8 9.3 9.3 8 14.2 6.7 9.3 1.8 8 6.7 6.7z"/></svg>
+        <input type="text" placeholder="Ask about your money…" aria-label="Ask about your money">
+        <kbd>/</kbd>
+      </label>
+      <ul>
+        <li><em>From your data</em>Why is Shopping up 38% this month?</li>
+        <li>Show the 4 items waiting for review</li>
+        <li>Biggest merchants this month</li>
+      </ul>
+    </div>
+    <div class="circles">
+      <button class="cbtn" title="Sync connections — last sync 2h ago" aria-label="Sync connections"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6.5A5.6 5.6 0 0 0 3.2 4.6M2.5 9.5a5.6 5.6 0 0 0 10.3 1.9"/><path d="M3 1.8v3h3M13 14.2v-3h-3"/></svg></button>
+      <button class="cbtn" title="Hide amounts" aria-label="Hide amounts" onclick="fxHide()"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg></button>
+      <button class="cbtn" title="Light / dark" aria-label="Toggle theme" onclick="fxTheme()"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor"/></svg></button>
+      <div class="avatar" aria-label="Subhendu">S</div>
+    </div>
+  </header>
+
+  <main class="main">
+    <!-- R1 trust line -->
+    <div class="trust waiting" role="status">
+      <span class="state"><span class="ring"></span>2 connections need you</span><span class="sep"></span>
+      <span class="srcs">
+        <span class="src bad">Chase · reconnect</span>
+        <span class="src warn">ING · access ends in 12 days</span>
+      </span>
+      <a class="quiet" href="settings.html" title="HDFC, ICICI current; Zerodha, MF, EPF manual as of 1 Sep">5 others up to date ›</a>
+      <span class="end"><button class="btn sm danger">Reconnect Chase</button><button class="btn sm">Renew ING</button></span>
+    </div>
+
+    <!-- HERO: net worth band (R5 step line, R35 month pills) -->
+    <section class="band" aria-label="Net worth">
+      <div class="band-l">
+        <div class="bh">
+          <h3>Net worth <span>· INR · yours only</span></h3>
+          <span class="stamp">as of 2h ago · manual parts 1 Sep</span>
+        </div>
+        <div class="nw amt"><span class="cur">₹</span>18,42,600</div>
+        <div class="nw-sub">
+          <span class="pill pos"><span aria-hidden="true">+</span><span class="amt">₹52,600</span>&nbsp;since end of Aug</span>
+          <span><span aria-hidden="true">+</span><span class="amt">₹3,22,600</span> since Oct ’25</span>
+        </div>
+        <div class="split">
+          <span class="lab">Assets</span>
+          <div class="sbar" title="Investments 94.1% · Cash 5.9%">
+            <i style="width:94.1%;background:var(--chart-2)"></i>
+            <i style="width:5.9%;background:var(--chart-1)"></i>
+          </div>
+          <span class="val amt">₹21,10,000</span>
+          <span class="lab">Owed</span>
+          <div class="otrack">
+            <div class="sbar" style="width:12.67%" title="Loans 85.5% · Cards 14.5%">
+              <i style="width:85.5%;background:var(--chart-4)"></i>
+              <i style="width:14.5%;background:var(--chart-3)"></i>
+            </div>
+            <span class="gap" style="left:calc(12.67% + 6px);right:0"></span>
+            <span class="gapl" style="left:calc(12.67% + 16px)">owed = 12.7% of assets</span>
+          </div>
+          <span class="val amt">−₹2,67,400</span>
+        </div>
+        <div class="legend">
+          <span><em><i class="sw" style="background:var(--chart-1)"></i>Cash</em><b class="amt">₹1,24,300</b></span>
+          <span><em><i class="sw" style="background:var(--chart-2)"></i>Investments</em><b class="amt">₹19,85,700</b></span>
+          <span><em><i class="sw" style="background:var(--chart-3)"></i>Cards</em><b class="amt">−₹38,900</b></span>
+          <span><em><i class="sw" style="background:var(--chart-4)"></i>Loans</em><b class="amt">−₹2,28,500</b></span>
+        </div>
+        <div class="excl">
+          <svg viewBox="0 0 16 16"><circle cx="8" cy="8" r="6.5"/><path d="M8 7v4.2M8 4.8v.1"/></svg>
+          <span><b>Excludes</b> your home (not tracked) and money held in <b>EUR and USD</b>, which stay in their own currency below. <b>Investments are as of 1 Sep</b> (manual).</span>
+        </div>
+      </div>
+      <div class="band-r">
+        <div class="bh">
+          <h3>Month-end net worth <span>· 12 months · ₹ lakh</span></h3>
+        </div>
+        <svg class="nwchart" id="nwchart" viewBox="0 0 540 206" role="img" aria-label="Month-end net worth, Oct 2025 to Sep 2026, rising from ₹15.2 lakh to ₹18.43 lakh; September is not final"></svg>
+        <div class="mpills"><span></span><span>Oct</span><span>Nov</span><span>Dec</span><span>Jan</span><span>Feb</span><span>Mar</span><span>Apr</span><span>May</span><span>Jun</span><span>Jul</span><span>Aug</span><span class="on">Sep</span></div>
+        <div class="chart-foot">
+          <span>Axis starts at <span class="amt">₹14.5L</span> · dips in Dec, Mar and Jul</span>
+          <span><span class="hsw"></span> not final</span>
+        </div>
+      </div>
+    </section>
+
+    <!-- supporting cards -->
+    <div class="support">
+      <!-- the one black emphasis card: what you owe, with date chips -->
+      <section class="emph" aria-label="What you owe">
+        <div class="eh"><h3>What you owe</h3><span>covers to 27 Sep · loan manual 1 Sep</span></div>
+        <div class="fig amt">−₹2,67,400<small>card + car loan</small></div>
+        <div class="due">
+          <div class="dchip exp"><b>5</b><span>Oct</span></div>
+          <div><b>HDFC Regalia statement</b><small>expected · 13% of limit used</small></div>
+          <div class="v amt">≈−₹38,900<small>due</small></div>
+        </div>
+        <div class="due">
+          <div class="dchip exp"><b>7</b><span>Oct</span></div>
+          <div><b>SBI car loan EMI</b><small>expected · from ICICI Salary</small></div>
+          <div class="v amt">−₹11,250<small>of −₹2,28,500</small></div>
+        </div>
+        <div class="foot2">Dashed chips = expected, a projection, not yet posted.</div>
+      </section>
+
+      <!-- R13 one-highlight monthly change bars -->
+      <section class="card" aria-label="Net worth change by month">
+        <div class="card-h"><h3>Change by month</h3><span class="stamp manual">vs prior month-end</span></div>
+        <svg id="chg" viewBox="0 0 320 150" width="100%" role="img" aria-label="Monthly change in net worth, November to September; September +₹52,600, not final"></svg>
+        <div class="chart-foot"><span>≈ from month-ends rounded to <span class="amt">₹0.1L</span></span><span><span class="hsw"></span> not final</span></div>
+      </section>
+
+      <!-- freshness bars -->
+      <section class="card" aria-label="Data age by source">
+        <div class="card-h"><h3>Data age</h3><span class="stamp">as of 2h ago</span></div>
+        <div class="agebars">
+          <div class="ab"><span class="nm"><i class="dot d-ok"></i>ING</span><span class="tr"><i style="width:1%"></i></span><span class="w">5h</span></div>
+          <div class="ab"><span class="nm"><i class="dot d-ok"></i>ICICI</span><span class="tr"><i style="width:3.3%"></i></span><span class="w">1 day</span></div>
+          <div class="ab"><span class="nm"><i class="dot d-ok"></i>HDFC</span><span class="tr"><i style="width:6.7%"></i></span><span class="w">2 days</span></div>
+          <div class="ab"><span class="nm" style="color:var(--broken)"><i class="dot d-bad"></i>Chase</span><span class="tr"><i class="bad" style="width:10%"></i></span><span class="w bad">3 days</span></div>
+          <div class="ab"><span class="nm"><i class="dot d-man"></i>Manual ×4</span><span class="tr"><i class="man" style="width:93.3%"></i></span><span class="w">28 days</span></div>
+        </div>
+        <div class="abax"><span></span><div><span>0</span><span>15</span><span>30 days</span></div><span></span></div>
+        <div class="chart-foot"><span class="leg3"><i class="dot d-ok"></i>current <i class="dot d-man"></i>manual, dated <i class="dot d-bad"></i>broken</span></div>
+      </section>
+    </div>
+
+    <!-- balance sheet: R7 grouped accounts + group share bars + utilisation -->
+    <section class="sheet" aria-label="Accounts">
+      <div class="sheet-h">
+        <div>
+          <h2>Balance sheet</h2>
+          <div class="sub">7 accounts in INR · 2 in other currencies · 3 statement uploads, 2 bank syncs, 4 manual</div>
+        </div>
+        <div class="r">
+          <span class="pill"><span class="dot d-ok"></span>4 current</span>
+          <span class="pill"><span class="dot d-man"></span>4 manual, dated</span>
+          <span class="pill bad"><span class="dot d-bad"></span>1 broken</span>
+          <div class="seg" role="group" aria-label="Group by">
+            <span class="sl">Group by</span>
+            <button class="on" data-g="kind">Kind</button>
+            <button data-g="currency">Currency</button>
+            <button data-g="inst">Institution</button>
+          </div>
+        </div>
+      </div>
+      <div class="row thead"><span>Account</span><span>Source · freshness</span><span id="sharehd">Share of group</span><span class="r">Balance</span></div>
+      <div id="groups"></div>
+
+      <div class="fxwrap">
+        <div class="fxhead"><b>Other currencies</b><span>not converted, not in totals</span></div>
+        <div class="fxgrid">
+          <div class="tile t1">
+            <div class="th"><span>ING · Current</span><span class="sym">€</span></div>
+            <div class="tv amt">€3,420<small>.18</small></div>
+            <div class="tn"><span>EUR · Netherlands</span><span class="flag w">12 days left</span></div>
+            <div class="tsrc"><svg viewBox="0 0 16 16"><path d="M13 6.5A5 5 0 0 0 4 4.5L3 6M3 9.5a5 5 0 0 0 9 2l1-1.5M3 3v3h3M13 13v-3h-3"/></svg>Bank sync · Enable Banking · <i class="dot d-ok"></i>current, 5h ago
+              <span class="match" style="color:inherit"><svg viewBox="0 0 12 12"><path d="m2.5 6.3 2.3 2.2 4.7-5"/></svg>matches bank</span>
+              <button class="btn xs">Renew access</button></div>
+          </div>
+          <div class="tile t4 stale">
+            <div class="th"><span>Chase · Checking</span><span class="sym">$</span></div>
+            <div class="tv amt">$1,860<small>.40</small></div>
+            <div class="tn"><span>USD · stale, 3 days old</span><span class="flag">reconnect</span></div>
+            <div class="tsrc"><svg viewBox="0 0 16 16"><path d="M13 6.5A5 5 0 0 0 4 4.5L3 6M3 9.5a5 5 0 0 0 9 2l1-1.5M3 3v3h3M13 13v-3h-3"/></svg>Bank sync · Plaid · <i class="dot d-bad"></i>broken, last good 3 days ago
+              <button class="btn xs danger">Reconnect</button></div>
+          </div>
+          <div class="fxnote">
+            <span><b>Held as is.</b> Each balance stays in its own currency. Fluide never adds € or $ to ₹ without an FX rate you choose.</span>
+            <span>Neither is in net worth or cash on hand above.</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="sheet-foot">
+        <div><div class="k">Assets</div><div class="v amt">₹21,10,000</div></div>
+        <div><div class="k">Owed</div><div class="v amt">−₹2,67,400</div></div>
+        <div><div class="k">Net worth · INR</div><div class="v amt">₹18,42,600</div></div>
+        <div class="note">INR only · manual parts as of 1 Sep · home not tracked.</div>
+      </div>
+    </section>
+  </main>
+</div>
+
+<script>
+/* hero step line: muted Oct–Aug, Sep = the one highlight, hatched (not final) */
+(function(){
+  const V=[15.2,15.5,15.4,15.9,16.3,16.1,16.6,17.0,17.4,17.2,17.9,18.43];
+  const W=540,L=36,R=4,T=34,PH=164,B=T+PH,lo=14.5,hi=19,cw=(W-L-R)/12;
+  const y=v=>T+(hi-v)/(hi-lo)*PH, x=i=>L+i*cw;
+  let s=`<defs><pattern id="nwh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" style="fill:var(--surface-2)"/><line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--hatch-stripe);stroke-width:1.6"/></pattern></defs>`;
+  [15,16,17,18,19].forEach(g=>{s+=`<line x1="${L}" x2="${W-R}" y1="${y(g)}" y2="${y(g)}" style="stroke:var(--chart-grid)"/><text class="amt" x="0" y="${y(g)+4}" style="fill:var(--ink-3);font-size:10.5px">${g}L</text>`});
+  let a=`M${x(0)} ${B}`;V.slice(0,11).forEach((v,i)=>{a+=` V${y(v)} H${x(i+1)}`});a+=` V${B} Z`;
+  s+=`<path d="${a}" style="fill:var(--chart-muted);opacity:.5"/>`;
+  s+=`<rect x="${x(11)}" y="${y(V[11])}" width="${cw}" height="${B-y(V[11])}" style="fill:url(#nwh);stroke:var(--line-strong);stroke-width:1"/>`;
+  let p=`M${x(0)} ${y(V[0])}`;V.slice(0,11).forEach((v,i)=>{p+=` H${x(i+1)}`;if(i<10)p+=` V${y(V[i+1])}`});
+  s+=`<path d="${p}" style="fill:none;stroke:var(--ink-3);stroke-width:1.6;stroke-linejoin:round"/>`;
+  s+=`<path d="M${x(11)} ${y(V[10])} V${y(V[11])} H${x(12)}" style="fill:none;stroke:var(--chart-1);stroke-width:2.6;stroke-linejoin:round"/>`;
+  s+=`<circle cx="${x(12)}" cy="${y(V[11])}" r="4.5" style="fill:var(--chart-1);stroke:var(--surface-2);stroke-width:2"/>`;
+  const pw=104,px=W-R-pw,py=y(V[11])-30;
+  s+=`<g class="amt"><rect x="${px}" y="${py}" width="${pw}" height="21" rx="10.5" style="fill:var(--surface-inverse)"/><text x="${px+pw/2}" y="${py+14.5}" text-anchor="middle" style="fill:var(--ink-inverse);font-size:11px;font-weight:700;font-variant-numeric:tabular-nums">₹18.43L · Sep</text></g>`;
+  s+=`<line x1="${L}" x2="${W-R}" y1="${B}" y2="${B}" style="stroke:var(--line-strong)"/>`;
+  document.getElementById('nwchart').innerHTML=s;
+})();
+
+/* R13 change-by-month: muted bars, one chart-1 hatched highlight + inverse pill */
+(function(){
+  const M=['N','D','J','F','M','A','M','J','J','A','S'];
+  const D=[0.3,-0.1,0.5,0.4,-0.2,0.5,0.4,0.4,-0.2,0.7,0.526];
+  const W=320,T=34,Z=104,sc=90,cw=W/11,bw=cw*.62;
+  let s=`<defs><pattern id="chh" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" style="fill:var(--surface)"/><line x1="0" y1="0" x2="0" y2="5" style="stroke:var(--hatch-stripe);stroke-width:2"/></pattern></defs>`;
+  D.forEach((d,i)=>{
+    const bx=i*cw+(cw-bw)/2,h=Math.abs(d)*sc,by=d>=0?Z-h:Z,last=i===10;
+    s+=`<rect x="${bx}" y="${by}" width="${bw}" height="${h}" rx="2" style="fill:${last?'url(#chh)':'var(--chart-muted)'};${last?'stroke:var(--chart-1);stroke-width:1.4':''}"/>`;
+    s+=`<text x="${bx+bw/2}" y="${Z+30}" text-anchor="middle" style="fill:${last?'var(--ink)':'var(--ink-3)'};font-size:10px;font-weight:${last?700:500}">${M[i]}</text>`;
+  });
+  const lx=10*cw+cw/2,top=Z-D[10]*sc,pw=112;
+  const pt=Math.min(top,Z-Math.max(...D)*sc);
+  s+=`<g class="amt"><rect x="${W-pw}" y="${pt-28}" width="${pw}" height="20" rx="10" style="fill:var(--surface-inverse)"/><text x="${W-pw/2}" y="${pt-14}" text-anchor="middle" style="fill:var(--ink-inverse);font-size:10.5px;font-weight:700;font-variant-numeric:tabular-nums">+₹52,600 · Sep</text></g>`;
+  s+=`<line x1="0" x2="${W}" y1="${Z}" y2="${Z}" style="stroke:var(--line-strong)"/>`;
+  s+=`<text x="0" y="${Z+45}" style="fill:var(--ink-3);font-size:10px">above the line = + gain · below = − fall</text>`;
+  document.getElementById('chg').innerHTML=s;
+})();
+
+/* balance sheet */
+const IC={doc:'<path d="M4 2h6l3 3v9H4zM6.5 8.5h4M6.5 11h4"/>',pen:'<path d="M3 13l1-3 7-7 2 2-7 7zM9.5 4.5l2 2"/>'};
+const CHECK='<svg viewBox="0 0 12 12"><path d="m2.5 6.3 2.3 2.2 4.7-5"/></svg>';
+const A=[
+ {n:'HDFC Savings',ty:'Savings account',inst:'HDFC Bank',mk:'HD',t:'t2',kind:'cash',bal:98200,src:'Statement upload',ic:'doc',fr:'ok',fw:'current',fd:'covers to 27 Sep',match:1},
+ {n:'ICICI Salary',ty:'Salary account',inst:'ICICI Bank',mk:'IC',t:'t1',kind:'cash',bal:26100,src:'Statement upload',ic:'doc',fr:'ok',fw:'current',fd:'covers to 28 Sep',match:1},
+ {n:'HDFC Regalia',ty:'Credit card',inst:'HDFC Bank',mk:'HD',t:'t2',kind:'cards',bal:-38900,src:'Statement upload',ic:'doc',fr:'ok',fw:'current',fd:'covers to 27 Sep',match:1,util:1},
+ {n:'SBI Car loan',ty:'Auto loan',inst:'SBI',mk:'SBI',t:'t4',kind:'loans',bal:-228500,src:'Manual',ic:'pen',fr:'man',fw:'manual',fd:'as of 1 Sep'},
+ {n:'Zerodha',ty:'Stocks · demat',inst:'Zerodha',mk:'ZE',t:'t3',kind:'inv',bal:685700,src:'Manual',ic:'pen',fr:'man',fw:'manual',fd:'updated 1 Sep'},
+ {n:'Mutual funds',ty:'Consolidated (CAS)',inst:'Mutual funds · CAS',mk:'MF',t:'t4',kind:'inv',bal:910000,src:'Manual · CAS',ic:'pen',fr:'man',fw:'manual',fd:'updated 1 Sep'},
+ {n:'EPF',ty:'Provident fund',inst:'EPFO',mk:'EPF',t:'t1',kind:'inv',bal:390000,src:'Manual',ic:'pen',fr:'man',fw:'manual',fd:'as of 1 Sep'}
+];
+const ASSETS=2110000,OWED=267400;
+const inr=v=>(v<0?'−':'')+'₹'+Math.abs(v).toLocaleString('en-IN');
+const pct=f=>(f*100).toFixed(f<.1?1:0)+'%';
+function row(a,shareOf,col){
+  const src=`<div class="srccol"><span class="prov"><svg viewBox="0 0 16 16">${IC[a.ic]}</svg>${a.src}</span>
+    <span class="frl"><span class="fr"><span class="dot d-${a.fr}"></span>${a.fw}<span class="w">· ${a.fd}</span></span>${a.match?`<span class="match">${CHECK}matches bank</span>`:''}</span></div>`;
+  let mid;
+  if(a.util){
+    mid=`<div class="prog" title="Utilisation 13% of ₹3,00,000 limit"><div class="fill" style="width:13%"></div><div class="mk" style="left:13%"><span>13% used</span></div><span class="typ" style="left:30%" title="30% guideline"></span><span class="ax" style="left:0;transform:none">0</span><span class="ax" style="left:30%">30%</span><span class="ax amt" style="left:auto;right:0;transform:none">of ₹3,00,000</span></div>`;
+  }else{
+    const f=Math.abs(a.bal)/shareOf.v;
+    mid=`<div class="share" title="${pct(f)} ${shareOf.l}"><span class="track"><i style="width:${(f*100).toFixed(1)}%;background:${col}"></i></span><span class="pc">${pct(f)}</span></div>`;
+  }
+  return `<div class="row acct"><div class="aname"><span class="mark ${a.t}">${a.mk}</span><div style="min-width:0"><div class="nm">${a.n}</div><div class="ty">${a.ty}</div></div></div>${src}${mid}<div class="bal"><span class="amt">${inr(a.bal)}</span><small>${a.bal<0?'owed':shareOf.l}</small></div></div>`;
+}
+function group(g){
+  const tot=g.rows.reduce((s,a)=>s+a.bal,0);
+  const shareOf=g.shareOf||{v:Math.abs(tot),l:'of '+g.name.toLowerCase()};
+  return `<div class="group"><div class="row ghead"><div class="gname"><i class="gsw" style="background:${g.col}"></i><b>${g.name}</b><span class="n">${g.rows.length}</span></div><div class="gmeta">${g.meta}</div><div class="gbar"><span class="track"><i style="width:${(g.barF*100).toFixed(1)}%;background:${g.col}"></i></span><small>${g.barTxt}</small></div><div class="gtotal"><span class="amt">${inr(tot)}</span><small>${g.fresh}</small></div></div>${g.rows.map(a=>row(a,shareOf,g.col)).join('')}</div>`;
+}
+const byK=k=>A.filter(a=>a.kind===k);
+const MODES={
+ kind:()=>[
+  group({name:'Cash',col:'var(--chart-1)',rows:byK('cash'),meta:'<b><span aria-hidden="true">+</span><span class="amt">₹8,100</span> more</b> than this day last month',barF:124300/ASSETS,barTxt:'5.9% of assets',fresh:'INR only · as of 2h ago'}),
+  group({name:'Cards',col:'var(--chart-3)',rows:byK('cards'),meta:'Statement <b class="amt">≈₹38,900</b> due 5 Oct <span class="faint">(expected)</span>',barF:38900/OWED,barTxt:'14.5% of what you owe',fresh:'owed · covers to 27 Sep'}),
+  group({name:'Loans',col:'var(--chart-4)',rows:byK('loans'),meta:'EMI <b class="amt">₹11,250</b> on 7 Oct <span class="faint">(expected)</span>',barF:228500/OWED,barTxt:'85.5% of what you owe',fresh:'owed · manual, as of 1 Sep'}),
+  group({name:'Investments',col:'var(--chart-2)',rows:byK('inv'),meta:'All manual · last updated 1 Sep',barF:1985700/ASSETS,barTxt:'94.1% of assets',fresh:'manual · as of 1 Sep'})
+ ].join(''),
+ currency:()=>group({name:'INR',col:'var(--chart-1)',rows:A,meta:'Assets <b class="amt">₹21,10,000</b> − owed <b class="amt">₹2,67,400</b>',barF:1,barTxt:'All of your INR net worth',fresh:'net · manual parts as of 1 Sep',shareOf:{v:ASSETS,l:'of assets'}}),
+ inst:()=>{
+  const names=[...new Set(A.map(a=>a.inst))];
+  const cols=['var(--chart-1)','var(--chart-2)','var(--chart-3)','var(--chart-4)','var(--chart-5)','var(--chart-6)'];
+  return names.map((nm,i)=>{
+   const rows=A.filter(a=>a.inst===nm);
+   const as=rows.filter(a=>a.bal>0).reduce((s,a)=>s+a.bal,0), ow=-rows.filter(a=>a.bal<0).reduce((s,a)=>s+a.bal,0);
+   const f=as?as/ASSETS:ow/OWED;
+   const txt=as?pct(f)+' of assets'+(ow?` · <span class="amt">₹${ow.toLocaleString('en-IN')}</span> owed`:''):pct(f)+' of what you owe';
+   const fr=rows.every(a=>a.fr==='man')?'manual · as of 1 Sep':'current · '+rows[0].fd;
+   return group({name:nm,col:cols[i],rows,meta:[...new Set(rows.map(a=>a.src))].join(' · '),barF:f,barTxt:txt,fresh:(as&&ow?'net · ':'')+fr,shareOf:{v:ASSETS,l:'of assets'}});
+  }).join('');
+ }
+};
+const HD={kind:'Share of group',currency:'Share of assets',inst:'Share of assets'};
+function render(m){
+  document.getElementById('groups').innerHTML=MODES[m]();
+  document.getElementById('sharehd').textContent=HD[m];
+  document.querySelectorAll('.seg button').forEach(b=>b.classList.toggle('on',b.dataset.g===m));
+}
+document.querySelectorAll('.seg button').forEach(b=>b.onclick=()=>render(b.dataset.g));
+render('kind');
+</script>
+<script>
+(function(){const d=document.documentElement,q=new URLSearchParams(location.search);
+if(q.get('theme')==='dark'||localStorage.getItem('fluide-theme')==='dark')d.dataset.theme='dark';
+if(localStorage.getItem('fluide-hide')==='1')d.classList.add('amounts-hidden');
+window.fxTheme=()=>{d.dataset.theme=d.dataset.theme==='dark'?'':'dark';localStorage.setItem('fluide-theme',d.dataset.theme||'')};
+window.fxHide=()=>{localStorage.setItem('fluide-hide',d.classList.toggle('amounts-hidden')?'1':'')};
+window.addEventListener('message',e=>{if(e.data&&e.data.theme!==undefined)d.dataset.theme=e.data.theme});})();
+</script>
+</body>
+</html>

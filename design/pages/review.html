@@ -1,0 +1,622 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fluide · Review</title>
+<link rel="stylesheet" href="../shared/tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--canvas);color:var(--ink);font-family:var(--font-ui);font-size:14px;-webkit-font-smoothing:antialiased}
+body{min-width:1280px;padding:24px}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+.num,.amt{font-variant-numeric:tabular-nums lining-nums}
+.amt{white-space:nowrap}
+html.amounts-hidden .amt{filter:blur(7px)}
+.dec{font-size:.58em;color:var(--ink-3);font-weight:inherit}
+
+/* frame */
+.app{max-width:1392px;margin:0 auto;display:grid;grid-template-columns:232px minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-xl);box-shadow:var(--shadow-2);overflow:hidden;min-height:852px}
+
+/* sidebar */
+.side{border-right:1px solid var(--line);padding:26px 18px 22px;display:flex;flex-direction:column;gap:26px;background:var(--surface-2)}
+.logo{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.02em;padding-left:8px}
+.logo i{font-style:normal;color:var(--ink-3)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);color:var(--ink-2);text-decoration:none;font-weight:500;border:1px solid transparent}
+.nav a:hover{color:var(--ink)}
+.nav a svg{width:17px;height:17px;flex:none}
+.nav a.on{color:var(--ink);background:var(--surface);border-color:var(--line-strong);font-weight:600}
+.nav .badge{margin-left:auto;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:grid;place-items:center;background:var(--surface-inverse);color:var(--ink-inverse);padding:0 6px}
+.foot{margin-top:auto;font-size:11.5px;color:var(--ink-3);line-height:1.5;padding-left:8px}
+
+/* main */
+.main{padding:0 28px 30px;display:flex;flex-direction:column;gap:20px;min-width:0}
+.top{display:flex;align-items:center;gap:16px;padding-top:26px}
+.hello small{display:block;color:var(--ink-2);font-size:13px;margin-bottom:3px}
+.hello h1{white-space:nowrap;font-family:var(--font-display);font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.hello h1 span{color:var(--ink-3);font-weight:600}
+.hello{min-width:0}
+.ask{margin-left:auto;position:relative;flex:0 0 420px;min-width:0}
+@media (max-width:1359px){.ask{flex-basis:360px}.hello h1 span{display:none}}
+.ask label{display:flex;align-items:center;gap:9px;height:40px;border:1px solid var(--line);border-radius:20px;padding:0 6px 0 14px;background:var(--surface);cursor:text}
+.ask input{border:0;outline:0;background:none;flex:1;font:inherit;font-size:13px;color:var(--ink);min-width:0}
+.ask input::placeholder{color:var(--ink-3)}
+.ask svg{width:16px;height:16px;flex:none;color:var(--ink-2)}
+.ask kbd{font:600 10.5px var(--font-mono);color:var(--ink-3);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.ask ul{list-style:none;position:absolute;top:46px;left:0;right:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-2);padding:6px;display:none;z-index:5}
+.ask:focus-within ul{display:block}
+.ask li{padding:8px 10px;border-radius:var(--radius-sm);font-size:13px;color:var(--ink-2);cursor:pointer}
+.ask li:hover{background:var(--surface-2);color:var(--ink)}
+.ask li em{font-style:normal;color:var(--ink-3);font-size:11px;display:block;margin-bottom:2px;text-transform:uppercase;letter-spacing:.06em}
+.circles{display:flex;gap:8px}
+.cbtn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;background:var(--surface);flex:none}
+.cbtn:hover{background:var(--surface-2)}
+.cbtn svg{width:17px;height:17px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--tile-2);color:var(--tile-ink);display:grid;place-items:center;font-weight:700;font-family:var(--font-display);border:1px solid var(--line-strong)}
+
+/* page head */
+.phead{display:flex;align-items:flex-end;gap:18px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+.phead .lbl{color:var(--ink-2);font-weight:500;margin-bottom:8px;display:flex;align-items:center;gap:10px}
+.phead h2{font-family:var(--font-display);font-size:40px;font-weight:800;letter-spacing:-.03em;line-height:1}
+.phead h2 .sep{color:var(--ink-3);font-weight:600}
+.phead p{margin-top:10px;color:var(--ink-2);font-size:13px;max-width:640px;line-height:1.45}
+.phead .bulk{margin-left:auto;display:flex;gap:8px;align-items:center}
+.fresh{font-size:11.5px;color:var(--ink-3);display:inline-flex;align-items:center;gap:5px}
+.fresh::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--positive)}
+.btn{height:36px;padding:0 16px;border-radius:18px;font-size:13px;font-weight:600;border:1px solid var(--line-strong);background:var(--surface);display:inline-flex;align-items:center;gap:7px;white-space:nowrap}
+.btn:hover{background:var(--surface-2)}
+.btn.solid{background:var(--surface-inverse);color:var(--ink-inverse);border-color:var(--surface-inverse)}
+.btn.solid:hover{opacity:.88}
+.btn.sm{height:30px;padding:0 13px;font-size:12.5px;border-radius:15px}
+.btn.ghost{border-color:transparent;color:var(--ink-2)}
+.btn.ghost:hover{border-color:var(--line)}
+.btn[disabled]{opacity:.4;cursor:default}
+
+/* layout */
+.cols{display:grid;grid-template-columns:minmax(0,1fr) 340px;gap:26px;align-items:start}
+.stack{display:flex;flex-direction:column;gap:14px;min-width:0}
+.sh{display:flex;align-items:center;gap:10px;margin-bottom:2px}
+.sh h3{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.01em;white-space:nowrap}
+.sh .meta{font-size:12px;color:var(--ink-3)}
+.sh .r{margin-left:auto}
+
+/* confidence split */
+.split{border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);background:var(--surface);padding:14px 16px 14px}
+.split svg{width:100%;height:auto;display:block;overflow:visible}
+.split ul{list-style:none;display:flex;gap:22px;margin-top:10px;font-size:12.5px;color:var(--ink-2);flex-wrap:wrap}
+.split li{display:flex;align-items:center;gap:7px}
+.split li .sw{width:10px;height:10px;border-radius:3px;border:1px solid var(--ink)}
+.split li b{color:var(--ink);font-weight:700}
+.pillbg{fill:var(--surface-inverse)}
+.pilltx{fill:var(--ink-inverse);font-size:10.5px;font-weight:700;font-family:var(--font-ui)}
+
+/* queue card */
+.q{border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);padding:16px 18px 14px;background:var(--surface);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:12px 20px;position:relative}
+.q .who{display:flex;gap:12px;align-items:flex-start;min-width:0}
+.mono{width:36px;height:36px;border-radius:50%;display:grid;place-items:center;font-size:13px;font-weight:700;flex:none;border:1px solid var(--ink);color:var(--tile-ink);font-family:var(--font-display)}
+.t1{background:var(--tile-1)}.t2{background:var(--tile-2)}.t3{background:var(--tile-3)}.t4{background:var(--tile-4)}
+.q .who b{font-family:var(--font-display);font-weight:700;font-size:16px;letter-spacing:-.01em;display:block}
+.q .who small{font-size:12px;color:var(--ink-3);display:block;margin-top:2px}
+.raw{margin-top:7px;font:500 11.5px var(--font-mono);color:var(--ink-2);background:var(--surface-2);border:1px solid var(--line);border-radius:var(--radius-sm);padding:4px 8px;display:inline-block;letter-spacing:0}
+.raw::before{content:"bank text  ";color:var(--ink-3)}
+.q .money{text-align:right;font-family:var(--font-display);font-weight:800;font-size:20px;letter-spacing:-.02em;white-space:nowrap}
+.q .money small{display:block;font-family:var(--font-ui);font-weight:500;font-size:11px;color:var(--ink-3);letter-spacing:0;margin-top:2px}
+.sug{grid-column:1/-1;display:grid;grid-template-columns:auto minmax(0,1fr);gap:14px 24px;align-items:center;padding:6px 0 0;border-top:1px solid var(--line)}
+.sugl{display:flex;align-items:center;gap:8px;white-space:nowrap}
+.sugl .k{font-size:11px;letter-spacing:.07em;text-transform:uppercase;color:var(--ink-3);font-weight:600}
+.catchip{display:inline-flex;align-items:center;gap:6px;height:28px;padding:0 12px;border-radius:14px;border:1px dashed var(--line-strong);font-weight:700;font-size:13px;background:var(--warning-wash)}
+.catchip::after{content:"?";font-weight:600;color:var(--ink-3)}
+.src{font-size:11px;color:var(--ink-3);border:1px solid var(--line);border-radius:10px;padding:2px 8px}
+.conf{display:flex;align-items:center;gap:12px;min-width:0}
+.conf svg{flex:1;height:34px;min-width:0;overflow:visible}
+.conf .pct{font-family:var(--font-display);font-weight:800;font-size:16px;white-space:nowrap;min-width:44px;text-align:right}
+.trk{fill:var(--surface-2);stroke:var(--line-strong);stroke-width:1}
+.fil{fill:url(#hatch);stroke:var(--ink);stroke-width:1}
+.thr{stroke:var(--ink);stroke-width:1.4}
+.thl{fill:var(--ink-3);font-size:10px;font-family:var(--font-ui);font-weight:600}
+.why{grid-column:1/-1;font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.why b{color:var(--ink);font-weight:600}
+.acts{grid-column:1/-1;display:flex;gap:8px;align-items:center}
+.acts .aff{margin-left:auto;font-size:11.5px;color:var(--ink-3)}
+.picker{grid-column:1/-1;display:none;flex-wrap:wrap;gap:6px;padding:10px;border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface-2)}
+.q.picking .picker{display:flex}
+.picker button{height:26px;padding:0 11px;border-radius:13px;border:1px solid var(--line-strong);background:var(--surface);font-size:12px;font-weight:600}
+.picker button:hover{background:var(--surface-inverse);color:var(--ink-inverse)}
+.picker span{font-size:11.5px;color:var(--ink-3);align-self:center;margin-right:4px}
+/* decided state */
+.q .done{display:none;grid-column:1/-1;font-size:12.5px;color:var(--ink-2);align-items:center;gap:10px}
+.q.decided{background:var(--surface-2);padding-bottom:12px}
+.q.hide{display:none}
+.trust .quiet{font-size:12px;color:var(--ink-3);text-decoration:none}
+.trust .quiet:hover{color:var(--ink)}
+.q.decided .sug,.q.decided .why,.q.decided .acts,.q.decided .picker,.q.decided .raw{display:none}
+.q.decided .done{display:flex}
+.q.decided .money{color:var(--ink-2);font-size:16px}
+.q .done b{color:var(--ink);font-weight:700}
+.q .done .undo{margin-left:auto;font-weight:600;color:var(--ink);border-bottom:1px solid var(--line-strong);font-size:12px}
+.q.flash{box-shadow:0 0 0 3px var(--accent-wash)}
+
+/* possible transfer */
+section.xfer{border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);padding:16px;background:repeating-linear-gradient(135deg,var(--surface) 0 7px,var(--accent-wash) 7px 8px)}
+.xfer .tag{font-size:10.5px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;border:1px dashed var(--line-strong);border-radius:9px;padding:2px 8px;background:var(--surface)}
+.xfer .row{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;margin-top:12px}
+.xfer .row b{font-family:var(--font-display);font-size:14.5px;font-weight:700;display:block;white-space:nowrap}
+.xfer .row small{font-size:12px;color:var(--ink-3)}
+.xfer .money{font-family:var(--font-display);font-weight:800;font-size:20px;white-space:nowrap;letter-spacing:-.02em}
+.xfer .raw{background:var(--surface)}
+.choice{display:flex;flex-direction:column;gap:8px;margin-top:14px}
+.opt{border:1px solid var(--line);border-radius:var(--radius-sm);background:var(--surface);padding:10px 12px;text-align:left;display:flex;flex-direction:column;gap:3px}
+.opt:hover{background:var(--surface-2)}
+.opt > b{font-weight:700;font-size:13px;display:flex;align-items:center;gap:6px}
+.opt span b{font-weight:700;color:inherit}
+.opt span{font-size:12px;color:var(--ink-2);line-height:1.4}
+.opt.sel{background:var(--surface-inverse);color:var(--ink-inverse);border-color:var(--surface-inverse)}
+.opt.sel span{color:var(--ink-inverse);opacity:.75}
+.xfer .note{font-size:11.5px;color:var(--ink-3);margin-top:10px;line-height:1.45;background:var(--surface);padding:6px 8px;border-radius:var(--radius-sm)}
+
+.card{border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);background:var(--surface);padding:16px}
+.card>h3{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.01em;margin-bottom:8px}
+.card p,.card li{font-size:12.5px;color:var(--ink-2);line-height:1.5}
+.card ul{list-style:none;display:flex;flex-direction:column;gap:7px;margin-top:8px}
+.card li{display:grid;grid-template-columns:auto 1fr;gap:8px}
+.card li i{display:grid;place-items:center;width:22px;height:22px;border-radius:50%;border:1px solid var(--line-strong);color:var(--ink)}
+.card code{font:600 11.5px var(--font-mono);background:var(--surface-2);border:1px solid var(--line);border-radius:4px;padding:1px 5px;color:var(--ink)}
+.card a{color:var(--ink);font-weight:600;text-decoration:none;border-bottom:1px solid var(--line-strong)}
+.pp{margin-top:10px;display:flex;align-items:center;gap:8px;font-size:12px;white-space:nowrap;border:1px solid var(--line);border-radius:var(--radius-sm);padding:8px 10px}
+.pp .src{background:var(--surface-2)}
+
+.empty{border:1px solid var(--line);border-radius:var(--radius-lg);box-shadow:var(--shadow-1);background:var(--surface);padding:18px 16px;text-align:center;color:var(--ink-2)}
+.empty .sh{text-align:left}
+.empty .ok{width:38px;height:38px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;margin:10px auto 8px;background:var(--positive-wash);color:var(--ink)}
+.empty b{font-family:var(--font-display);font-size:17px;font-weight:800;display:block;color:var(--ink)}
+.empty p{font-size:12px;margin-top:4px;line-height:1.45}
+.empty.live{padding:34px 16px}
+
+/* DS components reused */
+.stamp{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.stamp::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--positive);margin-right:6px;vertical-align:1px}
+.stamp.manual::before{background:var(--ink-3)}
+.trust{display:flex;align-items:center;gap:14px;padding:10px 12px 10px 14px;border-radius:var(--radius-lg);border:1px solid var(--line);box-shadow:var(--shadow-1);background:var(--surface);font-size:13px;flex-wrap:wrap}
+.trust .state{display:flex;align-items:center;gap:8px;font-weight:700;white-space:nowrap}
+.trust .state .ring{width:10px;height:10px;border-radius:50%;background:var(--warning);box-shadow:0 0 0 3px var(--warning-wash)}
+.trust .sep{width:1px;height:18px;background:var(--line)}
+.trust .muted{color:var(--ink-2)}
+.trust .end{margin-left:auto;display:flex;gap:8px;align-items:center}
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap;background:var(--surface)}
+.pill.warn{background:var(--warning-wash);border-color:transparent;color:var(--warning)}
+.pill.bad{background:var(--broken-wash);border-color:transparent;color:var(--broken)}
+.pill.hatched{background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1px,transparent 1px 5px),var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.pill.hatched span{background:var(--surface);padding:0 3px;border-radius:3px}
+.seg{display:inline-flex;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2)}
+.seg button{font-size:12px;font-weight:600;color:var(--ink-2);height:28px;padding:0 13px;border-radius:999px}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line-strong)}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+.tag.model{border-style:dashed;border-color:var(--line-strong)}
+.tag.wait{background:var(--warning-wash);border-color:transparent;color:var(--warning)}
+.tag.xfer{border-color:var(--warning);color:var(--warning);background:var(--surface)}
+.tag.prop{border-style:dashed;border-color:var(--line-strong);color:var(--ink)}
+.dchip{width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;background:var(--surface-2);flex:none}
+.dchip b{font-family:var(--font-display);font-weight:800;font-size:16px}
+.dchip span{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:3px}
+.hsw{display:inline-block;width:18px;height:10px;border:1px solid var(--chart-1);border-radius:2px;background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1.2px,var(--surface) 1.2px 4.5px);vertical-align:-1px}
+/* progress with marker (confidence track) */
+.prog{position:relative;height:12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);margin:26px 0 20px}
+.prog .fill{position:absolute;left:0;top:-1px;bottom:-1px;border-radius:999px 0 0 999px;border:1px solid var(--chart-1);background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1.3px,var(--surface) 1.3px 5px)}
+.prog .mk{position:absolute;top:-9px;bottom:-9px;width:2px;background:var(--ink);border-radius:1px;margin-left:-1px}
+.prog .mk span{position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:10.5px;font-weight:700;background:var(--surface-inverse);color:var(--ink-inverse);padding:2px 8px;border-radius:999px}
+.prog .ax{position:absolute;top:calc(100% + 5px);font-size:10.5px;color:var(--ink-3);transform:translateX(-50%);white-space:nowrap}
+.prog .you{position:absolute;top:calc(100% + 5px);font-size:10.5px;font-weight:700;color:var(--ink);transform:translateX(-50%);white-space:nowrap}
+/* pastel tiles */
+.tiles{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px}
+.tile{border-radius:var(--radius-md);padding:12px;color:var(--tile-ink);border:1px solid var(--line-strong);min-height:112px;display:flex;flex-direction:column}
+html[data-theme="dark"] .tile:not(.stale){--surface:#fff;--broken:#c02a2a;--warning:#8a5300;--positive:#1b7447;--surface-inverse:#0b0b0c;--ink-inverse:#fff}
+html[data-theme="dark"] .tile .umeter{border-color:var(--tile-ink)}
+html[data-theme="dark"] .tile:not(.stale){border-color:var(--line-strong);box-shadow:inset 0 0 0 2px var(--tile-ring-gap)}
+/* dark: small text inside light tiles at full tile ink; hierarchy by size, not opacity */
+html[data-theme="dark"] .tile:not(.stale) .tn{opacity:1}
+.tile .th{display:flex;justify-content:space-between;align-items:flex-start;font-size:10.5px;font-weight:700;letter-spacing:.04em;line-height:1.3}
+.tile .sym{font-family:var(--font-display);font-weight:800;font-size:18px;line-height:1}
+.tile .tv{margin-top:auto;font-family:var(--font-display);font-weight:800;font-size:18px;letter-spacing:-.02em}
+.tile .tn{font-size:11px;opacity:.8;margin-top:3px}
+.tile.t1{background:var(--tile-1)}.tile.t2{background:var(--tile-2)}.tile.t3{background:var(--tile-3)}.tile.t4{background:var(--tile-4)}
+/* hero: the one solid black emphasis card */
+.hero{background:var(--surface-inverse);color:var(--ink-inverse);border-radius:var(--radius-lg);padding:22px 24px 20px;display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:28px;align-items:stretch}
+.hero .lab{font-size:12.5px;opacity:.72;font-weight:600;display:flex;gap:10px;align-items:center}
+.hero .stamp{color:inherit;opacity:.75}
+.hero h2{font-family:var(--font-display);font-size:clamp(32px,2.6vw,40px);font-weight:800;letter-spacing:-.03em;line-height:1;margin-top:10px;white-space:nowrap}
+.hero h2 .sep{opacity:.45;font-weight:600}
+.hero p{margin-top:12px;font-size:13px;line-height:1.5;opacity:.8;max-width:560px}
+.hero p b{font-weight:700;opacity:1}
+.hero .bulk{display:flex;gap:8px;margin-top:16px}
+.hero .btn{border-color:color-mix(in srgb,var(--ink-inverse) 45%,transparent);background:transparent;color:var(--ink-inverse)}
+.hero .btn.solid{background:var(--ink-inverse);color:var(--surface-inverse);border-color:var(--ink-inverse)}
+.hero .btn.on{background:color-mix(in srgb,var(--ink-inverse) 16%,transparent)}
+.hero .rt{border-left:1px solid color-mix(in srgb,var(--ink-inverse) 20%,transparent);padding-left:24px;display:flex;flex-direction:column;gap:8px}
+.hero .rl{font-size:11px;font-weight:600;opacity:.75;display:flex;justify-content:space-between}
+.hero svg{width:100%;height:auto;display:block;overflow:visible}
+.hero .leg{display:flex;gap:14px;font-size:11px;opacity:.8;flex-wrap:wrap}
+.hero .leg i{display:inline-block;width:8px;height:12px;border-radius:1.5px;margin-right:5px;vertical-align:-2px}
+/* dark-only contrast fixes (verify-dark D1–D8, I1–I6); light unchanged */
+html[data-theme="dark"] .hero .stamp{opacity:1}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="5" height="5" style="fill:var(--surface)"/>
+      <line x1="0" y1="0" x2="0" y2="5" style="stroke:var(--hatch-stripe);stroke-width:2.2"/>
+    </pattern>
+  </defs>
+</svg>
+
+<div class="app">
+  <aside class="side">
+    <div class="logo">fluide<i>_</i></div>
+    <nav class="nav">
+      <a href="overview.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>Overview</a>
+      <a href="transactions.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 4h10M3 8h10M3 12h6"/></svg>Transactions</a>
+      <a href="accounts.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 6 8 2l6.5 4M3 6.5v6M6.3 6.5v6M9.7 6.5v6M13 6.5v6M1.5 14h13"/></svg>Accounts</a>
+      <a href="cashflow.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 14V9M6 14V5M10 14V7M14 14V2"/></svg>Cash flow</a>
+      <a href="upcoming.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.8" y="3" width="12.4" height="11" rx="1.5"/><path d="M1.8 6.5h12.4M5 1.5v3M11 1.5v3"/></svg>Upcoming</a>
+      <a class="on" href="review.html" aria-current="page"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg>Review<span class="badge num" id="navBadge">4</span></a>
+      <a href="rules.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M2 4h5M10 4h4M2 12h2M7 12h7"/><circle cx="8.5" cy="4" r="1.6"/><circle cx="5.5" cy="12" r="1.6"/></svg>Rules</a>
+      <a href="assistant.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M8 1.8 9.3 6.7 14.2 8 9.3 9.3 8 14.2 6.7 9.3 1.8 8 6.7 6.7z"/></svg>Assistant</a>
+      <a href="settings.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>Settings</a>
+    </nav>
+    <div class="foot">Read-only · self-hosted</div>
+  </aside>
+
+  <main class="main">
+    <header class="top">
+      <div class="hello">
+        <small>Tue 29 Sep · September numbers are provisional</small>
+        <h1>Review <span>· waiting on you</span></h1>
+      </div>
+      <div class="ask">
+        <label>
+          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 1.8 9.3 6.7 14.2 8 9.3 9.3 8 14.2 6.7 9.3 1.8 8 6.7 6.7z"/></svg>
+          <input type="text" placeholder="Ask about your money…" aria-label="Ask about your money">
+          <kbd>/</kbd>
+        </label>
+        <ul>
+          <li><em>From your data</em>Show the 4 items waiting for review</li>
+          <li>Why is Shopping up 38% this month?</li>
+          <li>Biggest merchants this month</li>
+        </ul>
+      </div>
+      <div class="circles">
+        <button class="cbtn" title="Sync connections — last sync 2h ago" aria-label="Sync connections"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6.5A5.6 5.6 0 0 0 3.2 4.6M2.5 9.5a5.6 5.6 0 0 0 10.3 1.9"/><path d="M3 1.8v3h3M13 14.2v-3h-3"/></svg></button>
+        <button class="cbtn" title="Hide amounts" aria-label="Hide amounts" onclick="fxHide()"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg></button>
+        <button class="cbtn" title="Light / dark" aria-label="Toggle theme" onclick="fxTheme()"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor"/></svg></button>
+        <div class="avatar" aria-label="Subhendu">S</div>
+      </div>
+    </header>
+
+    <!-- trust line (DS §6, waiting state): only what needs attention -->
+    <div class="trust">
+      <span class="state"><span class="ring"></span>4 waiting · <span class="amt">₹6,300</span> at stake</span><span class="sep"></span>
+      <span class="muted">+ 1 possible transfer <span class="amt">₹25,000</span> not counted</span>
+      <span class="pill bad">Chase · reconnect</span><span class="pill warn">ING · access ends in 12 days</span>
+      <a class="quiet" href="settings.html">5 others up to date ›</a>
+      <span class="end"><span class="stamp">as of 2h ago</span></span>
+    </div>
+
+    <!-- hero: the one black emphasis card -->
+    <section class="hero" aria-label="Review queue summary">
+      <div>
+        <div class="lab">Review queue · September <span class="stamp">as of 2h ago</span></div>
+        <h2><span class="num" id="hCount">4</span> waiting <span class="sep">·</span> <span class="amt" id="hAmt">₹6,300</span> at stake</h2>
+        <p>These are guesses the model wasn't sure enough to apply on its own (auto-apply starts at 75%). They are already inside September's Out of <b class="amt">₹96,450</b>, filed under the suggested category until you decide.</p>
+        <div class="bulk">
+          <button class="btn solid" id="bulkBtn" onclick="bulkApprove()"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg>Approve all ≥ 70% <span class="num" id="bulkN" style="opacity:.6">(2)</span></button>
+          <button class="btn" id="selBtn" onclick="toggleSelect()">Select</button>
+        </div>
+      </div>
+      <div class="rt">
+        <div class="rl"><span>September postings, one block each</span><span>count illustrative</span></div>
+        <svg id="tracker" viewBox="0 0 420 44" role="img" aria-label="Review tracker: most of September's postings are settled; 4 are waiting and 1 possible transfer is not counted"></svg>
+        <div class="leg"><span><i style="background:var(--ink-inverse);opacity:.75"></i>you reviewed</span><span><i style="background:var(--ink-inverse);opacity:.3"></i>rule / model ≥ 75%</span><span><i style="border:1px solid var(--ink-inverse)"></i>waiting · hatched</span><span><i style="border:1px dashed var(--ink-inverse)"></i>possible transfer</span></div>
+        <div class="rl" style="margin-top:8px"><span>Out, by ₹</span><span class="amt" id="shareTxt">₹6,300 of ₹96,450 still a guess · 6.5%</span></div>
+        <svg viewBox="0 0 420 14" aria-label="Rupee share: ₹90,150 settled, ₹6,300 unreviewed">
+          <defs><pattern id="hatchInv" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="5" height="5" style="fill:var(--surface-inverse)"/><line x1="0" y1="0" x2="0" y2="5" style="stroke:var(--ink-inverse);stroke-width:1.6"/></pattern></defs>
+          <rect id="shareA" x="0" y="3" width="392.6" height="8" rx="2" style="fill:var(--ink-inverse);opacity:.75"/>
+          <rect id="shareB" x="394.6" y="3" width="25.4" height="8" rx="2" style="fill:url(#hatchInv);stroke:var(--ink-inverse);stroke-width:1"/>
+        </svg>
+      </div>
+    </section>
+
+    <div class="cols">
+      <div class="stack">
+        <!-- confidence split: one highlight + inverse pill -->
+        <section class="split" aria-label="Confidence split">
+          <div class="sh"><h3>How sure the model is</h3><span class="meta">4 waiting · none reached the 75% auto-apply line</span><span class="r stamp">as of 2h ago</span></div>
+          <svg viewBox="0 0 760 56" role="img" aria-label="Confidence split: 2 items at 70 to 74 percent, 1 at 60 to 69 percent, 1 below 60 percent">
+            <rect x="0.5" y="32" width="379" height="18" rx="4" style="fill:var(--chart-1)"/>
+            <rect x="380.5" y="32" width="189" height="18" style="fill:var(--chart-muted);stroke:var(--ink);stroke-width:1"/>
+            <rect x="570.5" y="32" width="189" height="18" rx="4" style="fill:var(--surface-2);stroke:var(--ink);stroke-width:1"/>
+            <rect x="0.5" y="32" width="759" height="18" rx="4" style="fill:none;stroke:var(--ink);stroke-width:1"/>
+            <rect x="94" y="0" width="192" height="20" rx="10" class="pillbg"/>
+            <text x="190" y="13.8" class="pilltx" text-anchor="middle">2 can be approved in bulk</text>
+            <line x1="190" y1="20" x2="190" y2="32" style="stroke:var(--ink);stroke-width:1"/>
+          </svg>
+          <ul>
+            <li><i class="sw" style="background:var(--chart-1)"></i>70–74% <b class="num">2</b> <span style="color:var(--ink-3)">high</span></li>
+            <li><i class="sw" style="background:var(--chart-muted)"></i>60–69% <b class="num">1</b> <span style="color:var(--ink-3)">medium</span></li>
+            <li><i class="sw" style="background:var(--surface-2)"></i>below 60% <b class="num">1</b> <span style="color:var(--ink-3)">low</span></li>
+            <li style="margin-left:auto;color:var(--ink-3)">≥ 75% is applied automatically and never lands here</li>
+          </ul>
+        </section>
+
+        <div class="sh" style="margin-top:4px"><h3>Waiting</h3><span class="meta">largest amount first</span>
+          <div class="r seg" id="filt"><button class="on" data-f="all">All 4</button><button data-f="hi">≥ 70%</button><button data-f="mid">60–69%</button><button data-f="lo">Below 60%</button></div>
+        </div>
+
+        <div id="queue" class="stack" style="gap:12px">
+          <article class="q" data-amt="3299" data-conf="62" data-cat="Shopping" data-band="mid">
+            <div class="who">
+              <div class="dchip"><b>27</b><span>Sep</span></div>
+              <div>
+                <b>Amazon</b>
+                <small>Sun 27 Sep · HDFC Regalia · card</small>
+                <span class="raw">AMAZON PAY INDIA PRIVATE LI BANGALORE IN</span>
+              </div>
+            </div>
+            <div class="money"><span class="amt">−₹3,299</span><small>out · in Sep, provisional</small></div>
+            <div class="sug">
+              <div class="sugl"><span class="k">Suggests</span><span class="catchip">Shopping</span><span class="tag model">model 62%</span><span class="tag wait">waiting</span></div>
+              <div class="prog" role="img" aria-label="Confidence 62 percent; auto-apply at 75 percent">
+                <div class="fill" style="width:62%"></div>
+                <div class="mk" style="left:75%"><span>auto-apply 75%</span></div>
+                <span class="ax" style="left:0;transform:none">0%</span>
+                <span class="you" style="left:62%">62%</span>
+                <span class="ax" style="left:auto;right:0;transform:none">100%</span>
+              </div>
+            </div>
+            <p class="why"><b>Why:</b> 9 of your last 14 Amazon charges were filed as Shopping; 5 went to Groceries or Health. Amazon Pay text doesn't say what was bought, so the model stays below the line.</p>
+            <div class="picker"></div>
+            <div class="acts">
+              <button class="btn solid sm" data-act="approve"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg>Approve</button>
+              <button class="btn sm" data-act="change">Change category</button>
+              <button class="btn ghost sm" data-act="reject">Reject</button>
+              <span class="aff">Approving can propose AMAZON → Shopping</span>
+            </div>
+            <div class="done"></div>
+          </article>
+          <article class="q" data-amt="1240" data-conf="71" data-cat="Health" data-band="hi">
+            <div class="who">
+              <div class="dchip"><b>24</b><span>Sep</span></div>
+              <div>
+                <b>Apollo Pharmacy</b>
+                <small>Thu 24 Sep · HDFC Regalia · card</small>
+                <span class="raw">APOLLO PHARMACIES LTD HYDERABAD IN</span>
+              </div>
+            </div>
+            <div class="money"><span class="amt">−₹1,240</span><small>out · in Sep, provisional</small></div>
+            <div class="sug">
+              <div class="sugl"><span class="k">Suggests</span><span class="catchip">Health</span><span class="tag model">model 71%</span><span class="tag wait">waiting</span></div>
+              <div class="prog" role="img" aria-label="Confidence 71 percent; auto-apply at 75 percent">
+                <div class="fill" style="width:71%"></div>
+                <div class="mk" style="left:75%"><span>auto-apply 75%</span></div>
+                <span class="ax" style="left:0;transform:none">0%</span>
+                <span class="you" style="left:71%">71%</span>
+                <span class="ax" style="left:auto;right:0;transform:none">100%</span>
+              </div>
+            </div>
+            <p class="why"><b>Why:</b> The merchant name reads as a pharmacy, and your July Apollo charge was Health. It's the first charge at this branch, so it stays just under the line.</p>
+            <div class="picker"></div>
+            <div class="acts">
+              <button class="btn solid sm" data-act="approve"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg>Approve</button>
+              <button class="btn sm" data-act="change">Change category</button>
+              <button class="btn ghost sm" data-act="reject">Reject</button>
+              <span class="aff">Included in Approve all ≥ 70%</span>
+            </div>
+            <div class="done"></div>
+          </article>
+          <article class="q" data-amt="1089" data-conf="73" data-cat="Shopping" data-band="hi">
+            <div class="who">
+              <div class="dchip"><b>22</b><span>Sep</span></div>
+              <div>
+                <b>Decathlon</b>
+                <small>Tue 22 Sep · ICICI Salary</small>
+                <span class="raw">UPI/DECATHLON SPORTS/decathlon@hdfcbank/Payment</span>
+              </div>
+            </div>
+            <div class="money"><span class="amt">−₹1,089</span><small>out · in Sep, provisional</small></div>
+            <div class="sug">
+              <div class="sugl"><span class="k">Suggests</span><span class="catchip">Shopping</span><span class="tag model">model 73%</span><span class="tag wait">waiting</span></div>
+              <div class="prog" role="img" aria-label="Confidence 73 percent; auto-apply at 75 percent">
+                <div class="fill" style="width:73%"></div>
+                <div class="mk" style="left:75%"><span>auto-apply 75%</span></div>
+                <span class="ax" style="left:0;transform:none">0%</span>
+                <span class="you" style="left:73%">73%</span>
+                <span class="ax" style="left:auto;right:0;transform:none">100%</span>
+              </div>
+            </div>
+            <p class="why"><b>Why:</b> Sporting-goods retailer; similar UPI merchants in your history are Shopping. Could be Health if it was gym kit, which is why it's asking.</p>
+            <div class="picker"></div>
+            <div class="acts">
+              <button class="btn solid sm" data-act="approve"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg>Approve</button>
+              <button class="btn sm" data-act="change">Change category</button>
+              <button class="btn ghost sm" data-act="reject">Reject</button>
+              <span class="aff">Included in Approve all ≥ 70%</span>
+            </div>
+            <div class="done"></div>
+          </article>
+          <article class="q" data-amt="672" data-conf="55" data-cat="Dining" data-band="lo">
+            <div class="who">
+              <div class="dchip"><b>26</b><span>Sep</span></div>
+              <div>
+                <b>Chaayos</b>
+                <small>Sat 26 Sep · HDFC Savings</small>
+                <span class="raw">UPI/SUNSHINE TEAHOUSE PVT/paytm@ptys/UPI</span>
+              </div>
+            </div>
+            <div class="money"><span class="amt">−₹672</span><small>out · in Sep, provisional</small></div>
+            <div class="sug">
+              <div class="sugl"><span class="k">Suggests</span><span class="catchip">Dining</span><span class="tag model">model 55%</span><span class="tag wait">waiting</span></div>
+              <div class="prog" role="img" aria-label="Confidence 55 percent; auto-apply at 75 percent">
+                <div class="fill" style="width:55%"></div>
+                <div class="mk" style="left:75%"><span>auto-apply 75%</span></div>
+                <span class="ax" style="left:0;transform:none">0%</span>
+                <span class="you" style="left:55%">55%</span>
+                <span class="ax" style="left:auto;right:0;transform:none">100%</span>
+              </div>
+            </div>
+            <p class="why"><b>Why:</b> The bank text shows the company name (Sunshine Teahouse), not the café brand. The model matched it to Chaayos from the amount pattern only.</p>
+            <div class="picker"></div>
+            <div class="acts">
+              <button class="btn solid sm" data-act="approve"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg>Approve</button>
+              <button class="btn sm" data-act="change">Change category</button>
+              <button class="btn ghost sm" data-act="reject">Reject</button>
+              <span class="aff">Low confidence · worth a look</span>
+            </div>
+            <div class="done"></div>
+          </article>
+
+          <div class="empty live" id="liveEmpty" style="display:none">
+            <span class="ok"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span>
+            <b>All caught up</b>
+            <p>Nothing waiting. September's categories are final for everything imported so far.</p>
+          </div>
+        </div>
+      </div>
+
+      <!-- right column -->
+      <aside class="stack">
+        <section>
+          <div class="sh" style="margin-bottom:10px"><h3>At stake, by account</h3><span class="r stamp">as of 2h ago</span></div>
+          <div class="tiles">
+            <div class="tile t1"><div class="th"><span>HDFC<br>REGALIA</span><span class="sym">₹</span></div><div class="tv amt">₹4,539</div><div class="tn">2 waiting · card</div></div>
+            <div class="tile t2"><div class="th"><span>ICICI<br>SALARY</span><span class="sym">₹</span></div><div class="tv amt">₹1,089</div><div class="tn">1 waiting</div></div>
+            <div class="tile t3"><div class="th"><span>HDFC<br>SAVINGS</span><span class="sym">₹</span></div><div class="tv amt">₹672</div><div class="tn">1 waiting</div></div>
+          </div>
+        </section>
+
+        <section class="xfer" aria-label="Possible transfer">
+          <div class="sh"><h3>Possible transfer</h3><span class="tag xfer" style="margin-left:auto">not counted</span></div>
+          <div class="row">
+            <div style="display:flex;gap:10px;align-items:center"><div class="dchip" style="background:var(--surface)"><b>28</b><span>Sep</span></div>
+              <div><b>UPI/RAHUL S</b><small>Mon 28 Sep · ICICI Salary</small></div></div>
+            <div class="money amt">−₹25,000</div>
+          </div>
+          <span class="raw" style="margin-top:8px">UPI/RAHUL S/rahuls@okaxis/Self</span>
+          <p style="font-size:12.5px;color:var(--ink-2);line-height:1.45;margin-top:10px;background:var(--surface);padding:6px 8px;border-radius:var(--radius-sm)">The note says “Self” and the amount is round, so this may be money moved to your own account elsewhere. It stays out of Out until you choose.</p>
+          <div class="choice">
+            <button class="opt" data-x="xfer"><b>Mark as my transfer</b><span>Stays out of spending. Out stays <b class="amt">₹96,450</b>, Kept stays <b class="amt">₹45,550</b>.</span></button>
+            <button class="opt" data-x="spend"><b>It's spending</b><span>Counted as a payment. Out becomes <b class="amt">₹1,21,450</b>, Kept becomes <b class="amt">₹20,550</b>.</span></button>
+          </div>
+          <p class="note" id="xNote"><span class="hsw"></span> Until you choose, cash-flow charts show this <span class="amt">₹25,000</span> hatched, outside the totals.</p>
+        </section>
+
+        <section class="card">
+          <h3>After you decide</h3>
+          <p>Nothing moves money. A decision only changes the label and, for the transfer, whether it counts as Out.</p>
+          <ul>
+            <li><i><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg></i><span><b>Approve</b> keeps the suggested category. Approve the same merchant more than once and Fluide can propose a rule; you switch it on in <a href="rules.html">Rules</a>.</span></li>
+            <li><i><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2 5h11l-3-3M14 11H3l3 3"/></svg></i><span><b>Change category</b> moves the amount to another category. Out stays <span class="amt">₹96,450</span>.</span></li>
+            <li><i><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 4l8 8M12 4l-8 8"/></svg></i><span><b>Reject</b> removes the guess and files it under Other until you pick one.</span></li>
+          </ul>
+          <div class="pp"><span class="tag prop">proposed</span><code>AMAZON</code> → Shopping <span style="margin-left:auto;color:var(--ink-3)">approvals</span></div>
+        </section>
+
+        <section class="empty" aria-label="Empty state preview">
+          <div class="sh"><h3>All caught up</h3><span class="r pill">preview · empty queue</span></div>
+          <span class="ok"><svg width="14" height="14" viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg></span>
+          <p>Nothing waiting for review · last review Sat.<br>The next statement import is checked here.</p>
+        </section>
+      </aside>
+    </div>
+  </main>
+</div>
+
+<script>
+(function(){
+  const inr=n=>'₹'+n.toLocaleString('en-IN');
+  // R25 tracker: one block per September posting (count illustrative). a=auto (rule/model ≥75%), r=you reviewed, w=waiting, x=possible transfer
+  const seq='aaraaaaraawaaaraaaaaaraawaaaraaaaaawaaraaaaaaaaraaaxawaaraa'.split('');
+  const queue=[...document.querySelectorAll('.q')];
+  function drawTracker(){
+    const done=queue.map(q=>q.classList.contains('decided'));
+    let wi=0, out='', pitch=420/seq.length;
+    seq.forEach((k,i)=>{
+      const x=(i*pitch).toFixed(1), w=(pitch-2).toFixed(1);
+      if(k==='w'){ const dec=done[wi++]; k=dec?'r':'w'; }
+      if(k==='a') out+=`<rect x="${x}" y="10" width="${w}" height="24" rx="1.5" style="fill:var(--ink-inverse);opacity:.3"/>`;
+      else if(k==='r') out+=`<rect x="${x}" y="10" width="${w}" height="24" rx="1.5" style="fill:var(--ink-inverse);opacity:.75"/>`;
+      else if(k==='w') out+=`<rect x="${+x+.5}" y="10.5" width="${w-1}" height="23" rx="1.5" style="fill:url(#hatchInv);stroke:var(--ink-inverse);stroke-width:1"/>`;
+      else out+=`<rect x="${+x+.5}" y="10.5" width="${w-1}" height="23" rx="1.5" style="fill:none;stroke:var(--ink-inverse);stroke-width:1;stroke-dasharray:2 2"/>`;
+    });
+    document.getElementById('tracker').innerHTML=out;
+  }
+  queue.forEach(q=>{
+    const cats=['Groceries','Shopping','Dining','Health','Transport','Utilities','Subscriptions','Other'].filter(k=>k!==q.dataset.cat);
+    q.querySelector('.picker').innerHTML='<span>Move to</span>'+cats.map(k=>`<button data-pick="${k}">${k}</button>`).join('');
+  });
+  document.getElementById('filt').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    document.querySelectorAll('#filt button').forEach(x=>x.classList.toggle('on',x===b));
+    queue.forEach(q=>q.classList.toggle('hide',b.dataset.f!=='all'&&q.dataset.band!==b.dataset.f));
+  });
+
+  function refresh(){
+    const open=[...document.querySelectorAll('.q:not(.decided)')];
+    const sum=open.reduce((s,q)=>s+ +q.dataset.amt,0);
+    document.getElementById('hCount').textContent=open.length;
+    document.getElementById('hAmt').textContent=inr(sum);
+    document.getElementById('navBadge').textContent=open.length;
+    const hi=open.filter(q=>+q.dataset.conf>=70).length;
+    document.getElementById('bulkN').textContent='('+hi+')';
+    document.getElementById('bulkBtn').disabled=!hi;
+    document.getElementById('liveEmpty').style.display=open.length?'none':'block';
+    const wW=420*sum/96450, gap=sum?2:0;
+    document.getElementById('shareA').setAttribute('width',(420-wW-gap).toFixed(1));
+    const sb=document.getElementById('shareB'); sb.setAttribute('x',(420-wW).toFixed(1)); sb.setAttribute('width',wW.toFixed(1));
+    document.getElementById('shareTxt').textContent=sum?`${inr(sum)} of ₹96,450 still a guess · ${(sum/964.5).toFixed(1)}%`:'All of ₹96,450 settled';
+    drawTracker();
+  }
+  function decide(q,verb,cat){
+    q.classList.remove('picking');
+    q.classList.add('decided');
+    const d=q.querySelector('.done');
+    d.innerHTML=verb==='reject'
+      ? `Rejected · filed under <b>Other</b> for now<button class="undo">Undo</button>`
+      : `${verb==='approve'?'Approved':'Changed'} · <b>${cat}</b>${verb==='approve'?' · counts toward a proposed rule':''}<button class="undo">Undo</button>`;
+    refresh();
+  }
+  document.getElementById('queue').addEventListener('click',e=>{
+    const b=e.target.closest('button'); if(!b)return;
+    const q=b.closest('.q'); if(!q)return;
+    if(b.classList.contains('undo')){q.classList.remove('decided');refresh();return}
+    if(b.dataset.pick){decide(q,'change',b.dataset.pick);return}
+    const a=b.dataset.act;
+    if(a==='approve')decide(q,'approve',q.dataset.cat);
+    else if(a==='reject')decide(q,'reject');
+    else if(a==='change')q.classList.toggle('picking');
+  });
+  window.bulkApprove=()=>document.querySelectorAll('.q:not(.decided)').forEach(q=>{if(+q.dataset.conf>=70)decide(q,'approve',q.dataset.cat)});
+  window.toggleSelect=()=>{
+    const s=document.getElementById('selBtn'), on=s.classList.toggle('on');
+    s.textContent=on?'Done selecting':'Select';
+    document.querySelectorAll('.q:not(.decided)').forEach(q=>q.classList.toggle('flash',on));
+  };
+  document.querySelectorAll('.opt').forEach(o=>o.addEventListener('click',()=>{
+    document.querySelectorAll('.opt').forEach(x=>x.classList.toggle('sel',x===o));
+    document.getElementById('xNote').innerHTML=o.dataset.x==='xfer'
+      ?'Marked as your transfer. It leaves Out; pick the receiving account in Accounts when it shows up. <b>Undo</b> by choosing again.'
+      :'Counted as spending. September Out is now <b class="amt">₹1,21,450</b>. Change your mind by choosing again.';
+  }));
+  refresh();
+})();
+</script>
+<script>
+(function(){const d=document.documentElement,q=new URLSearchParams(location.search);
+if(q.get('theme')==='dark'||localStorage.getItem('fluide-theme')==='dark')d.dataset.theme='dark';
+if(localStorage.getItem('fluide-hide')==='1')d.classList.add('amounts-hidden');
+window.fxTheme=()=>{d.dataset.theme=d.dataset.theme==='dark'?'':'dark';localStorage.setItem('fluide-theme',d.dataset.theme||'')};
+window.fxHide=()=>{localStorage.setItem('fluide-hide',d.classList.toggle('amounts-hidden')?'1':'')};
+window.addEventListener('message',e=>{if(e.data&&e.data.theme!==undefined)d.dataset.theme=e.data.theme});})();
+</script>
+</body>
+</html>

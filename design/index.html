@@ -1,0 +1,914 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Fluide Studio — design system 01 (primary)</title>
+<link rel="stylesheet" href="shared/tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--canvas)}
+body{font-family:var(--font-ui);color:var(--ink);background:var(--canvas);font-size:14px;line-height:1.45;-webkit-font-smoothing:antialiased}
+.amt,.num{font-variant-numeric:tabular-nums lining-nums}
+html.amounts-hidden .amt{filter:blur(7px)}
+.amt small,.paise{font-size:.62em;font-weight:inherit;opacity:.72;letter-spacing:0}
+.disp{font-family:var(--font-display);font-weight:800;letter-spacing:-.015em;line-height:1.02}
+.mono{font-family:var(--font-mono)}
+.muted{color:var(--ink-2)}.faint{color:var(--ink-3)}
+.label{font-size:11px;font-weight:600;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+svg text{font-family:var(--font-ui)}
+:root{--bar-r:1px}
+
+/* ---------- page chrome ---------- */
+.wrap{max-width:1360px;margin:0 auto;padding:0 40px 120px}
+.topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 0;border-bottom:1px solid var(--line-strong)}
+.brand{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.02em}
+.brand i{font-style:normal;color:var(--accent)}
+.toc{display:flex;gap:6px;flex-wrap:wrap}
+.toc a{color:var(--ink-2);text-decoration:none;font-size:12.5px;font-weight:600;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
+.toc a:hover{border-color:var(--line-strong);color:var(--ink)}
+section.ds{padding:56px 0 8px}
+.sec-h{display:grid;grid-template-columns:120px 1fr auto;align-items:end;gap:24px;border-bottom:1px solid var(--line-strong);padding-bottom:14px;margin-bottom:28px}
+.sec-h .n{font-family:var(--font-display);font-weight:800;font-size:56px;line-height:.85;letter-spacing:-.03em}
+.sec-h h2{font-family:var(--font-display);font-weight:800;font-size:26px;letter-spacing:-.02em}
+.sec-h p{color:var(--ink-2);max-width:520px;text-align:right;font-size:13px}
+
+.card{background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-lg);padding:20px;box-shadow:var(--shadow-1)}
+.card-h{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:14px}
+.card-h h3{font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:-.01em}
+.stamp{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.stamp::before{content:"";display:inline-block;width:6px;height:6px;border-radius:50%;background:var(--positive);margin-right:6px;vertical-align:1px}
+.stamp.stale::before{background:var(--broken)}
+.stamp.manual::before{background:var(--ink-3)}
+.grid{display:grid;gap:16px}
+.spec-note{font-size:12px;color:var(--ink-3);margin-top:10px}
+.spec-note b{color:var(--ink-2);font-weight:600}
+
+/* ---------- 1 intro ---------- */
+.hero{display:grid;grid-template-columns:1.25fr 1fr;gap:40px;align-items:end;padding:56px 0 8px}
+.hero h1{font-size:88px}
+.hero .idea{font-size:19px;line-height:1.5;color:var(--ink-2);max-width:560px;margin-top:22px}
+.hero .idea b{color:var(--ink);font-weight:700}
+.principles{display:grid;grid-template-columns:repeat(3,1fr);gap:16px;margin-top:40px}
+.principle{border:1px solid var(--line-strong);border-radius:var(--radius-lg);padding:22px;background:var(--surface);min-height:190px;display:flex;flex-direction:column;gap:10px}
+.principle .pn{width:36px;height:36px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;font-family:var(--font-display);font-weight:800;font-size:13px}
+.principle h4{font-family:var(--font-display);font-size:19px;font-weight:800;letter-spacing:-.015em;margin-top:6px}
+.principle p{color:var(--ink-2);font-size:13.5px}
+.principle:nth-child(1){background:var(--tile-1);color:var(--tile-ink)}
+.principle:nth-child(2){background:var(--tile-2);color:var(--tile-ink)}
+.principle:nth-child(3){background:var(--tile-3);color:var(--tile-ink)}
+.principle:nth-child(-n+3) p{color:var(--tile-ink);opacity:.82}
+.principle:nth-child(-n+3) .pn{border-color:var(--tile-ink)}
+html[data-theme="dark"] .principle:nth-child(-n+3){box-shadow:inset 0 0 0 2px var(--tile-ring-gap)}
+html[data-theme="dark"] .principle:nth-child(-n+3) p{opacity:1}
+.refs{display:flex;flex-direction:column;gap:10px}
+.ref{display:grid;grid-template-columns:64px 1fr;gap:14px;align-items:center;border-top:1px solid var(--line);padding-top:10px}
+.ref .chip{height:40px;border-radius:var(--radius-sm);display:flex}
+.ref .chip span{flex:1}
+.ref p{font-size:13px;color:var(--ink-2)}
+.ref p b{color:var(--ink)}
+
+/* ---------- 2 colour ---------- */
+.themes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.theme-panel{border-radius:16px;padding:22px;border:1px solid var(--line)}
+.theme-panel h3{font-family:var(--font-display);font-weight:800;font-size:18px;margin-bottom:2px}
+.theme-panel .sub{font-size:12px;margin-bottom:16px}
+.sw-group{margin-bottom:14px}
+.sw-group .gl{font-size:10.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px;opacity:.75}
+.sw-row{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.sw{border-radius:8px;overflow:hidden;font-size:10.5px;line-height:1.3}
+.sw .blk{height:44px;border-bottom:1px solid rgba(128,128,128,.25)}
+.sw .meta{padding:5px 6px 6px}
+.sw .meta b{display:block;font-weight:600;font-size:10.5px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sw .meta span{font-family:var(--font-mono);font-size:10px;opacity:.75}
+.cr-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:6px}
+.cr{border-radius:8px;padding:9px 10px;display:flex;justify-content:space-between;align-items:center;gap:8px;font-size:11.5px;min-height:44px}
+.cr .ex{font-weight:700;font-size:13px}
+.cr .r{font-family:var(--font-mono);font-size:10.5px;text-align:right;line-height:1.25}
+.cr .r em{display:block;font-style:normal;font-weight:700}
+
+/* ---------- 3 type ---------- */
+.type-grid{display:grid;grid-template-columns:1.4fr 1fr;gap:16px}
+.scale-row{display:grid;grid-template-columns:150px 1fr;gap:20px;align-items:baseline;padding:14px 0;border-bottom:1px solid var(--line)}
+.scale-row:last-child{border-bottom:0}
+.scale-row .spec{font-family:var(--font-mono);font-size:11px;color:var(--ink-3);line-height:1.5}
+.money-spec{display:flex;flex-direction:column;gap:18px}
+.money-big{font-family:var(--font-display);font-weight:800;font-size:54px;letter-spacing:-.02em;line-height:1}
+.money-big .cur{font-size:.62em;margin-right:.08em;vertical-align:.18em}
+.money-row{display:flex;gap:28px;align-items:baseline;flex-wrap:wrap}
+.money-row .disp{font-size:30px}
+.tab-demo{display:grid;grid-template-columns:1fr 1fr;gap:16px;margin-top:4px}
+.tab-demo table{width:100%;border-collapse:collapse;font-size:13.5px}
+.tab-demo td{padding:5px 0;border-bottom:1px solid var(--line)}
+.tab-demo td:last-child{text-align:right;font-weight:600}
+.tab-demo .prop td:last-child{font-variant-numeric:proportional-nums}
+.tab-demo caption{text-align:left;font-size:11px;color:var(--ink-3);padding-bottom:6px;font-weight:600;letter-spacing:.06em;text-transform:uppercase}
+
+/* ---------- 4 shape ---------- */
+.shape-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.radii{display:flex;gap:12px;align-items:flex-end}
+.radii div{flex:1;height:84px;border:1px solid var(--line-strong);background:var(--surface-2);display:flex;align-items:flex-end;padding:8px;font-family:var(--font-mono);font-size:10.5px;color:var(--ink-2)}
+.borders{display:flex;flex-direction:column;gap:10px}
+.borders div{height:40px;border-radius:var(--radius-md);display:flex;align-items:center;padding:0 14px;font-size:12.5px;background:var(--surface)}
+.elev{display:flex;gap:14px}
+.elev div{flex:1;height:96px;border-radius:var(--radius-lg);background:var(--surface);display:flex;align-items:flex-end;padding:10px;font-size:11.5px;color:var(--ink-2)}
+
+/* ---------- 5 charts ---------- */
+.pal-grid{display:grid;grid-template-columns:1.1fr 1fr;gap:16px}
+.pal{display:grid;grid-template-columns:repeat(9,1fr);gap:6px}
+.pal div{height:62px;border-radius:var(--radius-sm);display:flex;align-items:flex-end;padding:6px;font-family:var(--font-mono);font-size:9.5px;border:1px solid var(--line)}
+.rule-grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.dodont{border:1px solid var(--line);border-radius:var(--radius-md);padding:12px}
+.dodont .t{font-size:11px;font-weight:700;letter-spacing:.06em;text-transform:uppercase;margin-bottom:6px}
+.dodont.do .t{color:var(--positive)}
+.dodont.dont .t{color:var(--ink-3)}
+.hatch-css{background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1.4px,transparent 1.4px 6px)}
+.legend{display:flex;gap:14px;flex-wrap:wrap;font-size:12px;color:var(--ink-2)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:6px;vertical-align:-1px}
+.legend i.dot{border-radius:50%;width:8px;height:8px}
+.legend i.dash{height:0;width:16px;border-top:2px dotted var(--ink-3);border-radius:0;vertical-align:3px}
+
+/* ---------- 6 components ---------- */
+.comp-grid{display:grid;grid-template-columns:repeat(12,1fr);gap:16px}
+.c4{grid-column:span 4}.c5{grid-column:span 5}.c6{grid-column:span 6}.c7{grid-column:span 7}.c8{grid-column:span 8}.c12{grid-column:span 12}
+.comp-label{font-family:var(--font-mono);font-size:10.5px;color:var(--ink-3);margin-bottom:8px;letter-spacing:.02em}
+
+/* trust line */
+.trust{display:flex;align-items:center;gap:14px;padding:10px 12px 10px 14px;border-radius:var(--radius-md);border:1px solid var(--line);background:var(--surface);font-size:13px;flex-wrap:wrap}
+.trust .state{display:flex;align-items:center;gap:8px;font-weight:700;white-space:nowrap}
+.trust .state .ring{width:10px;height:10px;border-radius:50%;background:var(--positive);box-shadow:0 0 0 3px var(--positive-wash)}
+.trust.waiting .state .ring{background:var(--warning);box-shadow:0 0 0 3px var(--warning-wash)}
+.trust.broken{border-color:var(--broken);background:var(--broken-wash)}
+.trust.broken .state{color:var(--broken)}
+.trust.broken .state .ring{background:var(--broken);box-shadow:0 0 0 3px var(--surface)}
+.trust .sep{width:1px;height:18px;background:var(--line)}
+.trust .srcs{display:flex;gap:6px;flex-wrap:wrap}
+.trust .end{margin-left:auto;display:flex;gap:8px;align-items:center}
+.src{display:inline-flex;align-items:center;gap:6px;font-size:11.5px;padding:3px 9px;border-radius:999px;border:1px solid var(--line);background:var(--surface);color:var(--ink-2);white-space:nowrap}
+.src::before{content:"";width:6px;height:6px;border-radius:50%;background:var(--positive)}
+.src.warn{border-color:var(--warning);color:var(--warning)}
+.src.warn::before{background:var(--warning)}
+.src.bad{border-color:var(--broken);color:var(--broken);background:var(--broken-wash)}
+.src.bad::before{background:var(--broken)}
+.src.man::before{background:transparent;border:1px solid var(--ink-3)}
+
+/* pills / buttons */
+.pill{display:inline-flex;align-items:center;gap:5px;font-size:11.5px;font-weight:600;padding:3px 9px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap;background:var(--surface)}
+.pill.pos{background:var(--positive-wash);border-color:transparent;color:var(--positive)}
+.pill.warn{background:var(--warning-wash);border-color:transparent;color:var(--warning)}
+.pill.bad{background:var(--broken-wash);border-color:transparent;color:var(--broken)}
+.pill.inv{background:var(--surface-inverse);color:var(--ink-inverse);border-color:transparent}
+.pill.acc{background:var(--accent-wash);color:var(--ink);border-color:transparent}
+.pill.hatched{background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1px,transparent 1px 5px),var(--surface);color:var(--ink);border-color:var(--line-strong)}
+.pill.hatched span{background:var(--surface);padding:0 3px;border-radius:3px}
+.btn{font-family:var(--font-ui);font-size:13px;font-weight:700;height:38px;padding:0 16px;border-radius:999px;border:1px solid var(--line-strong);background:var(--surface);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.btn.primary{background:var(--surface-inverse);color:var(--ink-inverse);border-color:var(--surface-inverse)}
+.btn.accent{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.btn.ghost{border-color:transparent;background:transparent;color:var(--ink-2)}
+.btn.sm{height:30px;font-size:12px;padding:0 12px}
+.btn.danger{border-color:var(--broken);color:var(--broken);background:var(--surface)}
+.seg{display:inline-flex;padding:3px;border:1px solid var(--line);border-radius:999px;background:var(--surface-2)}
+.seg button{font-family:var(--font-ui);font-size:12px;font-weight:600;border:0;background:transparent;color:var(--ink-2);height:28px;padding:0 13px;border-radius:999px;cursor:pointer}
+.seg button.on{background:var(--surface);color:var(--ink);box-shadow:0 0 0 1px var(--line-strong)}
+.ic{position:relative;width:38px;height:38px;border-radius:50%;display:inline-grid;place-items:center;color:var(--ink);background:transparent;border:0;cursor:pointer;flex:none}
+.ic::before{content:"";position:absolute;inset:0;border-radius:50%;border:1px solid var(--line-strong);border-right-color:transparent;transform:rotate(-45deg)}
+.ic.fill{background:var(--accent-wash)}
+.ic.fill::before{border-color:transparent}
+.ic svg{width:17px;height:17px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.ic .badge{position:absolute;top:-2px;right:-2px;min-width:16px;height:16px;border-radius:8px;background:var(--accent);color:var(--accent-ink);font-size:9.5px;font-weight:800;display:grid;place-items:center;padding:0 4px}
+.row-wrap{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+
+/* hero cash */
+.kpi-hero{display:grid;grid-template-columns:1.05fr 1fr;border-radius:var(--radius-lg);overflow:hidden;min-height:214px;border:1px solid var(--surface-inverse)}
+.kpi-hero .l{background:var(--surface-inverse);color:var(--ink-inverse);padding:20px 22px;display:flex;flex-direction:column;gap:6px}
+.kpi-hero .r{background:var(--accent);color:var(--accent-ink);padding:14px 14px 10px;display:flex;flex-direction:column;position:relative}
+/* dark: the chart half drops to surface-2 so the light figure card stays the one emphasis block (two light slabs would read as one) */
+html[data-theme="dark"]{--kpi-r-ink:var(--ink)}
+html[data-theme="dark"] .kpi-hero .r{--accent:var(--surface-2);--accent-ink:var(--ink);--ink-inverse:var(--ink)}
+.kpi-hero .lab{font-size:12.5px;opacity:.78;font-weight:600}
+.kpi-hero .fig{font-family:var(--font-display);font-weight:800;font-size:40px;letter-spacing:-.02em;line-height:1;margin-top:6px}
+.kpi-hero .fig .cur{font-size:.6em;vertical-align:.2em;margin-right:.05em}
+.kpi-hero .delta{font-size:12.5px;margin-top:4px}
+.kpi-hero .delta b{font-weight:700}
+.kpi-hero .split{margin-top:auto;display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;border-top:1px solid color-mix(in srgb,var(--ink-inverse) 22%,transparent);padding-top:10px}
+.kpi-hero .split b{display:block;font-size:14px;font-weight:700}
+.kpi-hero .split span{opacity:.72}
+.kpi-hero .r .rl{font-size:11px;font-weight:600;opacity:.85;display:flex;justify-content:space-between}
+.kpi-hero .fx{font-size:11.5px;margin-top:10px;display:flex;gap:6px;flex-wrap:wrap}
+.fxchip{display:inline-flex;gap:6px;align-items:center;padding:3px 9px;border-radius:999px;border:1px solid color-mix(in srgb,var(--ink-inverse) 28%,transparent);font-size:11.5px}
+.fxchip.stale{border-style:dashed}
+
+/* tiles */
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.tile{border-radius:var(--radius-md);padding:14px;color:var(--tile-ink);border:1px solid var(--line-strong);min-height:132px;display:flex;flex-direction:column;position:relative}
+/* dark: tiles stay light, so they carry light-theme values inside, a 1px ink ring with a 2px inset gap, and full-ink small text */
+html[data-theme="dark"] .tile{--surface:#fff;--broken:#c02a2a;--warning:#8a5300;--positive:#1b7447;--surface-inverse:#0b0b0c;--ink-inverse:#fff}
+html[data-theme="dark"] .tile:not(.stale){box-shadow:inset 0 0 0 2px var(--tile-ring-gap)}
+html[data-theme="dark"] .tile .tn{opacity:1}
+.tile .th{display:flex;justify-content:space-between;align-items:flex-start;font-size:11.5px;font-weight:700;letter-spacing:.04em}
+.tile .sym{font-family:var(--font-display);font-weight:800;font-size:20px;line-height:1}
+.tile .tv{margin-top:auto;font-family:var(--font-display);font-weight:800;font-size:21px;letter-spacing:-.02em}
+.tile .tn{font-size:12px;opacity:.8;margin-top:3px;display:flex;justify-content:space-between;gap:6px}
+.tile.t1{background:var(--tile-1)}.tile.t2{background:var(--tile-2)}.tile.t3{background:var(--tile-3)}.tile.t4{background:var(--tile-4)}
+.tile.stale,html[data-theme="dark"] .tile.stale{border-style:dashed;border-color:var(--tile-ink)}
+.tile .flag{font-size:10.5px;font-weight:700;padding:2px 7px;border-radius:999px;background:var(--surface);color:var(--broken);border:1px solid var(--broken)}
+.tile .flag.w{color:var(--warning);border-color:var(--warning)}
+
+/* chart cards */
+.chart-foot{display:flex;justify-content:space-between;align-items:center;gap:10px;margin-top:8px;font-size:11.5px;color:var(--ink-3)}
+.bigstat{font-family:var(--font-display);font-weight:800;font-size:26px;letter-spacing:-.02em}
+.donut-wrap{display:grid;grid-template-columns:170px 1fr;gap:18px;align-items:center}
+.cat-list{display:flex;flex-direction:column;font-size:12.5px}
+.cat-list div{display:grid;grid-template-columns:12px 1fr auto;gap:8px;align-items:center;padding:4px 0;border-bottom:1px solid var(--line)}
+.cat-list div:last-child{border-bottom:0}
+.cat-list i{width:9px;height:9px;border-radius:2px;background:var(--chart-muted)}
+.cat-list .hl{font-weight:700}
+.cat-list .hl i{background:var(--chart-1)}
+.cat-list .v{font-weight:600}
+
+/* progress */
+.prog{position:relative;height:12px;border-radius:999px;background:var(--surface-2);border:1px solid var(--line);margin:30px 0 26px}
+.prog .fill{position:absolute;left:0;top:-1px;bottom:-1px;border-radius:999px 0 0 999px;background:var(--chart-1)}
+.prog .prov{position:absolute;top:-1px;bottom:-1px;background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1.3px,var(--surface) 1.3px 5px);border:1px solid var(--chart-1);border-left:0}
+.prog .mk{position:absolute;top:-10px;bottom:-10px;width:2px;background:var(--ink);border-radius:1px}
+.prog .mk span{position:absolute;bottom:calc(100% + 3px);left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11px;font-weight:700;background:var(--surface-inverse);color:var(--ink-inverse);padding:2px 8px;border-radius:999px}
+.prog .ax{position:absolute;top:calc(100% + 6px);font-size:10.5px;color:var(--ink-3);transform:translateX(-50%);white-space:nowrap}
+.prog.util .fill{background:var(--chart-1);border-radius:999px}
+
+/* transactions / upcoming */
+.tx{display:grid;grid-template-columns:48px 1fr auto auto;gap:12px;align-items:center;padding:9px 0;border-bottom:1px solid var(--line)}
+.tx:last-child{border-bottom:0}
+.dchip{width:44px;height:44px;border-radius:var(--radius-md);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;background:var(--surface-2)}
+.dchip b{font-family:var(--font-display);font-weight:800;font-size:16px}
+.dchip span{font-size:9.5px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:3px}
+.dchip.exp{border-style:dashed;background:var(--surface)}
+.tx .who b{font-weight:700;font-size:13.5px;display:block}
+.tx .who span{font-size:11.5px;color:var(--ink-3)}
+.tx .amtc{font-weight:700;font-size:14px;text-align:right;min-width:92px}
+.tx .amtc small{display:block;font-size:10.5px;font-weight:500;color:var(--ink-3)}
+.tx.pending .amtc{color:var(--ink-3)}
+.tx.pending .amtc .amt{text-decoration:line-through;text-decoration-thickness:1px}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+.tag.rule::before{content:"⌁";font-size:12px;line-height:1}
+.tag.model{border-style:dashed}
+.tag.wait{background:var(--warning-wash);border-color:transparent;color:var(--warning)}
+.tag.xfer{border-color:var(--warning);color:var(--warning)}
+
+/* ---------- 7 mini overview ---------- */
+.app{display:grid;grid-template-columns:208px 1fr;border:1px solid var(--line-strong);border-radius:var(--radius-xl);overflow:hidden;background:var(--surface);box-shadow:var(--shadow-2)}
+.side{border-right:1px solid var(--line);padding:24px 18px;display:flex;flex-direction:column;gap:4px;background:var(--surface-2)}
+.side .brand{margin:0 8px 22px}
+.side a{display:flex;align-items:center;gap:10px;font-size:13px;font-weight:600;color:var(--ink-2);text-decoration:none;padding:9px 10px;border-radius:var(--radius-sm);border:1px solid transparent}
+.side a.on{color:var(--ink);background:var(--surface);border-color:var(--line-strong)}
+.side a svg{width:16px;height:16px;stroke:currentColor;fill:none;stroke-width:1.6;stroke-linecap:round;stroke-linejoin:round}
+.side .foot{margin-top:auto;font-size:11px;color:var(--ink-3);padding:0 8px;line-height:1.6}
+.main{padding:22px 26px 24px;display:flex;flex-direction:column;gap:14px;min-width:0;background:var(--surface)}
+.app-h{display:flex;align-items:center;gap:14px}
+.app-h .hi{font-size:13px;color:var(--ink-2)}
+.app-h h1{font-size:30px}
+.ask{margin-left:auto;display:flex;align-items:center;gap:8px;height:40px;border:1px solid var(--line);border-radius:999px;padding:0 6px 0 14px;width:min(430px,38%);background:var(--surface)}
+.ask svg{width:15px;height:15px;stroke:var(--ink-3);fill:none;stroke-width:1.8;flex:none}
+.ask input{border:0;outline:0;background:transparent;font:inherit;font-size:12.5px;color:var(--ink);flex:1;min-width:0}
+.ask input::placeholder{color:var(--ink-3)}
+.prompts{display:flex;gap:6px;flex-wrap:wrap}
+.prompts button{font-family:var(--font-ui);font-size:11.5px;font-weight:600;color:var(--ink-2);background:var(--surface);border:1px solid var(--line);border-radius:999px;padding:4px 10px;cursor:pointer}
+.prompts button:hover{border-color:var(--line-strong);color:var(--ink)}
+.ov{display:grid;grid-template-columns:1.32fr 1fr 1fr;gap:14px}
+.ov .card{padding:16px 18px;border-radius:var(--radius-lg)}
+.ov .card-h{margin-bottom:8px}
+.ov .kpi-hero{min-height:0;grid-template-columns:minmax(0,1.2fr) minmax(0,1fr)}
+.ov .kpi-hero .l{padding:18px}
+.ov .kpi-hero .fig{font-size:clamp(22px,1.9vw,30px)}
+.ov .kpi-hero .fxchip{font-size:10.5px;padding:2px 7px}
+.prog .mk.r span{transform:translateX(-78%)}
+.ov .tiles{grid-template-columns:1fr 1fr;gap:8px}
+.ov .tile{min-height:0;padding:10px 12px}
+.ov .tile .tv{font-size:17px;margin-top:10px}
+.ov .tile .sym{font-size:16px}
+.io{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:6px}
+.io div{border-bottom:2px solid var(--chart-muted);padding-bottom:6px}
+.io div:nth-child(2){border-color:var(--chart-1)}
+.io div:nth-child(3){border-color:var(--accent)}
+.io span{font-size:11.5px;color:var(--ink-3);font-weight:600}
+.io b{display:block;font-family:var(--font-display);font-weight:800;font-size:19px;letter-spacing:-.02em;margin-top:2px}
+.span2{grid-column:span 2}
+.prov-note{font-size:11.5px;color:var(--ink-2);display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.hsw{display:inline-block;width:18px;height:10px;border:1px solid var(--chart-1);border-radius:2px;background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1.2px,var(--surface) 1.2px 4.5px);vertical-align:-1px}
+
+@media (max-width:1320px){
+  .wrap{padding:0 28px 120px}
+  .hero h1{font-size:72px}
+  .ask{width:min(360px,34%)}
+}
+
+/* ---------- 8 app pages ---------- */
+.pg-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:16px}
+.pg{display:block;color:inherit;text-decoration:none;background:var(--surface);border:1px solid var(--line-strong);border-radius:var(--radius-lg);padding:18px 20px}
+.pg:hover{background:var(--surface-2)}
+.pg h3{font-family:var(--font-display);font-weight:700;font-size:15px;letter-spacing:-.01em}
+.pg p{color:var(--ink-2);font-size:13px;margin-top:6px}
+.pg .mono{display:block;font-size:11px;color:var(--ink-3);margin-top:12px}
+</style>
+</head>
+<body>
+<!-- shared SVG defs: hatch = "not final" -->
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <defs>
+    <pattern id="hatch" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <rect width="5" height="5" style="fill:var(--surface)"/>
+      <line x1="0" y1="0" x2="0" y2="5" style="stroke:var(--hatch-stripe);stroke-width:1.5"/>
+    </pattern>
+    <pattern id="hatch-soft" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="6" style="stroke:var(--chart-muted);stroke-width:1.5"/>
+    </pattern>
+    <pattern id="hatch-acc" width="5" height="5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+      <line x1="0" y1="0" x2="0" y2="5" style="stroke:var(--kpi-r-ink,var(--accent-ink));stroke-width:1.2;opacity:.55"/>
+    </pattern>
+  </defs>
+</svg>
+
+<div class="wrap">
+  <header class="topbar">
+    <div class="brand">fluide<i>_</i>studio</div>
+    <nav class="toc">
+      <a href="#s1">01 Idea</a><a href="#s2">02 Colour</a><a href="#s3">03 Type</a><a href="#s4">04 Shape</a><a href="#s5">05 Charts</a><a href="#s6">06 Components</a><a href="#s7">07 Overview</a><a href="#s8">08 App pages</a>
+    </nav>
+  </header>
+
+  <!-- ============ 1 NAME + IDEA ============ -->
+  <section id="s1">
+    <div class="hero">
+      <div>
+        <div class="label">Design system 01 · primary</div>
+        <h1 class="disp" style="margin-top:14px">Fluide<br>Studio</h1>
+        <p class="idea">A drafting table for your money. By day: <b>white paper, 1px black ink, pastel account tiles</b> — the ofsp_ce look. By night: <b>the same drawing as a negative</b>: neutral charcoal paper, one light ink, the same corners and outlines, and the same pastel tiles, calmed. Charts are drawn like a studio would draw them: one ink colour, one highlight, and hatching for anything that isn't final yet.</p>
+      </div>
+      <div class="refs">
+        <div class="ref"><div class="chip"><span style="background:var(--tile-1)"></span><span style="background:var(--tile-2)"></span><span style="background:var(--tile-3)"></span><span style="background:var(--tile-4)"></span><span style="background:var(--surface-inverse)"></span></div><p><b>Light ← #8 ofsp_ce.</b> White canvas, wide bold grotesk, 1px black outlines, peach / periwinkle / sage-grey / dusty-pink tiles, black bars with one pill-labelled bar, split-ring icon buttons.</p></div>
+        <div class="ref"><div class="chip" style="background:#222224;padding:6px;gap:4px;border-radius:4px"><span style="background:#efc3ae;border-radius:2px"></span><span style="background:#c8cbed;border-radius:2px"></span><span style="background:#ccd2d4;border-radius:2px"></span><span style="background:#e7c3cf;border-radius:2px"></span><span style="background:#ececea;border-radius:2px"></span></div><p><b>Dark = light as a negative.</b> Neutral charcoal <span class="mono">#222224</span> with no hue cast, one light ink <span class="mono">#ececea</span> for text, outlines, the lead series, hatch and the one emphasis block. The same four tile hues at one calmer lightness, the same 4/8/12/20 radii, split-ring icon buttons.</p></div>
+        <div class="ref"><div class="chip hatch-css" style="border:1px solid var(--line-strong)"></div><p><b>Charts ← #6, #7, #3, #1.</b> One hatched highlight bar, confidence-style dotted "typical" line, tooltip pills, donut with a centre figure, goal bar with a marker, date chips on bills.</p></div>
+      </div>
+    </div>
+    <div class="principles">
+      <div class="principle"><div class="pn">1</div><h4>Ink is the chart</h4><p>Every chart has one lead series in <b>chart-1</b> (black by day, the light ink by night — never green, so spending never reads as "good"). Everything else is muted. One highlight per chart, named in a pill.</p></div>
+      <div class="principle"><div class="pn">2</div><h4>Hatched means not final</h4><p>Unreviewed spend, possible transfers and expected bills are drawn hatched or dashed, never solid. Solid ink is only for money that has actually settled and been categorised.</p></div>
+      <div class="principle"><div class="pn">3</div><h4>Every number says when</h4><p>Each headline figure carries its freshness stamp and its currency. ₹, € and $ sit side by side, never added together. Red appears only when something is broken — never for ordinary spending.</p></div>
+    </div>
+  </section>
+
+  <!-- ============ 2 COLOUR ============ -->
+  <section class="ds" id="s2">
+    <div class="sec-h"><div class="n">02</div><h2>Colour</h2><p>Light is sampled from the reference pixels; dark is derived from it as a negative. Both themes are shown at once; ratios are computed live from <span class="mono">tokens.css</span> (WCAG 2.x, AA ≥ 4.5 for text).</p></div>
+    <div class="themes" id="themes"></div>
+  </section>
+
+  <!-- ============ 3 TYPE ============ -->
+  <section class="ds" id="s3">
+    <div class="sec-h"><div class="n">03</div><h2>Type</h2><p>Archivo drawn at 125% width for display (closest free match to #8's wide grotesk), Plus Jakarta Sans for UI (tabular figures, ₹ glyph), Geist Mono for data and IDs. All three carry ₹ and a true minus −.</p></div>
+    <div class="type-grid">
+      <div class="card">
+        <div class="scale-row"><div class="spec">display-xl<br>Archivo 800 · wdth 125<br>56/56 · −1.5%</div><div class="disp" style="font-size:56px">Good morning, Subhendu</div></div>
+        <div class="scale-row"><div class="spec">display-l<br>800 · 36/40</div><div class="disp" style="font-size:36px">Cash on hand</div></div>
+        <div class="scale-row"><div class="spec">display-m<br>700 · 22/28</div><div class="disp" style="font-size:22px;font-weight:700">Upcoming · expected</div></div>
+        <div class="scale-row"><div class="spec">title<br>Archivo 700 · 15/20</div><div class="disp" style="font-size:15px;font-weight:700">Spend by month</div></div>
+        <div class="scale-row"><div class="spec">body<br>Jakarta 500 · 14/20</div><div style="font-size:14px;font-weight:500"><span class="amt">₹6,300</span> across 4 suggestions is waiting for your review. It is included in this month's total, marked provisional.</div></div>
+        <div class="scale-row"><div class="spec">small<br>Jakarta 500 · 12/16</div><div style="font-size:12px;color:var(--ink-2)">HDFC covers to 27 Sep · ICICI to 28 Sep · ING synced 5h ago</div></div>
+        <div class="scale-row"><div class="spec">label<br>Jakarta 600 · 11 · +8% caps</div><div class="label">Net worth · user-scoped · excludes home</div></div>
+        <div class="scale-row"><div class="spec">mono<br>Geist Mono 400 · 12</div><div class="mono" style="font-size:12px;color:var(--ink-2)">UPI/RAHUL S/428811093315 · CAS 01-09-2026 · sha 7f3a…</div></div>
+      </div>
+      <div class="card money-spec">
+        <div>
+          <div class="label">Money · display, currency symbol at 62%, paise at 62%</div>
+          <div class="money-big amt" style="margin-top:12px"><span class="cur">₹</span>1,24,300<span class="paise">.50</span></div>
+        </div>
+        <div class="money-row">
+          <div class="disp amt">€3,420<span class="paise">.18</span></div>
+          <div class="disp amt">−₹25,000</div>
+          <div class="disp amt">+₹8,100</div>
+        </div>
+        <div class="spec-note"><b>Rules:</b> en-IN grouping (lakh/crore) for INR, en-GB for EUR/USD; U+2212 minus, explicit + for gains; tabular-nums lining-nums on every amount; sign also stated in words ("spent", "more than").</div>
+        <div class="tab-demo">
+          <table class="prop"><caption>Proportional ✕</caption>
+            <tr><td>Rent</td><td class="amt">₹32,000</td></tr><tr><td>Groceries</td><td class="amt">₹14,820</td></tr><tr><td>Shopping</td><td class="amt">₹11,380</td></tr><tr><td>Other</td><td class="amt">₹11,190</td></tr><tr><td>Dining</td><td class="amt">₹9,640</td></tr><tr><td>Transport</td><td class="amt">₹6,210</td></tr><tr><td>Utilities</td><td class="amt">₹4,950</td></tr><tr><td>Health</td><td class="amt">₹3,400</td></tr><tr><td>Subscriptions</td><td class="amt">₹2,860</td></tr><tr><td><b>Out</b></td><td class="amt">₹96,450</td></tr>
+          </table>
+          <table><caption>Tabular ✓</caption>
+            <tr><td>Rent</td><td class="amt">₹32,000</td></tr><tr><td>Groceries</td><td class="amt">₹14,820</td></tr><tr><td>Shopping</td><td class="amt">₹11,380</td></tr><tr><td>Other</td><td class="amt">₹11,190</td></tr><tr><td>Dining</td><td class="amt">₹9,640</td></tr><tr><td>Transport</td><td class="amt">₹6,210</td></tr><tr><td>Utilities</td><td class="amt">₹4,950</td></tr><tr><td>Health</td><td class="amt">₹3,400</td></tr><tr><td>Subscriptions</td><td class="amt">₹2,860</td></tr><tr><td><b>Out</b></td><td class="amt">₹96,450</td></tr>
+          </table>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 4 SHAPE ============ -->
+  <section class="ds" id="s4">
+    <div class="sec-h"><div class="n">04</div><h2>Shape</h2><p>Drafted in both themes: near-square corners and 1px ink outlines. Dark keeps the same radii and draws the outlines in the light ink; light tiles on the dark page add a 2px inset gap inside their outline so the edge stays visible.</p></div>
+    <div class="shape-grid">
+      <div class="card"><div class="card-h"><h3>Radii</h3><span class="stamp manual">theme-dependent</span></div>
+        <div class="radii">
+          <div style="border-radius:var(--radius-sm)">sm</div><div style="border-radius:var(--radius-md)">md</div><div style="border-radius:var(--radius-lg)">lg</div><div style="border-radius:var(--radius-xl)">xl</div><div style="border-radius:999px;justify-content:center">pill</div>
+        </div>
+        <p class="spec-note" id="radii-vals"></p>
+      </div>
+      <div class="card"><div class="card-h"><h3>Borders</h3></div>
+        <div class="borders">
+          <div style="border:1px solid var(--line)">--line · panels, dividers, chips</div>
+          <div style="border:1px solid var(--line-strong)">--line-strong · tiles, focus, active nav</div>
+          <div style="border:1px dashed var(--line-strong)">dashed · stale source or expected date</div>
+          <div style="border:1px solid var(--broken);background:var(--broken-wash);color:var(--broken);font-weight:600">--broken · only when something failed</div>
+        </div>
+      </div>
+      <div class="card"><div class="card-h"><h3>Elevation</h3></div>
+        <div class="elev">
+          <div style="border:1px solid var(--line)">flat<br>outline only</div>
+          <div style="box-shadow:var(--shadow-1);border:1px solid var(--line)">shadow-1<br>cards</div>
+          <div style="box-shadow:var(--shadow-2)">shadow-2<br>popover · hovered row</div>
+        </div>
+        <p class="spec-note">Like #8's lifted "Robert Fox" row: elevation is an interaction state, not decoration.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 5 CHARTS ============ -->
+  <section class="ds" id="s5">
+    <div class="sec-h"><div class="n">05</div><h2>Chart palette</h2><p>Six series colours, one muted, one grid, one hatch. Categorical colour is rare: most charts use chart-1 + muted only.</p></div>
+    <div class="pal-grid">
+      <div class="card">
+        <div class="card-h"><h3>Palette · current theme</h3><span class="stamp manual">toggle Theme to compare</span></div>
+        <div class="pal" id="pal"></div>
+        <div style="margin-top:22px">
+          <div class="card-h" style="margin-bottom:6px"><h3>Where multi-colour is allowed: composition</h3><span class="stamp">as of 2h ago</span></div>
+          <div class="faint" style="font-size:12px;margin-bottom:10px">Assets <b class="amt" style="color:var(--ink)">₹21,10,000</b> (INR only; ING € and Chase $ shown separately, not converted)</div>
+          <svg id="comp" width="100%" height="64" viewBox="0 0 600 64" preserveAspectRatio="none"></svg>
+          <div class="legend" style="margin-top:10px" id="comp-legend"></div>
+        </div>
+      </div>
+      <div class="card">
+        <div class="card-h"><h3>The one-highlight rule</h3></div>
+        <div class="rule-grid">
+          <div class="dodont do"><div class="t">✓ Do</div><svg id="rule-do" width="100%" viewBox="0 0 260 130"></svg><div class="spec-note">Muted bars, one bar in chart-1, the value in an inverse pill. The unreviewed part of September is hatched.</div></div>
+          <div class="dodont dont"><div class="t">✕ Don't</div><svg id="rule-dont" width="100%" viewBox="0 0 260 130"></svg><div class="spec-note">Rainbow bars, no pill: nothing to read first. Red for "high" spend: spending isn't an error.</div></div>
+        </div>
+        <div style="margin-top:14px">
+          <div class="card-h" style="margin-bottom:8px"><h3>Hatch vocabulary</h3></div>
+          <div class="legend">
+            <span><i class="hatch-css" style="border:1px solid var(--chart-1);width:22px"></i>provisional (unreviewed / possible transfer)</span>
+            <span><i style="border:1px dashed var(--line-strong);background:transparent;width:22px"></i>expected (projection)</span>
+            <span><i class="dash"></i>typical (your median)</span>
+            <span><i style="background:var(--chart-1)"></i>settled</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 6 COMPONENTS ============ -->
+  <section class="ds" id="s6">
+    <div class="sec-h"><div class="n">06</div><h2>Components</h2><p>Every component uses the shared dataset. Amounts carry <span class="mono">.amt</span> and blur with "Hide amounts".</p></div>
+    <div class="comp-grid">
+      <!-- trust line -->
+      <div class="c12">
+        <div class="comp-label">trust / needs-attention line · 3 states</div>
+        <div style="display:flex;flex-direction:column;gap:8px">
+          <div class="trust clear">
+            <span class="state"><span class="ring"></span>All clear</span><span class="sep"></span>
+            <span class="muted">Everything reviewed. HDFC to 27 Sep, ICICI to 28 Sep, ING 5h ago.</span>
+            <span class="end"><span class="stamp">checked 2h ago</span></span>
+          </div>
+          <div class="trust waiting">
+            <span class="state"><span class="ring"></span>4 waiting · <span class="amt">₹6,300</span> at stake</span><span class="sep"></span>
+            <span class="muted">+ 1 possible transfer (<span class="amt">₹25,000</span> UPI/RAHUL S) not counted until you confirm</span>
+            <span class="srcs"><span class="src warn">ING access ends in 12 days</span></span>
+            <span class="end"><button class="btn sm primary">Review 4</button><button class="btn sm">Confirm transfer</button></span>
+          </div>
+          <div class="trust broken">
+            <span class="state"><span class="ring"></span>Chase needs reconnect</span><span class="sep"></span>
+            <span class="muted">Last good sync 3 days ago. The <span class="amt">$1,860.40</span> balance is stale and shown dashed.</span>
+            <span class="end"><button class="btn sm danger">Reconnect Chase</button></span>
+          </div>
+        </div>
+      </div>
+
+      <!-- hero kpi -->
+      <div class="c5">
+        <div class="comp-label">hero cash KPI · sparkline · freshness</div>
+        <div class="kpi-hero">
+          <div class="l">
+            <div class="lab">Cash on hand · INR</div>
+            <div class="fig amt"><span class="cur">₹</span>1,24,300</div>
+            <div class="delta"><b class="amt">+₹8,100</b> more than this day last month</div>
+            <div class="stamp" style="color:inherit;opacity:.7">as of 2h ago</div>
+            <div class="split"><div><span>HDFC Savings</span><b class="amt">₹98,200</b></div><div><span>ICICI Salary</span><b class="amt">₹26,100</b></div></div>
+          </div>
+          <div class="r">
+            <div class="rl"><span>Daily closing cash · Sep</span><span>illustrative</span></div>
+            <svg id="spark" viewBox="0 0 240 130" width="100%" style="flex:1;margin-top:4px"></svg>
+            <div class="fx"><span class="fxchip amt">€3,420.18 ING</span><span class="fxchip stale amt">$1,860.40 Chase · stale</span></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- pastel tiles -->
+      <div class="c7">
+        <div class="comp-label">pastel account tile · one per account, currency kept</div>
+        <div class="tiles">
+          <div class="tile t1"><div class="th"><span>HDFC · SAVINGS</span><span class="sym">₹</span></div><div class="tv amt">₹98,200</div><div class="tn"><span>statement to 27 Sep</span></div></div>
+          <div class="tile t2"><div class="th"><span>ICICI · SALARY</span><span class="sym">₹</span></div><div class="tv amt">₹26,100</div><div class="tn"><span>statement to 28 Sep</span></div></div>
+          <div class="tile t3"><div class="th"><span>ING · CURRENT</span><span class="sym">€</span></div><div class="tv amt">€3,420<small>.18</small></div><div class="tn"><span>synced 5h ago</span><span class="flag w">12 days left</span></div></div>
+          <div class="tile t4 stale"><div class="th"><span>CHASE · CHECKING</span><span class="sym">$</span></div><div class="tv amt">$1,860<small>.40</small></div><div class="tn"><span>3 days old</span><span class="flag">reconnect</span></div></div>
+        </div>
+      </div>
+
+      <!-- bar chart -->
+      <div class="c6">
+        <div class="comp-label">bar chart · one highlight + pill · hatched provisional</div>
+        <div class="card">
+          <div class="card-h"><h3>Spend by month</h3><div class="seg"><button>3M</button><button class="on">6M</button><button>12M</button></div></div>
+          <svg id="bars" viewBox="0 0 560 220" width="100%"></svg>
+          <div class="chart-foot"><span class="prov-note"><span class="hsw"></span>Sep incl. <span class="amt">₹6,300</span> from 4 unreviewed · <span class="amt">₹25,000</span> possible transfer not counted</span><span class="stamp">as of 2h ago</span></div>
+        </div>
+      </div>
+
+      <!-- pace -->
+      <div class="c6">
+        <div class="comp-label">pace line vs dotted typical · today marker</div>
+        <div class="card">
+          <div class="card-h"><h3>Spending pace · September</h3><div class="legend"><span><i style="background:var(--chart-1);height:3px;vertical-align:3px;width:16px"></i>this month</span><span><i class="dash"></i>typical</span></div></div>
+          <svg id="pace" viewBox="0 0 560 220" width="100%"></svg>
+          <div class="chart-foot"><span>Cumulative spend by day · daily values illustrative, day-29 totals real</span><span class="stamp">as of 2h ago</span></div>
+        </div>
+      </div>
+
+      <!-- donut -->
+      <div class="c6">
+        <div class="comp-label">donut · centre figure · one highlighted slice</div>
+        <div class="card">
+          <div class="card-h"><h3>Where it went · Sep</h3><span class="pill inv">Shopping +38% vs typical</span></div>
+          <div class="donut-wrap">
+            <svg id="donut" viewBox="0 0 170 170" width="170" height="170"></svg>
+            <div class="cat-list" id="cats"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- progress -->
+      <div class="c6">
+        <div class="comp-label">progress with marker · provisional tail hatched</div>
+        <div class="card">
+          <div class="card-h"><h3>Out so far vs typical by today</h3><span class="pill pos amt">₹4,750 under typical</span></div>
+          <div class="prog" id="prog1">
+            <div class="fill" style="width:calc(90.15 / 120 * 100%)"></div>
+            <div class="prov" style="left:calc(90.15 / 120 * 100%);width:calc(6.3 / 120 * 100%)"></div>
+            <div class="mk r" style="left:calc(101.2 / 120 * 100%)"><span class="amt">typical ₹1,01,200</span></div>
+            <span class="ax" style="left:0;transform:none">₹0</span><span class="ax amt" style="left:calc(96.45 / 120 * 100%)">₹96,450 spent</span><span class="ax" style="left:auto;right:0;transform:none">₹1.2L</span>
+          </div>
+          <div class="card-h" style="margin:18px 0 0"><h3>HDFC Regalia · used of limit</h3><span class="stamp">statement due 5 Oct · expected</span></div>
+          <div class="prog util"><div class="fill" style="width:13%"></div><div class="mk" style="left:13%"><span>13%</span></div><span class="ax amt" style="left:0;transform:none">−₹38,900 owed</span><span class="ax amt" style="left:auto;right:0;transform:none">limit ₹3,00,000</span></div>
+        </div>
+      </div>
+
+      <!-- transactions -->
+      <div class="c7">
+        <div class="comp-label">transaction rows · date chip · rule / model / waiting / possible transfer</div>
+        <div class="card" style="padding:8px 18px">
+          <div class="tx"><div class="dchip"><b>29</b><span>Sep</span></div><div class="who"><b>Swiggy</b><span>Dining · HDFC Savings</span></div><span class="tag rule">rule</span><div class="amtc amt">−₹486</div></div>
+          <div class="tx"><div class="dchip"><b>29</b><span>Sep</span></div><div class="who"><b>Uber</b><span>Transport · HDFC Savings</span></div><span class="tag rule">rule</span><div class="amtc amt">−₹312</div></div>
+          <div class="tx"><div class="dchip"><b>28</b><span>Sep</span></div><div class="who"><b>BigBasket</b><span>Groceries · ICICI Salary</span></div><span class="tag model">model 94%</span><div class="amtc amt">−₹2,140</div></div>
+          <div class="tx pending"><div class="dchip"><b>28</b><span>Sep</span></div><div class="who"><b>UPI/RAHUL S</b><span>Possible transfer between your accounts</span></div><span class="tag xfer">possible transfer · not counted</span><div class="amtc"><span class="amt">−₹25,000</span><small>confirm or dismiss</small></div></div>
+          <div class="tx"><div class="dchip"><b>27</b><span>Sep</span></div><div class="who"><b>Amazon</b><span>Shopping? · HDFC Regalia</span></div><span class="tag wait">waiting · 62%</span><div class="amtc amt">−₹3,299</div></div>
+          <div class="tx"><div class="dchip"><b>26</b><span>Sep</span></div><div class="who"><b>Albert Heijn</b><span>Groceries · ING Current</span></div><span class="tag rule">rule</span><div class="amtc amt">−€42.60</div></div>
+        </div>
+      </div>
+
+      <!-- controls -->
+      <div class="c5">
+        <div class="comp-label">pills · segmented · buttons · icon circles</div>
+        <div class="card" style="display:flex;flex-direction:column;gap:16px">
+          <div class="row-wrap"><span class="pill pos amt">+₹8,100 vs last month</span><span class="pill acc amt">₹4,750 under typical</span><span class="pill warn">4 waiting</span><span class="pill bad">sync failed</span><span class="pill inv amt">₹96,450 · so far</span><span class="pill hatched"><span>provisional</span></span></div>
+          <div class="row-wrap"><div class="seg"><button class="on">Month</button><button>Quarter</button><button>Year</button></div><div class="seg"><button class="on">All</button><button>In</button><button>Out</button></div></div>
+          <div class="row-wrap"><button class="btn primary">Review 4 items</button><button class="btn accent">Ask Fluide</button><button class="btn">Upload statement</button><button class="btn ghost">See all</button></div>
+          <div class="row-wrap">
+            <button class="ic" title="Search"><svg viewBox="0 0 24 24"><circle cx="11" cy="11" r="6.5"/><path d="M16 16l4 4"/></svg></button>
+            <button class="ic" title="Calendar"><svg viewBox="0 0 24 24"><rect x="4" y="5.5" width="16" height="14" rx="2"/><path d="M4 10h16M9 3.5v4M15 3.5v4"/></svg></button>
+            <button class="ic" title="Hide amounts" onclick="document.documentElement.classList.toggle('amounts-hidden')"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.5"/><path d="M4 20L20 4"/></svg></button>
+            <button class="ic" title="Needs attention"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 004 0"/></svg><span class="badge">4</span></button>
+            <button class="ic fill" title="Ask"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg></button>
+            <button class="ic" title="More"><svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1" fill="currentColor"/><circle cx="12" cy="12" r="1" fill="currentColor"/><circle cx="18" cy="12" r="1" fill="currentColor"/></svg></button>
+          </div>
+          <div class="spec-note" style="margin-top:-4px">Icon circles copy #8's split ring in both themes. No send, pay or add-card actions exist anywhere.</div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 7 MINI OVERVIEW ============ -->
+  <section class="ds" id="s7">
+    <div class="sec-h"><div class="n">07</div><h2>Overview, composed</h2><p>One screen at 1440. Trust line first; cash in the inverse card; charts sit inside the cards that explain them.</p></div>
+    <p class="spec-note" style="margin:-16px 0 20px">Earlier composition. The agreed Overview is <a href="pages/overview.html" style="color:var(--ink)">pages/overview.html</a>.</p>
+    <div class="app">
+      <aside class="side">
+        <div class="brand">fluide<i>_</i></div>
+        <a class="on" href="#s7"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Overview</a>
+        <a href="#s7"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Transactions</a>
+        <a href="#s7"><svg viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M3.5 10h17"/></svg>Accounts</a>
+        <a href="#s7"><svg viewBox="0 0 24 24"><path d="M5 19V11M10 19V6M15 19v-5M20 19V9"/></svg>Spending</a>
+        <a href="#s7"><svg viewBox="0 0 24 24"><path d="M4 18l5-6 4 3 7-9"/></svg>Net worth</a>
+        <a href="#s7"><svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>Review <span class="pill warn" style="margin-left:auto;padding:0 7px">4</span></a>
+        <a href="#s7"><svg viewBox="0 0 24 24"><path d="M12 4v10M8 10l4 4 4-4M5 19h14"/></svg>Imports</a>
+        <div class="foot">Self-hosted · read-only<br>Tue 29 Sep 2026</div>
+      </aside>
+      <div class="main">
+        <div class="app-h">
+          <div><div class="hi">Good morning, Subhendu · 1 day left in September</div><h1 class="disp">Overview</h1></div>
+          <div class="ask"><svg viewBox="0 0 24 24"><path d="M12 3l1.8 5.2L19 10l-5.2 1.8L12 17l-1.8-5.2L5 10l5.2-1.8z"/></svg><input placeholder="Ask about your money…"><button class="btn sm accent">Ask</button></div>
+          <button class="ic" title="Hide amounts" onclick="document.documentElement.classList.toggle('amounts-hidden')"><svg viewBox="0 0 24 24"><path d="M3 12s3.5-6 9-6 9 6 9 6-3.5 6-9 6-9-6-9-6z"/><circle cx="12" cy="12" r="2.5"/><path d="M4 20L20 4"/></svg></button>
+          <button class="ic" title="Needs attention"><svg viewBox="0 0 24 24"><path d="M6 16V11a6 6 0 0112 0v5l1.5 2h-15z"/><path d="M10 20.5a2 2 0 004 0"/></svg><span class="badge">4</span></button>
+        </div>
+        <div class="prompts" style="margin-top:-6px;justify-content:flex-end"><button>Why is Shopping up 38% this month?</button><button>What's due before 7 Oct?</button><button>Show the 4 items waiting for review</button></div>
+
+        <div class="trust waiting">
+          <span class="state"><span class="ring"></span>Needs you</span><span class="sep"></span>
+          <span class="muted">4 suggestions · <span class="amt">₹6,300</span> at stake · 1 possible transfer <span class="amt">₹25,000</span></span>
+          <span class="srcs"><span class="src bad">Chase · reconnect</span><span class="src warn">ING · 12 days left</span><span class="src">HDFC to 27 Sep</span><span class="src">ICICI to 28 Sep</span><span class="src man">Zerodha · MF · EPF manual, 1 Sep</span></span>
+          <span class="end"><button class="btn sm primary">Review</button></span>
+        </div>
+
+        <div class="ov">
+          <!-- cash -->
+          <div class="kpi-hero">
+            <div class="l">
+              <div class="lab">Cash on hand · INR</div>
+              <div class="fig amt"><span class="cur">₹</span>1,24,300</div>
+              <div class="delta"><b class="amt">+₹8,100</b> more than this day last month</div>
+              <div class="stamp" style="color:inherit;opacity:.7">as of 2h ago</div>
+              <div class="split"><div><span>HDFC Savings</span><b class="amt">₹98,200</b></div><div><span>ICICI Salary</span><b class="amt">₹26,100</b></div></div>
+            </div>
+            <div class="r">
+              <div class="rl"><span>Daily closing · Sep</span><span>illustr.</span></div>
+              <svg id="spark2" viewBox="0 0 240 130" width="100%" style="flex:1;margin-top:4px"></svg>
+              <div class="fx"><span class="fxchip amt">€3,420.18 ING</span><span class="fxchip stale amt">$1,860.40 · stale</span></div>
+            </div>
+          </div>
+          <!-- net worth -->
+          <div class="card">
+            <div class="card-h"><h3>Net worth</h3><span class="stamp manual">manual parts 1 Sep</span></div>
+            <div class="bigstat amt">₹18,42,600</div>
+            <div class="faint" style="font-size:11.5px"><span class="amt">₹21,10,000</span> assets − <span class="amt">₹2,67,400</span> owed · excl. home</div>
+            <svg id="nw" viewBox="0 0 300 108" width="100%" style="margin-top:6px"></svg>
+          </div>
+          <!-- this month -->
+          <div class="card">
+            <div class="card-h"><h3>This month</h3><span class="stamp">as of 2h ago</span></div>
+            <div class="io"><div><span>In</span><b class="amt">₹1,42,000</b></div><div><span>Out</span><b class="amt">₹96,450</b></div><div><span>Kept</span><b class="amt">₹45,550</b></div></div>
+            <div class="prog" style="margin:28px 0 22px">
+              <div class="fill" style="width:calc(90.15 / 120 * 100%)"></div>
+              <div class="prov" style="left:calc(90.15 / 120 * 100%);width:calc(6.3 / 120 * 100%)"></div>
+              <div class="mk r" style="left:calc(101.2 / 120 * 100%)"><span class="amt">typical by today ₹1,01,200</span></div>
+              <span class="ax" style="left:0;transform:none">spent, day 29</span><span class="ax" style="left:auto;right:0;transform:none">₹1.2L</span>
+            </div>
+            <div class="prov-note"><span class="pill pos amt">₹4,750 under</span><span class="hsw"></span>incl. <span class="amt">₹6,300</span> unreviewed</div>
+          </div>
+
+          <!-- pace + bars -->
+          <div class="card span2">
+            <div class="card-h"><h3>Spending pace</h3><div class="legend"><span><i style="background:var(--chart-1);height:3px;vertical-align:3px;width:16px"></i>September</span><span><i class="dash"></i>typical</span><span><i class="hatch-css" style="border:1px solid var(--chart-1)"></i>unreviewed</span></div></div>
+            <div style="display:grid;grid-template-columns:1.35fr 1fr;gap:18px">
+              <svg id="pace2" height="190" width="100%"></svg>
+              <svg id="bars2" height="190" width="100%"></svg>
+            </div>
+            <div class="chart-foot"><span>Left: cumulative spend by day (daily values illustrative). Right: spend by month, Sep so far.</span><span class="amt">₹25,000 possible transfer not counted</span></div>
+          </div>
+          <!-- donut -->
+          <div class="card">
+            <div class="card-h"><h3>Where it went</h3><span class="pill inv">Shopping +38%</span></div>
+            <div style="display:grid;grid-template-columns:128px 1fr;gap:12px;align-items:center">
+              <svg id="donut2" viewBox="0 0 170 170" width="128" height="128"></svg>
+              <div class="cat-list" id="cats2" style="font-size:11.5px"></div>
+            </div>
+          </div>
+
+          <!-- recent -->
+          <div class="card span2" style="padding-top:10px;padding-bottom:6px">
+            <div class="card-h" style="margin:4px 0 0"><h3>Recent</h3><div class="seg"><button class="on">All</button><button>Waiting</button></div></div>
+            <div class="tx"><div class="dchip"><b>29</b><span>Sep</span></div><div class="who"><b>Swiggy</b><span>Dining · HDFC Savings</span></div><span class="tag rule">rule</span><div class="amtc amt">−₹486</div></div>
+            <div class="tx"><div class="dchip"><b>28</b><span>Sep</span></div><div class="who"><b>BigBasket</b><span>Groceries · ICICI Salary</span></div><span class="tag model">model 94%</span><div class="amtc amt">−₹2,140</div></div>
+            <div class="tx pending"><div class="dchip"><b>28</b><span>Sep</span></div><div class="who"><b>UPI/RAHUL S</b><span>Possible transfer</span></div><span class="tag xfer">not counted</span><div class="amtc"><span class="amt">−₹25,000</span></div></div>
+            <div class="tx"><div class="dchip"><b>27</b><span>Sep</span></div><div class="who"><b>Amazon</b><span>Shopping? · HDFC Regalia</span></div><span class="tag wait">waiting · 62%</span><div class="amtc amt">−₹3,299</div></div>
+          </div>
+          <!-- upcoming -->
+          <div class="card" style="padding-top:10px;padding-bottom:6px">
+            <div class="card-h" style="margin:4px 0 0"><h3>Upcoming</h3><span class="pill">expected</span></div>
+            <div id="upcoming"></div>
+            <div class="faint" style="font-size:11.5px;padding:6px 0 4px;border-top:1px solid var(--line)">Next salary expected 1 Oct · amount not projected</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ============ 8 APP PAGES ============ -->
+  <section class="ds" id="s8">
+    <div class="sec-h"><div class="n">08</div><h2>App pages</h2><p>These are the 9 screens built with this system.</p></div>
+    <div class="pg-grid">
+      <a class="pg" href="pages/overview.html"><h3>Overview</h3><p>Needs-you strip, cash on hand, net worth, spend by month, upcoming and where it went.</p><span class="mono">pages/overview.html</span></a>
+      <a class="pg" href="pages/transactions.html"><h3>Transactions</h3><p>Every account in one list, with day headings, provenance badges and waiting rows.</p><span class="mono">pages/transactions.html</span></a>
+      <a class="pg" href="pages/accounts.html"><h3>Accounts</h3><p>What you have and owe: 9 accounts at 8 institutions, grouped by kind.</p><span class="mono">pages/accounts.html</span></a>
+      <a class="pg" href="pages/cashflow.html"><h3>Cash flow</h3><p>Where September's money went: in, out and kept, by category.</p><span class="mono">pages/cashflow.html</span></a>
+      <a class="pg" href="pages/upcoming.html"><h3>Upcoming</h3><p>Expected bills and income for the next 30 days, not yet recorded.</p><span class="mono">pages/upcoming.html</span></a>
+      <a class="pg" href="pages/review.html"><h3>Review</h3><p>Suggestions and possible transfers waiting on you; September stays provisional.</p><span class="mono">pages/review.html</span></a>
+      <a class="pg" href="pages/rules.html"><h3>Rules</h3><p>Categorisation rules: 6 active, 2 proposed.</p><span class="mono">pages/rules.html</span></a>
+      <a class="pg" href="pages/assistant.html"><h3>Assistant</h3><p>Ask about your money in plain words; answers come from your ledger.</p><span class="mono">pages/assistant.html</span></a>
+      <a class="pg" href="pages/settings.html"><h3>Settings</h3><p>Connections: 7 of them, with sync state and access expiry.</p><span class="mono">pages/settings.html</span></a>
+    </div>
+  </section>
+</div>
+
+<div class="fx-controls" style="position:fixed;right:16px;bottom:16px;display:flex;gap:8px;z-index:99">
+  <button onclick="document.documentElement.dataset.theme=document.documentElement.dataset.theme==='dark'?'':'dark'">Theme</button>
+  <button onclick="document.documentElement.classList.toggle('amounts-hidden')">Hide amounts</button>
+</div>
+<script>
+const q=new URLSearchParams(location.search);if(q.get('theme')==='dark')document.documentElement.dataset.theme='dark';
+window.addEventListener('message',e=>{if(e.data&&e.data.theme!==undefined)document.documentElement.dataset.theme=e.data.theme});
+</script>
+<script>
+/* ---------- data (shared dataset) ---------- */
+const INR=n=>'₹'+new Intl.NumberFormat('en-IN').format(Math.round(n));
+const lakh=n=>n>=100000?('₹'+(n/100000).toFixed(n%100000?1:0).replace(/\.0$/,'')+'L'):n===0?'₹0':('₹'+Math.round(n/1000)+'k');
+const MONTHS=[{l:'Apr',v:88200},{l:'May',v:104300},{l:'Jun',v:97800},{l:'Jul',v:112600},{l:'Aug',v:101200},{l:'Sep',v:96450,prov:6300,hl:true}];
+const CATS=[['Rent',32000],['Groceries',14820],['Shopping',11380],['Other',11190],['Dining',9640],['Transport',6210],['Utilities',4950],['Health',3400],['Subscriptions',2860]];
+const NW=[15.2,15.5,15.4,15.9,16.3,16.1,16.6,17.0,17.4,17.2,17.9,18.43];
+const NWL=['Oct','Nov','Dec','Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep'];
+const UPCOMING=[['1','Oct','Rent','₹32,000','HDFC Savings'],['3','Oct','Netflix','₹649','HDFC Regalia'],['5','Oct','HDFC Regalia statement','₹38,900','due'],['7','Oct','SBI car EMI','₹11,250','ICICI Salary'],['9','Oct','Airtel','₹1,199','HDFC Regalia']];
+/* illustrative daily spend, days 2..29, scaled so day 1 rent + rest = ₹96,450 */
+const W=[4,2,6,3,1,7,2,5,3,4,2,9,3,2,6,1,4,3,8,2,5,3,2,6,4,11,7,3];
+const rest=96450-32000, ws=W.reduce((a,b)=>a+b,0);
+let daily=[32000,...W.map(w=>Math.round(w/ws*rest))];
+daily[daily.length-1]+=96450-daily.reduce((a,b)=>a+b,0);
+const cum=[];daily.reduce((a,v,i)=>(cum[i]=a+v),0);
+/* typical cumulative: rent on day 1, then even-ish to ₹1,01,200 by day 29 and ₹1,04,300 by day 30 */
+const typ=Array.from({length:30},(_,i)=>i===0?32000:i<29?32000+(101200-32000)*Math.pow(i/28,0.93):104300);
+/* closing cash: start 78,750 (so +1,42,000 − 96,450 lands on 1,24,300) */
+const cash=[78750];for(let d=0;d<29;d++){cash.push(cash[d]-daily[d]+(d===0?142000:0))}
+
+/* ---------- helpers ---------- */
+const css=n=>getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+const roundTop=(x,y,w,h,r)=>{r=Math.min(r,w/2,h);return `M${x},${y+h}V${y+r}Q${x},${y} ${x+r},${y}H${x+w-r}Q${x+w},${y} ${x+w},${y+r}V${y+h}Z`};
+function pill(x,y,text,{amt=true,cls='',max=9999}={}){
+  const w=text.length*6.1+18, h=21; let px=Math.max(2,Math.min(x-w/2,max-w-2));
+  return `<g class="${amt?'amt':''} ${cls}"><rect x="${px}" y="${y-h}" width="${w}" height="${h}" rx="10.5" style="fill:var(--surface-inverse)"/>
+  <path d="M${x-4},${y} L${x},${y+5} L${x+4},${y}Z" style="fill:var(--surface-inverse)"/>
+  <text x="${px+w/2}" y="${y-6.8}" text-anchor="middle" style="fill:var(--ink-inverse);font-size:11px;font-weight:700">${text}</text></g>`;
+}
+
+function barChart(el,{w,h,items,max,ticks,rainbow=false,pillText,compact=false}){
+  const pl=compact?34:44,pr=6,pt=34,pb=22,iw=w-pl-pr,ih=h-pt-pb,band=iw/items.length,bw=Math.min(band*.52,compact?30:42);
+  const r=parseFloat(css('--bar-r'))||1,y=v=>pt+ih-v/max*ih;
+  let s='';
+  ticks.forEach(t=>{s+=`<line x1="${pl}" x2="${w-pr}" y1="${y(t)}" y2="${y(t)}" style="stroke:var(--chart-grid)"/><text x="${pl-8}" y="${y(t)+3.5}" text-anchor="end" class="amt" style="fill:var(--ink-3);font-size:10.5px">${lakh(t)}</text>`});
+  const rb=['--chart-2','--chart-3','--chart-4','--chart-5','--chart-6','--broken'];
+  items.forEach((it,i)=>{
+    const cx=pl+band*i+band/2,x=cx-bw/2,top=y(it.v);
+    if(rainbow){s+=`<path d="${roundTop(x,top,bw,pt+ih-top,r)}" style="fill:var(${rb[i]})"/>`}
+    else if(it.hl){
+      s+=`<path d="${roundTop(x,top,bw,pt+ih-top,r)}" style="fill:url(#hatch);stroke:var(--chart-1);stroke-width:1"/>`;
+      const st=y(it.v-(it.prov||0)); s+=`<rect x="${x}" y="${st}" width="${bw}" height="${pt+ih-st}" style="fill:var(--chart-1)"/>`;
+      s+=pill(cx,top-7,pillText||INR(it.v),{max:w});
+    } else s+=`<path d="${roundTop(x,top,bw,pt+ih-top,r)}" style="fill:var(--chart-muted)"/>`;
+    s+=`<text x="${cx}" y="${h-6}" text-anchor="middle" style="fill:var(${it.hl&&!rainbow?'--ink':'--ink-3'});font-size:11px;font-weight:${it.hl&&!rainbow?700:500}">${it.l}</text>`;
+  });
+  s+=`<line x1="${pl}" x2="${w-pr}" y1="${pt+ih}" y2="${pt+ih}" style="stroke:var(--line-strong)"/>`;
+  el.innerHTML=s;
+}
+
+function paceChart(el,{w,h,compact=false}){
+  const pl=compact?36:44,pr=compact?10:14,pt=30,pb=22,iw=w-pl-pr,ih=h-pt-pb,max=120000;
+  const x=d=>pl+(d-1)/29*iw,y=v=>pt+ih-v/max*ih;
+  let s='';
+  [0,50000,100000].forEach(t=>{s+=`<line x1="${pl}" x2="${w-pr}" y1="${y(t)}" y2="${y(t)}" style="stroke:var(--chart-grid)"/><text x="${pl-8}" y="${y(t)+3.5}" text-anchor="end" class="amt" style="fill:var(--ink-3);font-size:10.5px">${lakh(t)}</text>`});
+  /* remaining day: hatched band */
+  s+=`<rect x="${x(29)}" y="${pt}" width="${x(30)-x(29)}" height="${ih}" style="fill:url(#hatch-soft)"/>`;
+  const line=a=>a.map((v,i)=>`${i?'L':'M'}${x(i+1).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  s+=`<path d="${line(cum)}L${x(29)},${y(0)}L${x(1)},${y(0)}Z" style="fill:color-mix(in srgb,var(--chart-1) 8%,transparent)"/>`;
+  s+=`<path d="${line(typ)}" style="fill:none;stroke:var(--ink-3);stroke-width:2;stroke-dasharray:0.1 5;stroke-linecap:round"/>`;
+  s+=`<path d="${line(cum)}" style="fill:none;stroke:var(--chart-1);stroke-width:2.25;stroke-linejoin:round"/>`;
+  const X=x(29),Y=y(cum[28]),YT=y(typ[28]);
+  s+=`<line x1="${X}" x2="${X}" y1="${pt-4}" y2="${pt+ih}" style="stroke:var(--line-strong);stroke-dasharray:3 3"/>`;
+  s+=`<line x1="${X+6}" x2="${X+6}" y1="${YT}" y2="${Y}" style="stroke:var(--ink-2);stroke-width:2"/>`;
+  s+=`<circle cx="${X}" cy="${YT}" r="3.5" style="fill:var(--surface);stroke:var(--ink-3);stroke-width:1.5"/>`;
+  s+=`<circle cx="${X}" cy="${Y}" r="4.5" style="fill:var(--surface);stroke:var(--chart-1);stroke-width:2.25"/>`;
+  s+=pill(X,YT-10,`Day 29 · ${INR(cum[28])} · ₹4,750 under`,{max:w-2});
+  [[1,'1 Sep'],[8,'8'],[15,'15'],...(compact?[]:[[22,'22']]),[29,'29 · today']].forEach(([d,l])=>{s+=`<text x="${x(d)}" y="${h-6}" text-anchor="${d===1?'start':d===29?'end':'middle'}" style="fill:var(${d===29?'--ink':'--ink-3'});font-size:10.5px;font-weight:${d===29?700:500}">${l}</text>`});
+  s+=`<line x1="${pl}" x2="${w-pr}" y1="${pt+ih}" y2="${pt+ih}" style="stroke:var(--line-strong)"/>`;
+  el.innerHTML=s;
+}
+
+function spark(el,w=240){
+  const h=130,pl=4,pr=6,pt=18,pb=18,iw=w-pl-pr,ih=h-pt-pb,min=60000,max=200000;
+  const x=i=>pl+i/29*iw,y=v=>pt+ih-(v-min)/(max-min)*ih;
+  const d=cash.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  let s=`<path d="${d}L${x(29)},${pt+ih}L${x(0)},${pt+ih}Z" style="fill:url(#hatch-acc);opacity:.6"/>`;
+  s+=`<line x1="${pl}" x2="${w-pr}" y1="${y(116200)}" y2="${y(116200)}" style="stroke:var(--accent-ink);stroke-dasharray:1 4;stroke-linecap:round;stroke-width:1.6;opacity:.8"/>`;
+  s+=`<text x="${w-pr}" y="${y(116200)+13}" text-anchor="end" class="amt" style="fill:var(--accent-ink);font-size:10px;font-weight:600;opacity:.9">29 Aug ₹1,16,200</text>`;
+  s+=`<path d="${d}" style="fill:none;stroke:var(--accent-ink);stroke-width:2;stroke-linejoin:round"/>`;
+  s+=`<circle cx="${x(29)}" cy="${y(cash[29])}" r="4" style="fill:var(--accent);stroke:var(--accent-ink);stroke-width:2"/>`;
+  s+=`<text x="${x(1)+4}" y="${y(cash[1])-6}" class="amt" style="fill:var(--accent-ink);font-size:10px;font-weight:600">salary 1 Sep</text>`;
+  s+=`<text x="${pl}" y="${h-3}" style="fill:var(--accent-ink);font-size:10px;opacity:.85">31 Aug</text><text x="${w-pr}" y="${h-3}" text-anchor="end" style="fill:var(--accent-ink);font-size:10px;font-weight:700">29 Sep</text>`;
+  el.innerHTML=s;
+}
+
+function netWorth(el,w=300){
+  const h=120,pl=30,pr=8,pt=24,pb=18,iw=w-pl-pr,ih=h-pt-pb,min=14.5,max=19;
+  const x=i=>pl+i/11*iw,y=v=>pt+ih-(v-min)/(max-min)*ih;
+  let s='';
+  [15,17,19].forEach(t=>{s+=`<line x1="${pl}" x2="${w-pr}" y1="${y(t)}" y2="${y(t)}" style="stroke:var(--chart-grid)"/><text x="${pl-6}" y="${y(t)+3.5}" text-anchor="end" class="amt" style="fill:var(--ink-3);font-size:10px">${t}L</text>`});
+  const d=NW.map((v,i)=>`${i?'L':'M'}${x(i).toFixed(1)},${y(v).toFixed(1)}`).join('');
+  s+=`<path d="${d}L${x(11)},${pt+ih}L${x(0)},${pt+ih}Z" style="fill:color-mix(in srgb,var(--chart-1) 8%,transparent)"/>`;
+  s+=`<path d="${d}" style="fill:none;stroke:var(--chart-1);stroke-width:2;stroke-linejoin:round"/>`;
+  NW.forEach((v,i)=>{if(i<11)s+=`<circle cx="${x(i)}" cy="${y(v)}" r="1.8" style="fill:var(--chart-1)"/>`});
+  s+=`<circle cx="${x(11)}" cy="${y(NW[11])}" r="4" style="fill:var(--surface);stroke:var(--chart-1);stroke-width:2"/>`;
+  s+=pill(x(11),y(NW[11])-8,'₹18.43L',{max:w});
+  s+=`<text x="${pl}" y="${h-4}" style="fill:var(--ink-3);font-size:10px">Oct '25</text><text x="${w-pr}" y="${h-4}" text-anchor="end" style="fill:var(--ink);font-size:10px;font-weight:700">Sep '26</text>`;
+  el.innerHTML=s;
+}
+
+function donut(el,listEl,{compact=false}={}){
+  const total=CATS.reduce((a,c)=>a+c[1],0),cx=85,cy=85,r=66,sw=20,C=2*Math.PI*r,gap=2.4;
+  let s=`<circle cx="${cx}" cy="${cy}" r="${r}" style="fill:none;stroke:var(--chart-grid);stroke-width:${sw}"/>`,off=0;
+  CATS.forEach(([k,v])=>{const len=v/total*C,hl=k==='Shopping';
+    s+=`<circle cx="${cx}" cy="${cy}" r="${r}" transform="rotate(-90 ${cx} ${cy})" style="fill:none;stroke:var(${hl?'--chart-1':'--chart-muted'});stroke-width:${hl?sw+6:sw};stroke-dasharray:${Math.max(len-gap,0.5)} ${C};stroke-dashoffset:${-off}"/>`;off+=len});
+  s+=`<text x="${cx}" y="${cy-2}" text-anchor="middle" class="amt" style="font-family:var(--font-display);font-weight:800;font-size:${compact?21:20}px;fill:var(--ink);letter-spacing:-.4px">₹96,450</text>`;
+  s+=`<text x="${cx}" y="${cy+16}" text-anchor="middle" style="fill:var(--ink-3);font-size:11px;font-weight:600">out · Sep so far</text>`;
+  el.innerHTML=s;
+  const rows=compact?[...CATS.slice(0,4),['4 more',CATS.slice(4).reduce((a,c)=>a+c[1],0)]]:CATS;
+  listEl.innerHTML=rows.map(([k,v])=>`<div class="${k==='Shopping'?'hl':''}"><i></i><span>${k}${k==='Shopping'?' <span class="faint" style="font-weight:500">+38% vs typical</span>':''}</span><span class="v amt">${INR(v)}</span></div>`).join('');
+}
+
+function composition(){
+  const parts=[['Mutual funds',910000,'--chart-1'],['Zerodha',685700,'--chart-2'],['EPF',390000,'--chart-3'],['Cash (INR)',124300,'--chart-4']];
+  const tot=2110000;let x=0,s='';
+  parts.forEach(([k,v,c])=>{const w=v/tot*600;s+=`<rect x="${x}" y="8" width="${Math.max(w-3,1)}" height="48" rx="${Math.min(parseFloat(css('--radius-sm')),8)}" style="fill:var(${c})"/>`;x+=w});
+  document.getElementById('comp').innerHTML=s;
+  document.getElementById('comp-legend').innerHTML=parts.map(([k,v,c])=>`<span><i style="background:var(${c})"></i>${k} <b class="amt" style="color:var(--ink)">${INR(v)}</b></span>`).join('');
+}
+
+/* ---------- colour section: read both themes live from tokens.css ---------- */
+const TOKENS={surfaces:['--canvas','--surface','--surface-2','--surface-inverse','--line','--line-strong'],ink:['--ink','--ink-2','--ink-3','--ink-inverse','--accent','--accent-ink'],
+  state:['--accent-wash','--positive','--positive-wash','--warning','--warning-wash','--broken'],tiles:['--broken-wash','--tile-1','--tile-2','--tile-3','--tile-4','--tile-ink']};
+const PAL=['--chart-1','--chart-2','--chart-3','--chart-4','--chart-5','--chart-6','--chart-muted','--chart-grid','--hatch'];
+function readTheme(t){const h=document.documentElement,prev=h.dataset.theme;h.dataset.theme=t;const o={};
+  [...Object.values(TOKENS).flat(),...PAL,'--radius-sm','--radius-md','--radius-lg','--radius-xl'].forEach(k=>o[k]=css(k));
+  if(prev===undefined)delete h.dataset.theme;else h.dataset.theme=prev;return o}
+function lum(hex){const c=hex.replace('#','').match(/../g).map(x=>parseInt(x,16)/255).map(v=>v<=.03928?v/12.92:Math.pow((v+.055)/1.055,2.4));return .2126*c[0]+.7152*c[1]+.0722*c[2]}
+function ratio(a,b){const x=lum(a),y=lum(b);return (Math.max(x,y)+.05)/(Math.min(x,y)+.05)}
+const PAIRS=[['--ink','--canvas'],['--ink','--surface'],['--ink-2','--surface'],['--ink-3','--surface'],['--ink-3','--canvas'],['--ink-2','--surface-2'],['--ink-inverse','--surface-inverse'],['--accent-ink','--accent'],
+  ['--tile-ink','--tile-1'],['--tile-ink','--tile-2'],['--tile-ink','--tile-3'],['--tile-ink','--tile-4'],['--positive','--positive-wash'],['--warning','--warning-wash'],['--broken','--broken-wash'],['--broken','--surface']];
+function renderThemes(){
+  const box=document.getElementById('themes');box.innerHTML='';
+  [['light','Light · Paper','from #8 ofsp_ce'],['dark','Dark · Negative','light as a negative: charcoal, one light ink']].forEach(([t,name,sub])=>{
+    const v=readTheme(t),p=document.createElement('div');p.className='theme-panel';
+    p.style.background=v['--canvas'];p.style.color=v['--ink'];p.style.borderColor=v['--line'];
+    let html=`<h3>${name}</h3><div class="sub" style="color:${v['--ink-3']}">${sub} · ${t==='light'?':root':'html[data-theme="dark"]'}</div>`;
+    Object.entries(TOKENS).forEach(([g,keys])=>{
+      html+=`<div class="sw-group"><div class="sw-row">`+keys.map(k=>`<div class="sw" style="background:${v['--surface']};border:1px solid ${v['--line']}"><div class="blk" style="background:${v[k]}"></div><div class="meta"><b>${k.slice(2)}</b><span>${v[k]}</span></div></div>`).join('')+`</div></div>`});
+    html+=`<div class="sw-group"><div class="gl">Contrast · text on background</div><div class="cr-grid">`+PAIRS.map(([f,b])=>{const r=ratio(v[f],v[b]),g=r>=7?'AAA':r>=4.5?'AA':r>=3?'AA large':'fail';
+      return `<div class="cr" style="background:${v[b]};color:${v[f]};border:1px solid ${v['--line']}"><span><span class="ex">Aa</span> <span style="font-size:10.5px">${f.slice(2)} / ${b.slice(2)}</span></span><span class="r">${r.toFixed(2)}<em>${g}</em></span></div>`}).join('')+`</div></div>`;
+    p.innerHTML=html;box.appendChild(p)});
+}
+function renderPalette(){
+  document.getElementById('pal').innerHTML=PAL.map(k=>`<div style="${k==='--hatch'?'background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1.5px,var(--surface) 1.5px 6px)':'background:var('+k+')'};color:${['--chart-1','--chart-2','--chart-5','--chart-muted'].includes(k)&&!document.documentElement.dataset.theme?'var(--ink-inverse)':'var(--tile-ink)'}"><span style="background:var(--surface);color:var(--ink);padding:1px 4px;border-radius:3px">${k.replace('--chart-','c-').replace('--','')}</span></div>`).join('');
+  const r=readTheme(document.documentElement.dataset.theme==='dark'?'dark':'light');
+  document.getElementById('radii-vals').innerHTML=`<b>This theme:</b> sm ${r['--radius-sm']} · md ${r['--radius-md']} · lg ${r['--radius-lg']} · xl ${r['--radius-xl']}. Both themes 4/8/12/20.`;
+}
+
+function upcoming(){
+  document.getElementById('upcoming').innerHTML=UPCOMING.map(([d,m,n,a,src])=>`<div class="tx" style="grid-template-columns:44px 1fr auto;padding:6px 0"><div class="dchip exp" style="width:40px;height:40px"><b style="font-size:14px">${d}</b><span>${m}</span></div><div class="who"><b style="font-size:12.5px">${n}</b><span>${src}</span></div><div class="amtc amt" style="font-size:13px;min-width:0">−${a}</div></div>`).join('');
+}
+
+/* size an SVG's viewBox to its rendered width so labels stay at true px size */
+function fit(id,h){const el=document.getElementById(id);fit.w=Math.max(160,Math.round(el.getBoundingClientRect().width));el.setAttribute('viewBox',`0 0 ${fit.w} ${h}`);return el}
+let rendering=false;
+function renderAll(){
+  if(rendering)return;rendering=true;
+  const ticks=[0,50000,100000];
+  barChart(document.getElementById('bars'),{w:560,h:220,items:MONTHS,max:125000,ticks,pillText:'Sep · ₹96,450 so far'});
+  barChart(fit('bars2',190),{w:fit.w,h:190,items:MONTHS,max:125000,ticks,pillText:'₹96,450 so far',compact:true});
+  barChart(document.getElementById('rule-do'),{w:260,h:130,items:MONTHS,max:125000,ticks:[0,100000],pillText:'₹96,450',compact:true});
+  barChart(document.getElementById('rule-dont'),{w:260,h:130,items:MONTHS,max:125000,ticks:[0,100000],rainbow:true,compact:true});
+  paceChart(document.getElementById('pace'),{w:560,h:220});
+  paceChart(fit('pace2',190),{w:fit.w,h:190,compact:true});
+  spark(document.getElementById('spark'));spark(fit('spark2',130),fit.w);
+  netWorth(fit('nw',120),fit.w);
+  donut(document.getElementById('donut'),document.getElementById('cats'));
+  donut(document.getElementById('donut2'),document.getElementById('cats2'),{compact:true});
+  composition();renderPalette();
+  rendering=false;
+}
+renderThemes();upcoming();renderAll();
+/* readTheme() flips data-theme briefly; only re-render when the settled theme actually changed */
+let shownTheme=document.documentElement.dataset.theme||'';
+new MutationObserver(()=>{const t=document.documentElement.dataset.theme||'';if(t!==shownTheme){shownTheme=t;renderAll()}}).observe(document.documentElement,{attributes:true,attributeFilter:['data-theme']});
+document.fonts&&document.fonts.ready.then(renderAll);
+let rsz;addEventListener('resize',()=>{clearTimeout(rsz);rsz=setTimeout(renderAll,120)});
+</script>
+</body>
+</html>

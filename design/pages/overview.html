@@ -1,0 +1,491 @@
+<!doctype html>
+<html lang="en-IN">
+<head>
+<meta charset="utf-8">
+<title>Fluide · Overview</title>
+<link rel="stylesheet" href="../shared/tokens.css">
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+html{background:var(--canvas);color:var(--ink);font-family:var(--font-ui);font-size:14px;-webkit-font-smoothing:antialiased}
+body{min-width:1280px;padding:24px}
+button,select,input{font:inherit;color:inherit}
+button{background:none;border:0;cursor:pointer}
+a{color:inherit}
+.num,.amt{font-variant-numeric:tabular-nums lining-nums}
+.amt{white-space:nowrap}
+html.amounts-hidden .amt{filter:blur(7px)}
+.amt small,.dec{font-size:.58em;color:var(--ink-3);font-weight:inherit}
+.app{max-width:1392px;margin:0 auto;display:grid;grid-template-columns:232px minmax(0,1fr);background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-xl);box-shadow:var(--shadow-2);overflow:hidden;min-height:852px}
+.side{border-right:1px solid var(--line);padding:26px 18px 22px;display:flex;flex-direction:column;gap:26px;background:var(--surface-2)}
+.logo{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.02em;padding-left:8px}
+.logo i{font-style:normal;color:var(--ink-3)}
+.nav{display:flex;flex-direction:column;gap:2px}
+.nav a{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:var(--radius-sm);color:var(--ink-2);text-decoration:none;font-weight:500;border:1px solid transparent}
+.nav a:hover{color:var(--ink)}
+.nav a svg{width:17px;height:17px;flex:none}
+.nav a.on{color:var(--ink);background:var(--surface);border-color:var(--line-strong);font-weight:600}
+.nav .badge{margin-left:auto;font-size:11px;font-weight:700;min-width:20px;height:20px;border-radius:10px;display:grid;place-items:center;background:var(--surface-inverse);color:var(--ink-inverse);padding:0 6px}
+.foot{margin-top:auto;font-size:11.5px;color:var(--ink-3);padding-left:10px}
+.main{padding:0 28px 30px;display:flex;flex-direction:column;gap:20px;min-width:0}
+/* top bar: same as transactions.html; ask border soft --line (DS 01) */
+.top{display:flex;align-items:center;gap:16px;padding-top:26px}
+.hello small{display:block;color:var(--ink-2);font-size:13px;margin-bottom:3px}
+.hello h1{white-space:nowrap;font-family:var(--font-display);font-size:23px;font-weight:800;letter-spacing:-.02em;line-height:1.05}
+.ask{margin-left:auto;position:relative;flex:0 0 420px}
+@media (max-width:1360px){.ask{flex-basis:360px}}
+.ask label{display:flex;align-items:center;gap:9px;height:40px;border:1px solid var(--line);border-radius:20px;padding:0 6px 0 14px;background:var(--surface);cursor:text}
+.ask input{border:0;outline:0;background:none;flex:1;font-size:13px;min-width:0}
+.ask input::placeholder{color:var(--ink-3)}
+.ask svg{width:16px;height:16px;flex:none;color:var(--ink-2)}
+.ask kbd{font:600 10.5px var(--font-mono);color:var(--ink-3);border:1px solid var(--line);border-radius:6px;padding:3px 6px}
+.ask ul{list-style:none;position:absolute;top:46px;left:0;right:0;background:var(--surface);border:1px solid var(--line);border-radius:var(--radius-md);box-shadow:var(--shadow-2);padding:6px;display:none;z-index:5}
+.ask:focus-within ul{display:block}
+.ask li a{display:block;padding:8px 10px;border-radius:var(--radius-sm);font-size:13px;color:var(--ink-2);text-decoration:none}
+.ask li a:hover{background:var(--surface-2);color:var(--ink)}
+.ask li em{font-style:normal;color:var(--ink-3);font-size:11px;display:block;padding:6px 10px 2px;text-transform:uppercase;letter-spacing:.06em}
+.circles{display:flex;gap:8px}
+.cbtn{width:40px;height:40px;border-radius:50%;border:1px solid var(--line-strong);display:grid;place-items:center;background:var(--surface);flex:none}
+.cbtn:hover{background:var(--surface-2)}
+.cbtn svg{width:17px;height:17px}
+.avatar{width:40px;height:40px;border-radius:50%;background:var(--tile-2);color:var(--tile-ink);display:grid;place-items:center;font-weight:700;font-family:var(--font-display);border:1px solid var(--line-strong)}
+/* Overview-only prompt chips, right-aligned under the header row */
+.chips{display:flex;gap:6px;justify-content:flex-end;margin-top:-10px}
+.chip{font-size:12px;padding:5px 11px;border:1px solid var(--line);border-radius:999px;color:var(--ink-2);background:var(--surface);white-space:nowrap}
+.chip:hover{border-color:var(--line-strong);color:var(--ink)}
+/* needs strip */
+.needs{background:var(--surface-inverse);color:var(--ink-inverse);border-radius:var(--radius-lg);padding:14px 16px 14px 20px;display:flex;align-items:center;gap:14px}
+.needs>*{white-space:nowrap}.needs{font-size:13px;gap:10px}.needs b{font-family:var(--font-display);font-weight:700}
+.needs .sep{opacity:.5}
+.pill{font-size:12px;padding:4px 10px;border-radius:999px;font-weight:600;white-space:nowrap}
+.pill.broken{background:var(--broken-wash);color:var(--broken)}
+.pill.warn{background:var(--warning-wash);color:var(--warning)}
+.needs .quiet{margin-left:auto;opacity:.6;font-size:12.5px}
+.btn{border:1px solid var(--line-strong);border-radius:999px;padding:6px 14px;font-weight:600;font-size:12.5px;background:var(--surface);color:var(--ink);white-space:nowrap}
+.needs .btn{border-color:var(--surface)}
+.btn.sm{padding:3px 10px;font-size:11.5px}
+@media (max-width:1300px){.chip{font-size:11.5px;padding:4px 9px}.needs{gap:8px;padding-left:16px;font-size:12.5px}.needs .pill{padding:4px 8px;font-size:11.5px}.needs .quiet{font-size:12px}}
+/* body: two independent column stacks */
+.grid{display:grid;grid-template-columns:minmax(0,8fr) minmax(0,4fr);gap:16px;align-items:start}
+.col{display:flex;flex-direction:column;gap:16px;min-width:0}
+.card{border:1px solid var(--line);box-shadow:var(--shadow-1);border-radius:var(--radius-lg);padding:18px 20px;background:var(--surface);min-width:0}
+.card h3{font-family:var(--font-display);font-size:17px;font-weight:700;letter-spacing:-.01em;color:var(--ink);display:flex;align-items:center;gap:8px;white-space:nowrap}
+.card h3 .u{font-family:var(--font-ui);font-size:12px;font-weight:500;color:var(--ink-3);letter-spacing:0}
+.card h3 .pill{font-family:var(--font-ui)}
+.card h3 a{margin-left:auto;font-family:var(--font-ui);letter-spacing:0;font-size:12.5px;color:var(--ink);text-decoration:none;font-weight:600}
+.card h3 .hr{margin-left:auto;display:flex;align-items:center;gap:12px;font-family:var(--font-ui);font-size:11.5px;font-weight:500;letter-spacing:0}
+.card h3 .hr a{margin-left:0}
+.big{font-family:var(--font-display);font-size:44px;font-weight:800;letter-spacing:-.02em;margin-top:6px}
+.meta{display:flex;gap:14px;align-items:center;font-size:12.5px;color:var(--ink-2);margin-top:2px}
+.fresh{color:var(--ink-3);font-weight:500}.fresh::before{content:"● ";color:var(--positive)}
+.muted{color:var(--ink-3)}
+.fn{font-size:11.5px;color:var(--ink-3);margin-top:8px;line-height:1.45}
+svg text{font-family:var(--font-ui);font-size:10.5px;fill:var(--ink-3)}
+/* spend by month (ported from ov-01) */
+.chart{display:block;width:100%;height:auto;overflow:visible;margin-top:6px}
+.gl{stroke:var(--chart-grid);stroke-width:1}
+.ax{fill:var(--ink-3);font-size:10.5px}
+.axm{fill:var(--ink-2);font-size:11px;font-weight:500}
+.sbar{fill:var(--ink)}
+.vl{fill:var(--ink-2);font-size:10px;font-weight:600;font-variant-numeric:tabular-nums lining-nums}
+.typ{stroke:var(--ink);stroke-width:1.4;stroke-dasharray:3 2.5}
+html[data-theme="dark"] .typ{stroke:var(--chart-1);stroke-width:1.6}
+.pillbg{fill:var(--surface-inverse)}
+.pilltx{fill:var(--ink-inverse);font-size:10.5px;font-weight:700}
+.note{font-size:11.5px;color:var(--ink-3);line-height:1.45;margin-top:10px}
+.note b{color:var(--ink-2);font-weight:600}
+.io{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:12px}
+.io>div{border:1px solid var(--line-strong);border-radius:var(--radius-sm);padding:9px 10px;display:flex;gap:9px;align-items:center;min-width:0}
+.io .ic{width:30px;height:30px;border-radius:50%;display:grid;place-items:center;flex:none;border:1px solid var(--line-strong);color:var(--tile-ink)}
+.io .ic svg{width:14px;height:14px}
+.io small{display:block;font-size:11px;color:var(--ink-2)}
+.io b{font-family:var(--font-display);font-size:14px;font-weight:800;white-space:nowrap}
+.kept{display:flex;align-items:baseline;justify-content:space-between;margin-top:10px;padding-top:9px;border-top:1px solid var(--line);font-size:12px;color:var(--ink-2)}
+.kept b{font-family:var(--font-display);font-size:14px;font-weight:800;color:var(--ink)}
+/* own & owe */
+.nwhead{display:flex;align-items:flex-end;gap:16px;margin:6px 0 14px}
+.nwhead .big{font-size:34px}
+.tiles{display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:10px}
+.tile{border-radius:var(--radius-md);padding:14px;color:var(--tile-ink);border:1px solid var(--line-strong);min-width:0}
+html[data-theme="dark"] .tile:not(.stale){--surface:#fff;--broken:#c02a2a;--warning:#8a5300;--positive:#1b7447;--surface-inverse:#0b0b0c;--ink-inverse:#fff}
+html[data-theme="dark"] .tile .umeter{border-color:var(--tile-ink)}
+html[data-theme="dark"] .tile:not(.stale){border-color:var(--line-strong);box-shadow:inset 0 0 0 2px var(--tile-ring-gap)}
+.tile span{font-size:12px;font-weight:600}.tile b{display:block;white-space:nowrap;font-family:var(--font-display);font-size:16px;font-weight:800;margin:8px 0 4px}
+.tile em{font-style:normal;font-size:11.5px;opacity:.75}
+html[data-theme="dark"] .tile:not(.stale) em{opacity:1}
+.held{margin-top:12px;font-size:12.5px;color:var(--ink-2)}
+.held .stale{border:1px dashed var(--ink-3);border-radius:999px;padding:2px 8px}
+.umeter{position:relative;height:8px;border-radius:999px;background:var(--surface);border:1px solid var(--line-strong);margin:8px 0 6px}
+.umeter .fill{position:absolute;left:0;top:-1px;bottom:-1px;width:13%;border-radius:999px;background:var(--tile-ink)}
+.umeter .mk{position:absolute;left:30%;top:-5px;bottom:-5px;width:2px;background:var(--tile-ink)}
+/* upcoming */
+.up{display:flex;flex-direction:column;margin-top:8px}
+.uprow{display:grid;grid-template-columns:42px 1fr auto;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.dchip{border:1px dashed var(--ink-3);border-radius:var(--radius-sm);text-align:center;line-height:1.1;padding:3px 0}
+.dchip b{display:block;font-size:14px}.dchip small{font-size:10px;color:var(--ink-3);text-transform:uppercase}
+.uprow .n{font-weight:600}.uprow .n small{display:block;font-weight:400;color:var(--ink-3);font-size:11.5px}
+.uprow .a{font-weight:700}
+.divider{font-size:11.5px;color:var(--ink-3);padding:8px 0;border-bottom:1px dashed var(--line-strong);text-align:center}
+.after{opacity:.6}
+/* latest transactions: same row component as transactions.html */
+.card.tx{overflow:hidden}
+.txsub{font-size:12.5px;color:var(--ink-2);margin-top:4px}
+.txl{margin:8px -20px -18px}
+.txl .day{display:flex;align-items:center;gap:10px;padding:12px 20px 6px}
+.txl .dchip{width:40px;height:40px;border-radius:var(--radius-md);border:1px solid var(--line);display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1;background:var(--surface-2);flex:none;padding:0;text-align:left}
+.txl .dchip b{font-family:var(--font-display);font-weight:800;font-size:15px;display:inline}
+.txl .dchip span{font-size:9px;font-weight:700;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3);margin-top:3px}
+.txl .dchip.today{background:var(--surface-inverse);border-color:var(--surface-inverse);color:var(--ink-inverse)}
+.txl .dchip.today span{color:var(--ink-inverse);opacity:.7}
+.txl .dl{font-size:12px;font-weight:700;color:var(--ink-2)}
+.row{display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1.45fr) 124px;gap:12px;align-items:center;padding:9px 20px;border-top:1px solid var(--line);position:relative}
+.day + .row{border-top-color:transparent}
+.row:hover{background:var(--surface-2)}
+.who{display:flex;align-items:center;gap:11px;min-width:0}
+.mono{width:32px;height:32px;border-radius:50%;display:grid;place-items:center;font-size:12px;font-weight:700;flex:none;border:1px solid var(--line-strong);color:var(--tile-ink);font-family:var(--font-display)}
+.who div{min-width:0}
+.who b{font-weight:700;font-size:13.5px;display:block;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.who small{font-size:11.5px;color:var(--ink-3);white-space:nowrap}
+.cat{display:flex;align-items:center;gap:7px;font-size:12.5px;min-width:0;white-space:nowrap;flex-wrap:wrap}
+.cat b{font-weight:600}
+.cat .q{color:var(--ink-3);font-weight:600}
+.cat .btn{margin-left:auto}
+.tag{display:inline-flex;align-items:center;gap:5px;font-size:11px;font-weight:600;padding:2px 8px;border-radius:999px;border:1px solid var(--line);color:var(--ink-2);white-space:nowrap}
+.tag svg{width:11px;height:11px;fill:none;stroke:currentColor;stroke-width:1.5;stroke-linecap:round;stroke-linejoin:round}
+.tag.model{border-style:dashed;border-color:var(--ink-3)}
+.tag.wait{background:var(--warning-wash);border-color:transparent;color:var(--warning)}
+.tag.xfer{border-color:var(--warning);color:var(--warning)}
+.tag.bank{background:var(--surface-2)}
+.money{text-align:right;font-family:var(--font-display);font-weight:700;font-size:15px;white-space:nowrap}
+.money .sub{display:block;font-family:var(--font-ui);font-weight:500;font-size:10.5px;color:var(--ink-3)}
+.row.hatch{background:repeating-linear-gradient(135deg,transparent 0 6px,color-mix(in srgb,var(--hatch) var(--hatch-row),transparent) 6px 7px);outline:1px dashed var(--warning);outline-offset:-3px}
+.row.hatch .money{color:var(--ink-3)}
+.row.hatch .money .amt{text-decoration:line-through;text-decoration-thickness:1px}
+.row.wait{outline:1px dashed var(--line-strong);outline-offset:-3px}
+/* where it went: donut */
+.wiw{display:flex;align-items:center;gap:14px;margin-top:10px}
+.wiw svg{flex:none}
+.wiw .side2{display:flex;flex-direction:column;align-items:flex-start;gap:6px;font-size:12px;color:var(--ink-2);line-height:1.4;min-width:0}
+.pillinv{background:var(--surface-inverse);color:var(--ink-inverse);font-size:11px;padding:2px 8px;border-radius:999px;font-weight:700;white-space:nowrap}
+.linkbtn{font-size:12px;font-weight:600;color:var(--ink);border-bottom:1px solid var(--line-strong);padding:0}
+.leg{list-style:none;margin-top:12px;display:flex;flex-direction:column}
+.leg li{display:grid;grid-template-columns:10px minmax(0,1fr) auto;gap:9px;align-items:baseline;padding:7px 0;border-top:1px solid var(--line);font-size:12.5px}
+.leg li:first-child{border-top:0}
+.leg i{width:10px;height:10px;border-radius:2px;background:var(--chart-muted);align-self:center}
+.leg .v{font-weight:600;text-align:right}
+.leg small{display:block;font-size:11px;color:var(--ink-3);white-space:normal}
+.leg .fx{font-size:10.5px;font-weight:600;color:var(--ink-2);border:1px solid var(--line);border-radius:999px;padding:0 6px;margin-left:4px}
+.leg li.hl{font-weight:700}.leg li.hl i{background:var(--chart-1)}
+/* Rent · fixed: quiet fill with outline arcs; dark lifts the arcs to ink-3 so the segment stays visible */
+.fxarc{stroke:var(--chart-muted)}
+.leg li.fxd i{background:var(--chart-grid);border:1px solid var(--chart-muted)}
+html[data-theme="dark"] .fxarc{stroke:var(--ink-3)}
+html[data-theme="dark"] .leg li.fxd i{border-color:var(--ink-3)}
+.leg li.unc{margin-top:8px;padding:8px 10px;border:1px dashed var(--ink-3);border-radius:var(--radius-sm);grid-template-columns:10px minmax(0,1fr) auto}
+.leg li.unc i{background:repeating-linear-gradient(45deg,var(--hatch-stripe) 0 1.2px,var(--surface) 1.2px 4px);border:1px solid var(--hatch)}
+.leg li.unc a{font-weight:600;color:var(--ink);text-decoration:none}
+/* drawer */
+.drawer{position:fixed;top:0;right:0;bottom:0;width:420px;background:var(--surface);border-left:1px solid var(--line);box-shadow:var(--shadow-2);padding:24px;transform:translateX(100%);transition:transform .2s;z-index:9;overflow:auto}
+.drawer.open{transform:none}
+.drawer section{display:flex;flex-direction:column;gap:14px}
+.drawer section[hidden]{display:none}
+.drawer h2{font-family:var(--font-display);font-size:20px;font-weight:800}
+.ans{border:1px solid var(--line);border-radius:var(--radius-lg);padding:16px;display:flex;flex-direction:column;gap:10px;line-height:1.5}
+.ans .foot2{font-size:11.5px;color:var(--ink-3);border-top:1px solid var(--line);padding-top:10px}
+.ans ol{list-style:none;display:flex;flex-direction:column}
+.ans ol li{display:flex;justify-content:space-between;gap:12px;padding:6px 0;border-top:1px solid var(--line);font-size:13px}
+.ans ol li:first-child{border-top:0}
+.ans ol small{display:block;color:var(--ink-3);font-size:11.5px}
+.ring{width:10px;height:10px;border-radius:50%;background:var(--warning);box-shadow:0 0 0 3px var(--warning-wash);flex:none}
+@media (max-width:1300px){.card{padding:18px 16px}.txl{margin-left:-16px;margin-right:-16px}
+.io>div{padding:8px;gap:7px}.io .ic{width:26px;height:26px}.io b{font-size:13px}
+.row.hatch .cat{flex-wrap:nowrap}.tag.xfer{display:block;min-width:0;flex:0 1 auto;overflow:hidden;text-overflow:ellipsis}
+.needs .quiet{min-width:0;flex-shrink:1;overflow:hidden;text-overflow:ellipsis}.needs{padding-left:14px;padding-right:12px;gap:8px}.needs .sep{display:none}}
+/* dark-only contrast fixes (verify-dark D1–D8, I1–I6); light unchanged */
+html[data-theme="dark"] .needs .sep{opacity:.75}
+html[data-theme="dark"] .after{opacity:.8}
+html[data-theme="dark"] .after small{color:var(--ink-2)}
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute"><defs>
+<pattern id="hatch" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><rect width="6" height="6" fill="var(--surface)"/><line x1="0" y1="0" x2="0" y2="6" stroke="var(--hatch-stripe)" stroke-width="2"/></pattern>
+</defs></svg>
+<div class="app">
+  <aside class="side">
+    <div class="logo">fluide<i>_</i></div>
+    <nav class="nav">
+      <a class="on" href="overview.html" aria-current="page"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2"/><rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2"/><rect x="9" y="9" width="5.5" height="5.5" rx="1.2"/></svg>Overview</a>
+      <a href="transactions.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"><path d="M3 4h10M3 8h10M3 12h6"/></svg>Transactions</a>
+      <a href="accounts.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M1.5 6 8 2l6.5 4M3 6.5v6M6.3 6.5v6M9.7 6.5v6M13 6.5v6M1.5 14h13"/></svg>Accounts</a>
+      <a href="cashflow.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><path d="M2 14V9M6 14V5M10 14V7M14 14V2"/></svg>Cash flow</a>
+      <a href="upcoming.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><rect x="2" y="3" width="12" height="11" rx="2"/><path d="M2 6.5h12M5.5 1.5v3M10.5 1.5v3"/></svg>Upcoming</a>
+      <a href="review.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><path d="M2.5 8.5 6 12l7.5-8"/></svg>Review<span class="badge num">4</span></a>
+      <a href="rules.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M2 2h6l6 6-6 6-6-6z"/><circle cx="5.3" cy="5.3" r="1.2" fill="currentColor"/></svg>Rules</a>
+      <a href="assistant.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linejoin="round"><path d="M8 1.8 9.3 6.7 14.2 8 9.3 9.3 8 14.2 6.7 9.3 1.8 8 6.7 6.7z"/></svg>Assistant</a>
+      <a href="settings.html"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"><circle cx="8" cy="8" r="2.3"/><path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4"/></svg>Settings</a>
+    </nav>
+    <div class="foot">Read-only · self-hosted</div>
+  </aside>
+<main class="main">
+  <header class="top">
+    <div class="hello">
+      <small>Good morning, Subhendu · 1 day left in September</small>
+      <h1>Overview</h1>
+    </div>
+    <div class="ask">
+      <label>
+        <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linejoin="round"><path d="M8 1.8 9.3 6.7 14.2 8 9.3 9.3 8 14.2 6.7 9.3 1.8 8 6.7 6.7z"/></svg>
+        <input type="text" placeholder="Ask about your money…" aria-label="Ask about your money">
+        <kbd>/</kbd>
+      </label>
+      <ul>
+        <li><em>From your data</em></li>
+        <li><a href="assistant.html">Why is Shopping up 38% this month?</a></li>
+        <li><a href="assistant.html">Show the 4 items waiting for review</a></li>
+        <li><a href="assistant.html">Biggest merchants this month</a></li>
+      </ul>
+    </div>
+    <div class="circles">
+      <button class="cbtn" title="Sync connections — last sync 2h ago" aria-label="Sync"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><path d="M13.5 6.5A5.6 5.6 0 0 0 3.2 4.6M2.5 9.5a5.6 5.6 0 0 0 10.3 1.9"/><path d="M3 1.8v3h3M13 14.2v-3h-3"/></svg></button>
+      <button class="cbtn" title="Hide amounts" aria-label="Hide amounts" onclick="fxHide()"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z"/><circle cx="8" cy="8" r="2"/></svg></button>
+      <button class="cbtn" title="Light / dark" aria-label="Toggle theme" onclick="fxTheme()"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="8" cy="8" r="6"/><path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor"/></svg></button>
+      <div class="avatar" aria-label="Subhendu">S</div>
+    </div>
+  </header>
+  <div class="chips">
+    <button class="chip" onclick="openD('shop')">Why is Shopping up 38% this month?</button>
+    <button class="chip" onclick="openD('wait')">Show the 4 items waiting for review</button>
+    <button class="chip" onclick="openD('merch')">Biggest merchants this month</button>
+  </div>
+
+  <section class="needs">
+    <span class="ring"></span><b>4 suggestions</b><span class="sep">·</span><span><span class="amt">₹6,300</span> at stake</span><span class="sep">·</span><span>1 possible transfer <span class="amt">₹25,000</span></span>
+    <span class="pill broken"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" style="vertical-align:-1px"><path d="M12 3 2 21h20z"/><path d="M12 10v5M12 18v.5"/></svg> Chase · reconnect</span>
+    <span class="pill warn">ING · access ends in 12 days</span>
+    <span class="quiet">5 others up to date ›</span>
+    <a class="btn" href="review.html" style="text-decoration:none">Review</a>
+  </section>
+
+  <div class="grid">
+    <div class="col">
+      <section class="card">
+        <h3>Cash on hand <span class="u">INR</span><span class="hr"><span class="fresh">as of 2h ago</span><a href="accounts.html">2 accounts ›</a></span></h3>
+        <div class="big amt">₹1,24,300<small>.00</small></div>
+        <div class="meta"><span><span class="amt">+₹8,100</span> vs this day last month</span></div>
+        <svg id="cashline" viewBox="0 0 760 170" width="100%" height="170" style="margin-top:8px"></svg>
+        <div class="fn">Daily closing balance, September (solid) vs August (dotted) · illustrative daily series · hatched = possible transfer, not counted until confirmed.</div>
+      </section>
+
+      <section class="card">
+        <h3>What you own &amp; owe <a href="accounts.html">Accounts ›</a></h3>
+        <div class="nwhead">
+          <div><div class="muted" style="font-size:12px">Net worth · INR</div><div class="big amt">₹18,42,600</div></div>
+          <div class="meta" style="flex-direction:column;align-items:flex-start;gap:2px;padding-bottom:6px"><span><span class="amt">+₹52,600</span> since end of Aug</span><span class="muted">as of 1 Sep (oldest input) · excludes home</span></div>
+          <svg id="nw" viewBox="0 0 220 56" width="220" height="56" style="margin-left:auto"></svg>
+        </div>
+        <div class="tiles">
+          <div class="tile" style="background:var(--tile-1)"><span>Cash</span><b class="amt">₹1,24,300</b><em>2 accounts · statements to 28 Sep</em></div>
+          <div class="tile" style="background:var(--tile-2)"><span>Investments</span><b class="amt">₹19,85,700</b><em>manual · 1 Sep</em></div>
+          <div class="tile" style="background:var(--tile-3)"><span>Cards</span><b class="amt">−₹38,900</b><div class="umeter" title="30% guide"><div class="fill"></div><div class="mk"></div></div><em>13% of limit used · tick 30%</em></div>
+          <div class="tile" style="background:var(--tile-4)"><span>Loans</span><b class="amt">−₹2,28,500</b><em>SBI car · EMI 7 Oct</em></div>
+        </div>
+        <div class="held">Held separately, not summed: <span class="amt">€3,420.18</span> ING · <span class="stale"><span class="amt">$1,860.40</span> Chase (stale)</span></div>
+      </section>
+
+      <section class="card tx">
+        <h3>Latest transactions <span class="hr"><span class="fresh">as of 2h ago</span><a href="transactions.html">All transactions ›</a></span></h3>
+        <div class="txsub">12 new since Sunday · 9 by rule · 2 by model · 1 waiting</div>
+        <div class="txl" id="txl"></div>
+      </section>
+    </div>
+
+    <div class="col">
+      <section class="card">
+        <h3>Spend by month <span class="hr"><span class="fresh">as of 2h ago</span></span></h3>
+        <!-- plot: x 34→316, baseline y=176, 1,20,000 → 136px (1.1333 px per 1k) -->
+        <svg class="chart" viewBox="0 0 320 200" role="img" aria-label="Out by month: Apr ₹88,200, May ₹1,04,300, Jun ₹97,800, Jul ₹1,12,600, Aug ₹1,01,200, Sep ₹96,450 so far, ₹4,750 under the typical ₹1,01,200 by day 29">
+          <line x1="34" y1="176" x2="316" y2="176" class="gl" style="stroke:var(--line-strong)"/>
+          <line x1="34" y1="119.3" x2="316" y2="119.3" class="gl" stroke-dasharray="2 3"/>
+          <line x1="34" y1="62.7" x2="316" y2="62.7" class="gl" stroke-dasharray="2 3"/>
+          <text x="28" y="179.5" class="ax" text-anchor="end">0</text>
+          <text x="28" y="122.8" class="ax" text-anchor="end">50k</text>
+          <text x="28" y="66.2" class="ax" text-anchor="end">1L</text>
+          <rect class="sbar" x="46.5" y="76" width="22" height="100" rx="2"/>
+          <rect class="sbar" x="93.5" y="57.8" width="22" height="118.2" rx="2"/>
+          <rect class="sbar" x="140.5" y="65.2" width="22" height="110.8" rx="2"/>
+          <rect class="sbar" x="187.5" y="48.4" width="22" height="127.6" rx="2"/>
+          <rect class="sbar" x="234.5" y="61.3" width="22" height="114.7" rx="2"/>
+          <rect x="281.5" y="66.7" width="22" height="109.3" rx="2" fill="url(#hatch)" style="stroke:var(--ink);stroke-width:1.2"/>
+          <line x1="275" y1="61.3" x2="310" y2="61.3" class="typ"/>
+          <text x="57.5" y="70" class="vl amt" text-anchor="middle">88.2k</text>
+          <text x="104.5" y="51.8" class="vl amt" text-anchor="middle">1.04L</text>
+          <text x="151.5" y="59.2" class="vl amt" text-anchor="middle">97.8k</text>
+          <text x="198.5" y="42.4" class="vl amt" text-anchor="middle">1.13L</text>
+          <text x="245.5" y="55.3" class="vl amt" text-anchor="middle">1.01L</text>
+          <g>
+            <rect x="206" y="10" width="112" height="20" rx="10" class="pillbg"/>
+            <text x="262" y="23.8" class="pilltx amt" text-anchor="middle">₹4,750 under typical</text>
+            <line x1="292.5" y1="30" x2="292.5" y2="58" style="stroke:var(--ink);stroke-width:1"/>
+          </g>
+          <text x="57.5" y="193" class="axm" text-anchor="middle">Apr</text>
+          <text x="104.5" y="193" class="axm" text-anchor="middle">May</text>
+          <text x="151.5" y="193" class="axm" text-anchor="middle">Jun</text>
+          <text x="198.5" y="193" class="axm" text-anchor="middle">Jul</text>
+          <text x="245.5" y="193" class="axm" text-anchor="middle">Aug</text>
+          <text x="292.5" y="193" class="axm" text-anchor="middle" style="font-weight:700;fill:var(--ink)">Sep*</text>
+        </svg>
+        <p class="note">*Sep to day 29: <b class="amt">₹96,450</b> vs a typical <b class="amt">₹1,01,200</b> by this day (dashed line). Incl. <span class="amt">₹6,300</span> from 4 unreviewed · <span class="amt">₹25,000</span> possible transfer not counted.</p>
+        <div class="io">
+          <div><span class="ic" style="background:var(--tile-3)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M4 12 12 4M6 4h6v6"/></svg></span><div><small>In · Sep</small><b><span aria-hidden="true">+</span><span class="amt">₹1,42,000</span></b></div></div>
+          <div><span class="ic" style="background:var(--tile-1)"><svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"><path d="M12 4 4 12M10 12H4V6"/></svg></span><div><small>Out · Sep</small><b><span aria-hidden="true">−</span><span class="amt">₹96,450</span></b></div></div>
+        </div>
+        <div class="kept"><span>Kept · Sep (in − out)</span><b><span aria-hidden="true">+</span><span class="amt">₹45,550</span></b></div>
+      </section>
+
+      <section class="card">
+        <h3>Upcoming <span class="pill" style="border:1px dashed var(--ink-3);color:var(--ink-2);font-size:10.5px;letter-spacing:0;text-transform:none">expected</span><a href="upcoming.html">All ›</a></h3>
+        <div style="margin-top:6px;font-size:13px">Expected out by 9 Oct <b class="amt">−₹83,998</b></div>
+        <div class="up">
+          <div class="uprow"><div class="dchip"><b>1</b><small>Oct</small></div><div class="n">Rent<small>HDFC Savings</small></div><div class="a amt">−₹32,000</div></div>
+          <div class="divider">next salary expected 1 Oct · amount not projected</div>
+          <div class="uprow after"><div class="dchip"><b>3</b><small>Oct</small></div><div class="n">Netflix<small>HDFC Regalia</small></div><div class="a amt">−₹649</div></div>
+          <div class="uprow after"><div class="dchip"><b>5</b><small>Oct</small></div><div class="n">HDFC Regalia statement<small>due · HDFC Regalia</small></div><div class="a amt">≈ −₹38,900</div></div>
+          <div class="uprow after"><div class="dchip"><b>7</b><small>Oct</small></div><div class="n">SBI car EMI<small>ICICI Salary</small></div><div class="a amt">−₹11,250</div></div>
+          <div class="uprow after" style="border:0"><div class="dchip"><b>9</b><small>Oct</small></div><div class="n">Airtel<small>HDFC Regalia</small></div><div class="a amt">≈ −₹1,199</div></div>
+        </div>
+      </section>
+
+      <section class="card">
+        <h3>Where it went <span class="u">Sep</span><span class="hr"><span class="fresh">as of 2h ago</span></span></h3>
+        <div class="wiw">
+          <svg id="donut" viewBox="0 0 160 160" width="148" height="148" role="img" aria-label="Out in September ₹96,450: Rent ₹32,000 fixed, Groceries ₹14,820, Shopping ₹11,380, Other ₹11,190, 5 more ₹27,060"></svg>
+          <div class="side2">
+            <span class="pillinv">Shopping +38%</span>
+            <span><span class="amt">₹11,380</span> vs typical <span class="amt">≈₹8,250</span></span>
+            <span style="display:flex;gap:14px"><button class="linkbtn" onclick="openD('shop')">Why? ›</button><a class="linkbtn" href="cashflow.html" style="text-decoration:none">Details ›</a></span>
+          </div>
+        </div>
+        <ul class="leg">
+          <li class="fxd"><i></i><span>Rent <span class="fx">fixed</span></span><span class="v amt">₹32,000</span></li>
+          <li><i></i><span>Groceries</span><span class="v amt">₹14,820</span></li>
+          <li class="hl"><i></i><span>Shopping <span class="fx">+38% vs typical</span></span><span class="v amt">₹11,380</span></li>
+          <li><i></i><span>Other</span><span class="v amt">₹11,190</span></li>
+          <li><i></i><span>5 more<small>Dining, Transport, Utilities, Health, Subscriptions</small></span><span class="v amt">₹27,060</span></li>
+          <li class="unc"><i></i><span>Not yet categorised<small>4 waiting · shown above at the suggested category until you review</small></span><span class="v"><span class="amt">₹6,300</span><small><a href="review.html">Review ›</a></small></span></li>
+        </ul>
+      </section>
+    </div>
+  </div>
+</main>
+</div>
+
+<aside class="drawer" id="drawer">
+  <section data-a="shop">
+    <div style="display:flex;align-items:center"><h2>Why is Shopping up 38%?</h2><button class="cbtn" style="margin-left:auto" aria-label="Close" onclick="closeD()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="ans">
+      <div>Shopping is <b class="amt">₹11,380</b> this month vs typical <b class="amt">≈₹8,250</b>.</div>
+      <div>Most of the gap is <b>Amazon <span class="amt">₹3,299</span></b>, still waiting for review (62% Shopping). Without it, Shopping is <b class="amt">₹8,081</b> — about typical.</div>
+      <svg viewBox="0 0 360 44" width="100%" height="44">
+        <rect x="0" y="12" width="256" height="16" fill="var(--chart-1)"/>
+        <rect x="256" y="12" width="104" height="16" fill="url(#hatch)" stroke="var(--hatch)"/>
+        <line x1="261" y1="4" x2="261" y2="36" stroke="var(--ink)" stroke-width="2" stroke-dasharray="2 3"/>
+        <text x="0" y="42">reviewed</text><text x="50" y="42" class="amt">₹8,081</text><text x="300" y="42">waiting</text><text x="266" y="9">typical</text>
+      </svg>
+      <div class="foot2">from ledger query: spending by category, Sep vs typical; 23 transactions · <a href="transactions.html">Open the 23 rows →</a></div>
+    </div>
+  </section>
+  <section data-a="wait" hidden>
+    <div style="display:flex;align-items:center"><h2>4 items waiting for review</h2><button class="cbtn" style="margin-left:auto" aria-label="Close" onclick="closeD()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="ans">
+      <div>Together <b class="amt">₹6,300</b>, each counted at its suggested category until you decide.</div>
+      <ol>
+        <li><span>Amazon<small>27 Sep · HDFC Regalia · Shopping? 62%</small></span><b><span aria-hidden="true">−</span><span class="amt">₹3,299</span></b></li>
+        <li><span>Chaayos<small>26 Sep · HDFC Savings · Dining? 55%</small></span><b><span aria-hidden="true">−</span><span class="amt">₹672</span></b></li>
+        <li><span>Apollo Pharmacy<small>24 Sep · HDFC Regalia · Health? 71%</small></span><b><span aria-hidden="true">−</span><span class="amt">₹1,240</span></b></li>
+        <li><span>Decathlon<small>22 Sep · ICICI Salary · Shopping? 73%</small></span><b><span aria-hidden="true">−</span><span class="amt">₹1,089</span></b></li>
+      </ol>
+      <div class="foot2">from ledger query: status = waiting, Sep · <a href="review.html">Open Review →</a></div>
+    </div>
+  </section>
+  <section data-a="merch" hidden>
+    <div style="display:flex;align-items:center"><h2>Biggest merchants this month</h2><button class="cbtn" style="margin-left:auto" aria-label="Close" onclick="closeD()"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M6 6l12 12M18 6 6 18"/></svg></button></div>
+    <div class="ans">
+      <ol>
+        <li><span>Rent · K Mehta<small>Rent · fixed</small></span><b><span aria-hidden="true">−</span><span class="amt">₹32,000</span></b></li>
+        <li><span>DMart<small>Groceries</small></span><b><span aria-hidden="true">−</span><span class="amt">₹3,460</span></b></li>
+        <li><span>Amazon<small>Shopping? · waiting</small></span><b><span aria-hidden="true">−</span><span class="amt">₹3,299</span></b></li>
+        <li><span>Myntra<small>Shopping</small></span><b><span aria-hidden="true">−</span><span class="amt">₹2,799</span></b></li>
+        <li><span>BESCOM electricity<small>Utilities</small></span><b><span aria-hidden="true">−</span><span class="amt">₹2,380</span></b></li>
+      </ol>
+      <div class="foot2">from ledger query: out by merchant, Sep · excludes the <span class="amt">₹25,000</span> possible transfer and the car EMI (loan, not spend) · <a href="transactions.html">Open in Transactions →</a></div>
+    </div>
+  </section>
+</aside>
+
+<script>
+function openD(a){document.querySelectorAll('#drawer [data-a]').forEach(s=>s.hidden=s.dataset.a!==a);document.getElementById('drawer').classList.add('open')}
+function closeD(){document.getElementById('drawer').classList.remove('open')}
+document.addEventListener('keydown',e=>{if(e.key==='/'&&!['INPUT','SELECT'].includes(document.activeElement.tagName)){e.preventDefault();document.querySelector('.ask input').focus();}});
+const NS='http://www.w3.org/2000/svg';
+function el(p,t,a,txt){const e=document.createElementNS(NS,t);for(const k in a)e.setAttribute(k,a[k]);if(txt)e.textContent=txt;p.appendChild(e);return e}
+// cash line (illustrative, reconciled: 31 Aug ₹78,750 → 1 Sep ₹1,88,750 → 27 Sep ₹1,52,238 → 28 Sep −₹25,000 step → 29 Sep ₹1,24,300)
+(function(){const s=document.getElementById('cashline'),W=760,H=140,x0=44,min=50000,max=200000;
+const y=v=>H-(v-min)/(max-min)*(H-10)+4, x=d=>x0+d/29*(W-x0-16);
+let sep=[[0,78750]];for(let d=1;d<=27;d++){const lin=188750-(188750-152238)*(d-1)/26;sep.push([d,Math.round(lin+(d>1&&d<27?((d*37)%7-3)*900:0))]);}
+sep.push([28,125098],[29,124300]);
+let aug=[[0,64000]];for(let d=1;d<=29;d++){const lin=172000-(172000-116200)*(d-1)/28;aug.push([d,Math.round(lin+(d>1&&d<29?(((d*53)%5)-2)*2600+(d>14&&d<20?-9000:0):0))]);}
+[50000,100000,150000,200000].forEach(g=>{el(s,'line',{x1:x0,x2:W,y1:y(g),y2:y(g),stroke:'var(--chart-grid)'});el(s,'text',{x:0,y:y(g)+3,class:'amt'},'₹'+(g/100000)+'L')});
+el(s,'path',{d:'M'+aug.map(p=>x(p[0])+','+y(p[1])).join('L'),fill:'none',stroke:'var(--ink-3)','stroke-width':1.8,'stroke-dasharray':'1 4','stroke-linecap':'round'});
+el(s,'path',{d:'M'+sep.map(p=>x(p[0])+','+y(p[1])).join('L'),fill:'none',stroke:'var(--chart-1)','stroke-width':2.2,'stroke-linejoin':'round'});
+el(s,'circle',{cx:x(1),cy:y(188750),r:4,fill:'var(--chart-1)'});
+el(s,'text',{x:x(1)+8,y:y(200000)-5,class:'amt'},'1 Sep · salary +₹1,42,000 · rent −₹32,000');
+const sx=x(27.5);el(s,'rect',{x:sx-7,y:y(152238),width:14,height:y(127238)-y(152238),fill:'url(#hatch)',stroke:'var(--hatch)'});
+el(s,'text',{x:sx+8,y:y(152238)-15,'text-anchor':'end',class:'amt'},'−₹25,000 possible transfer · 28 Sep');
+el(s,'circle',{cx:x(29),cy:y(124300),r:4,fill:'var(--chart-1)'});
+[1,8,15,22,29].forEach(d=>el(s,'text',{x:x(d),y:H+26,'text-anchor':'middle'},d+' Sep'));})();
+// net worth step line
+(function(){const s=document.getElementById('nw'),v=[15.2,15.5,15.4,15.9,16.3,16.1,16.6,17.0,17.4,17.2,17.9,18.43],x=i=>4+i*17.5,y=n=>48-(n-15)/3.6*42;
+let d='M'+x(0)+','+y(v[0]);v.forEach((n,i)=>{if(i)d+='H'+x(i)+'V'+y(n)});d+='H'+(x(11)+10);
+el(s,'path',{d,fill:'none',stroke:'var(--chart-1)','stroke-width':1.8});el(s,'circle',{cx:x(11)+10,cy:y(18.43),r:3,fill:'var(--chart-1)'});
+el(s,'text',{x:0,y:56},"Oct'25");el(s,'text',{x:176,y:56},"Sep'26");})();
+// where it went: donut (sums to ₹96,450)
+(function(){const s=document.getElementById('donut'),seg=[['Rent',32000,'var(--chart-grid)'],['Groceries',14820,'var(--chart-muted)'],['Shopping',11380,'var(--chart-1)'],['Other',11190,'var(--chart-muted)'],['5 more',27060,'var(--chart-muted)']];
+const R=58,C=2*Math.PI*R,T=seg.reduce((a,b)=>a+b[1],0);let at=0;
+seg.forEach(([n,v,c])=>{const L=v/T*C;el(s,'circle',{cx:80,cy:80,r:R,fill:'none',stroke:c,'stroke-width':22,'stroke-dasharray':(L-2)+' '+(C-L+2),'stroke-dashoffset':-at,transform:'rotate(-90 80 80)'});at+=L;});
+// Rent = fixed: outlined segment with its own label
+const LR=32000/T*C;[47,69].forEach(r=>el(s,'circle',{cx:80,cy:80,r,fill:'none',class:'fxarc','stroke-width':1,'stroke-dasharray':((LR-2)*r/R)+' '+(2*Math.PI*r),transform:'rotate(-90 80 80)'}));
+const th=LR/2/C*2*Math.PI;el(s,'text',{x:80+R*Math.sin(th),y:80-R*Math.cos(th)+3.5,'text-anchor':'middle',style:'font-size:9.5px;font-weight:700;fill:var(--ink-2)'},'fixed');
+el(s,'text',{x:80,y:81,'text-anchor':'middle',class:'amt',style:'font-family:var(--font-display);font-size:18px;font-weight:800;fill:var(--ink)'},'₹96,450');
+el(s,'text',{x:80,y:97,'text-anchor':'middle',style:'font-size:10.5px;fill:var(--ink-3)'},'out · Sep so far');})();
+// latest transactions: same row markup as transactions.html
+(function(){const TX=[
+ ['29','Sep','Today','Swiggy','HDFC Savings','Dining','rule','rule',-486,'INR','',1],
+ ['29','Sep','Today','Uber','HDFC Savings','Transport','rule','rule',-312,'INR','',3],
+ ['28','Sep','Mon','BigBasket','ICICI Salary','Groceries','model','model 94%',-2140,'INR','',4],
+ ['28','Sep','Mon','UPI/RAHUL S','ICICI Salary','Possible transfer','xfer','possible transfer · not counted',-25000,'INR','xfer',2],
+ ['27','Sep','Sun','Amazon','HDFC Regalia','Shopping','wait','waiting · 62%',-3299,'INR','wait',1],
+ ['26','Sep','Sat','Albert Heijn','ING Current','Groceries','bank','bank label',-42.60,'EUR','',3],
+ ['25','Sep','Fri','Zomato','HDFC Savings','Dining','rule','rule',-740,'INR','',4]];
+const sym={INR:'₹',EUR:'€'},RULE='<svg viewBox="0 0 12 12"><path d="M1 6.5h2.5L5 3l2 6 1.5-2.5H11"/></svg>';
+const fmt=(v,c)=>{const a=Math.abs(v),w=Math.trunc(a),p=Math.round((a-w)*100);return '<span aria-hidden="true">'+(v<0?'−':'+')+'</span><span class="amt">'+sym[c]+w.toLocaleString(c==='INR'?'en-IN':'en-IE')+'<small>.'+String(p).padStart(2,'0')+'</small></span>'};
+let h='',last='';
+TX.forEach(([dd,mm,dl,m,acc,cat,pk,pt,v,c,s,tile])=>{
+ if(dd!==last){h+='<div class="day"><span class="dchip'+(dl==='Today'?' today':'')+'"><b>'+dd+'</b><span>'+mm+'</span></span><span class="dl">'+dl+'</span></div>';last=dd;}
+ const isW=s==='wait',isX=s==='xfer';
+ const catH=isX?'<b>Transfer?</b><span class="tag xfer">'+pt+'</span><button class="btn sm">Confirm</button>'
+  :isW?'<b>'+cat+'</b><span class="q">?</span><span class="tag wait">'+pt+'</span><a class="btn sm" href="review.html" style="text-decoration:none">Review</a>'
+  :'<b>'+cat+'</b><span class="tag '+pk+'">'+(pk==='rule'?RULE:'')+pt+'</span>';
+ const sub=isX?'<span class="sub">confirm or dismiss</span>':c==='EUR'?'<span class="sub">EUR · not converted</span>':'';
+ h+='<div class="row'+(isX?' hatch':'')+(isW?' wait':'')+'"><div class="who"><span class="mono" style="background:var(--tile-'+tile+')">'+m.replace(/[^A-Za-z]/g,'').slice(0,1)+'</span><div><b>'+m+'</b><small>'+acc+(c==='EUR'?' · EUR':'')+'</small></div></div><div class="cat">'+catH+'</div><div class="money">'+fmt(v,c)+sub+'</div></div>';});
+document.getElementById('txl').innerHTML=h;})();
+</script>
+<script>
+(function(){const d=document.documentElement,q=new URLSearchParams(location.search);
+if(q.get('theme')==='dark'||localStorage.getItem('fluide-theme')==='dark')d.dataset.theme='dark';
+if(localStorage.getItem('fluide-hide')==='1')d.classList.add('amounts-hidden');
+window.fxTheme=()=>{d.dataset.theme=d.dataset.theme==='dark'?'':'dark';localStorage.setItem('fluide-theme',d.dataset.theme||'')};
+window.fxHide=()=>{localStorage.setItem('fluide-hide',d.classList.toggle('amounts-hidden')?'1':'')};
+window.addEventListener('message',e=>{if(e.data&&e.data.theme!==undefined)d.dataset.theme=e.data.theme});})();
+</script>
+</body>
+</html>
