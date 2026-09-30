@@ -1,49 +1,18 @@
-import type { ReactNode } from 'react'
 import type { ConfidenceBand } from '../../lib/api'
 import { BAND_LABEL, formatConfidence, formatMoney, toNumber } from '../../lib/format'
-
-export function PageHeader({
-  eyebrow,
-  lede,
-  actions,
-}: {
-  eyebrow?: string
-  lede?: ReactNode
-  actions?: ReactNode
-}) {
-  return (
-    <header className="flex flex-col gap-5 border-b border-line-strong pb-6 md:flex-row md:items-end md:justify-between">
-      <div className="max-w-2xl">
-        {eyebrow && <p className="eyebrow mb-1.5">{eyebrow}</p>}
-        {lede && <p className="max-w-xl text-[15px] leading-relaxed text-ink-2">{lede}</p>}
-      </div>
-      {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
-    </header>
-  )
-}
-
-export function SectionTitle({ children, aside }: { children: ReactNode; aside?: ReactNode }) {
-  return (
-    <div className="mb-3 flex items-baseline justify-between gap-4 border-b border-line pb-2">
-      <h2 className="text-[22px] leading-tight text-ink">{children}</h2>
-      {aside && <div className="text-[13px] text-ink-3">{aside}</div>}
-    </div>
-  )
-}
 
 type MoneyProps = {
   amount: number | string
   currency?: string
-  /** 'flow' colours inflows green and prefixes +; 'plain' is ink with a minus only. */
+  /** 'flow' prefixes + on inflows (no colour; DS01); 'plain' is a minus only. */
   tone?: 'flow' | 'plain'
   className?: string
 }
 
 export function Money({ amount, currency = 'USD', tone = 'plain', className = '' }: MoneyProps) {
   const n = toNumber(amount)
-  const color = tone === 'flow' && n > 0 ? 'text-positive' : ''
   return (
-    <span className={`figures amt whitespace-nowrap ${color} ${className}`}>
+    <span className={`figures amt whitespace-nowrap ${className}`}>
       {formatMoney(n, currency, tone === 'flow' ? 'always' : 'auto')}
     </span>
   )

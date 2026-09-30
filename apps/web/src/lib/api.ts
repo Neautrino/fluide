@@ -134,25 +134,6 @@ export type AccountBalance = {
   countedUntil: string | null
 }
 
-/** Every figure is in `currency`; the other currencies present are never added in. */
-export type Summary = {
-  period: Period
-  currency: string
-  /** Currencies with movements in the period, most-used first; the picker's options. */
-  currencies: string[]
-  /** `expense` = `spending` + `debtPayments`; own-account transfers, card payments and investments are excluded. */
-  incomeVsExpense: { income: number; expense: number; net: number; spending: number; debtPayments: number }
-  topCategories: { category: string; total: number }[]
-  topMerchants: { merchant: string; total: number; count: number }[]
-  /** Every account, each in its own currency. */
-  balances: AccountBalance[]
-  /** Movements left out of cash flow; only kinds with count > 0. `total` is positive; a matched pair counts once. */
-  notCounted: { kind: NotCountedKind; count: number; total: number }[]
-  otherCurrencies: { currency: string; count: number; moneyIn: number; moneyOut: number }[]
-  /** Bank-tagged transfers with no matching leg: still counted in cash flow until the user decides. `total` is positive. */
-  possibleTransfers: { count: number; total: number }
-}
-
 /** An unpaired bank-tagged transfer awaiting the user's decision. `amount` is signed (negative = money out). */
 export type PossibleTransfer = {
   transactionId: string
