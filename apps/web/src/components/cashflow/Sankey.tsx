@@ -1,33 +1,27 @@
-import { useId, useState, type FocusEvent, type MouseEvent, type ReactNode } from 'react'
+import { useState, type FocusEvent, type MouseEvent, type ReactNode } from 'react'
 import type { CashFlow, CashFlowFilter } from '../../lib/api'
+import { AMOUNT_HIDDEN } from './amounts'
+import { Amt, DrillButton, Figure } from './primitives'
 import { GROUPS, orderSources, orderTargets, ribbonEnds, stackTargets, type Group, type Source, type Target } from './sankey-layout'
-import {
-  C,
-  HatchDefs,
-  money,
-  moneyParts,
-  percent,
-  spread,
-  svgButton,
-  useTooltip,
-  useWidth,
-  type CfSelect,
-  type TipContent,
-} from './shared'
+import './sankey.css'
+import { money, moneyParts, percent, spread, svgButton, useTooltip, useWidth, type CfSelect, type TipContent } from './shared'
 
 type SankeyData = CashFlow['sankey']
 
 type Props = {
   sankey: SankeyData
   currency: string
+  /** Only affects the text CSS can't blur (aria-labels); the amounts on screen are blurred by `amt`. */
   hidden?: boolean
+  /** Label of the category that grew most against the baseline; drawn in ink. */
+  mover?: string | null
   onSelect: CfSelect
   height?: number
 }
 
 const GROUP_LABEL: Record<Group, string> = { spending: 'Spending', debt: 'Debt payments', kept: 'Kept' }
 const GROUP_TOKEN: Record<Group, CashFlowFilter | null> = { spending: 'spending', debt: 'debt', kept: null }
-const GROUP_COLOUR: Record<Group, string> = { spending: C.out, debt: C.out, kept: C.in }
+const GROUP_SWATCH: Record<Group, string> = { spending: 'var(--chart-muted)', debt: 'var(--chart-muted)', kept: 'var(--tile-2)' }
 
 function sourceToken(s: Source): CashFlowFilter | null {
   if (s.kind === 'payer') return `source:${s.label}`
@@ -71,21 +65,30 @@ function band(x0: number, y0: number, x1: number, y1: number, w: number): string
   return `M${x0},${y0}C${x0 + c},${y0} ${x1 - c},${y1} ${x1},${y1}L${x1},${y1 + w}C${x1 - c},${y1 + w} ${x0 + c},${y0 + w} ${x0},${y0 + w}Z`
 }
 
-function Amt({ value, currency, hidden, className }: { value: number; currency: string; hidden: boolean; className?: string }) {
-  const { whole, cents } = moneyParts(value, currency, hidden)
+type AmountTextProps = {
+  value: number
+  currency: string
+  x: number
+  y: number
+  anchor?: 'start' | 'end' | 'middle'
+  className: string
+}
+
+/** One SVG `<text>` per amount so the `amt` blur covers exactly the figure. */
+function AmountText({ value, currency, x, y, anchor = 'start', className }: AmountTextProps) {
+  const { whole, cents } = moneyParts(value, currency)
   return (
-    <tspan className={className}>
+    <text x={x} y={y} textAnchor={anchor} className={`amt ${className}`}>
       {whole}
-      {cents && <tspan style={{ fill: C.ink3 }}>{cents}</tspan>}
-    </tspan>
+      {cents && <tspan className="cf-sk-cents">{cents}</tspan>}
+    </text>
   )
 }
 
-export function Sankey({ sankey, currency, hidden = false, onSelect, height = 480 }: Props) {
+export function Sankey({ sankey, currency, hidden = false, mover = null, onSelect, height = 480 }: Props) {
   const [ref, W] = useWidth<HTMLDivElement>()
   const [active, setActive] = useState<string | null>(null)
   const tip = useTooltip()
-  const uid = useId().replace(/:/g, '')
 
   const sources = orderSources(sankey.sources)
   const targets = orderTargets(sankey.targets)
@@ -96,7 +99,8 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
 
   if (!(total > 0) || sources.length === 0 || targets.length === 0) return <div ref={ref} />
 
-  const fmt = (v: number) => money(v, currency, { hidden })
+  const fmt = (v: number) => money(v, currency)
+  const fmtLabel = (v: number) => (hidden ? AMOUNT_HIDDEN : fmt(v))
   const H = height
   const top = 48
   const avail = H - top - 10
@@ -116,12 +120,8 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
   const sh = sources.map((s) => Math.max(s.amount * k, 3))
   const sumSh = sh.reduce((a, b) => a + b, 0)
   const lgap = sources.length > 1 ? (avail - sumSh) / (sources.length - 1) : 0
-  let y = sources.length > 1 ? top : top + (avail - sumSh) / 2
-  const sLayout = sources.map((_, i) => {
-    const box = { y, h: sh[i] }
-    y += sh[i] + lgap
-    return box
-  })
+  const y0 = sources.length > 1 ? top : top + (avail - sumSh) / 2
+  const sLayout = sources.map((_, i) => ({ y: y0 + sh.slice(0, i).reduce((a, b) => a + b, 0) + i * lgap, h: sh[i] }))
   const sEnds = ribbonEnds(sources.map((s) => s.amount), sLayout, my, k)
   const tEnds = ribbonEnds(targets.map((t) => t.amount), tLayout, my, k)
 
@@ -150,7 +150,7 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
       tip.hide()
     },
   })
-  const on = (key: string) => (active === key ? ' on' : '')
+  const on = (key: string) => (active === key ? ' cf-on' : '')
   const buttonProps = (token: CashFlowFilter | null, aria: string, label: string, amount: number) =>
     token
       ? svgButton(`${aria}. Show transactions`, () => onSelect(token, label, amount))
@@ -160,14 +160,14 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
     s.kind === 'from_balance'
       ? {
           title: `${s.label} → Money out`,
-          rows: [{ swatch: C.line, label: 'Drawn from balance', value: fmt(s.amount), total: true }],
+          rows: [{ swatch: 'var(--tile-2)', label: 'Drawn from balance', value: fmt(s.amount), total: true }],
           note: 'More went out than came in this month.',
         }
       : {
           title: `${s.label} → Money in`,
           rows: [
-            { swatch: C.in, label: 'Came in', value: money(s.amount, currency, { hidden, sign: 'always' }), total: true },
-            { label: 'Share of money in', value: percent(s.amount, inTotal, s.amount / inTotal < 0.001 ? 2 : 1) },
+            { swatch: 'var(--chart-muted)', label: 'Came in', value: money(s.amount, currency, { sign: 'always' }), total: true },
+            { label: 'Share of money in', value: percent(s.amount, inTotal, s.amount / inTotal < 0.001 ? 2 : 1), plain: true },
           ],
         },
   )
@@ -176,8 +176,8 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
     return {
       title: `Money in → ${t.label}${sub ? ` (${sub})` : ''}`,
       rows: [
-        { swatch: GROUP_COLOUR[t.group], label: 'Amount', value: fmt(t.amount), total: true },
-        { label: `Share ${share.label}`, value: percent(t.amount, share.base) },
+        { swatch: GROUP_SWATCH[t.group], label: 'Amount', value: fmt(t.amount), total: true },
+        { label: `Share ${share.label}`, value: percent(t.amount, share.base), plain: true },
       ],
     }
   })
@@ -189,9 +189,16 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
     ribbons.push(
       <path
         key={`s${i}`}
-        className={`cf-rib${token ? '' : ' static'}${on(`s${i}`)}`}
+        className={`cf-rib${s.kind === 'from_balance' ? ' cf-kept' : ''}${token ? '' : ' cf-static'}${on(`s${i}`)}`}
         d={band(nw, e.node, mx, e.trunk, e.w)}
-        {...buttonProps(token, `${s.label}: ${fmt(s.amount)} came in, ${percent(s.amount, inTotal)} of money in`, s.label, s.amount)}
+        {...buttonProps(
+          token,
+          s.kind === 'from_balance'
+            ? `${s.label}: ${fmtLabel(s.amount)} drawn from your balances`
+            : `${s.label}: ${fmtLabel(s.amount)} came in, ${percent(s.amount, inTotal)} of money in`,
+          s.label,
+          s.amount,
+        )}
         {...hover(`s${i}`, sourceTips[i])}
         {...focus(`s${i}`, sourceTips[i])}
       />,
@@ -202,12 +209,13 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
   for (const { t, i } of byAmount) {
     const e = tEnds[i]
     const token = targetToken(t)
+    const kind = t.group === 'kept' ? ' cf-kept' : t.kind === 'category' && t.label === mover ? ' cf-mover' : ''
     ribbons.push(
       <path
         key={`t${i}`}
-        className={`cf-rib ${t.group === 'kept' ? 'kept' : 'spend'}${token ? '' : ' static'}${on(`t${i}`)}`}
+        className={`cf-rib${kind}${token ? '' : ' cf-static'}${on(`t${i}`)}`}
         d={band(mx + mw, e.trunk, rx, e.node, e.w)}
-        {...buttonProps(token, `${t.label}: ${fmt(t.amount)}, ${percent(t.amount, share.base)} ${share.label}`, t.label, t.amount)}
+        {...buttonProps(token, `${t.label}: ${fmtLabel(t.amount)}, ${percent(t.amount, share.base)} ${share.label}`, t.label, t.amount)}
         {...hover(`t${i}`, targetTips[i])}
         {...focus(`t${i}`, targetTips[i])}
       />,
@@ -215,13 +223,20 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
   }
 
   const labelW = (text: string) => text.length * 7.2
+  const numW = (value: number) => {
+    const { whole, cents } = moneyParts(value, currency)
+    return (whole.length + cents.length) * 6.6
+  }
   const maxLabelChars = Math.max(6, Math.floor(((mx + rx) / 2 - nw - 12 - 40) / 7.2))
   const clip = (text: string, n: number) => (text.length > n ? `${text.slice(0, n - 1)}…` : text)
   const sBoxes = sources.map((s, i) => {
     const small = sLayout[i].h < 16
     const name = clip(s.label, maxLabelChars)
-    const subW = s.kind === 'from_balance' ? 0 : moneyParts(s.amount, currency, hidden).whole.length * 6.6 + 48
-    return { small, name, ch: small ? 28 : 40, cw: small ? labelW(name) + 92 : Math.max(labelW(name), subW) + 24 }
+    const pctText = s.kind === 'from_balance' ? '' : percent(s.amount, inTotal, 0)
+    const cw = small
+      ? labelW(name) + numW(s.amount) + 36
+      : Math.max(labelW(name), numW(s.amount) + (pctText ? pctText.length * 6.2 + 18 : 0)) + 24
+    return { small, name, pctText, ch: small ? 28 : 40, cw }
   })
   const sCentres = spread(
     sLayout.map((L) => L.y + L.h / 2),
@@ -252,56 +267,42 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
     GROUPS.map((gr) => [gr, targets.filter((t) => t.group === gr).reduce((a, t) => a + t.amount, 0)]),
   ) as Record<Group, number>
 
-  const summary = `Where your money went: ${fmt(inTotal)} came in from ${sources.length} source${
+  const summary = `Where your money went: ${fmtLabel(inTotal)} came in from ${sources.length} source${
     sources.length === 1 ? '' : 's'
-  }${fromBalance > 0.005 ? ` plus ${fmt(fromBalance)} from your balance` : ''}; ${groupsUsed
-    .map((gr) => `${GROUP_LABEL[gr].toLowerCase()} ${fmt(groupTotals[gr])}`)
+  }${fromBalance > 0.005 ? ` plus ${fmtLabel(fromBalance)} from your balance` : ''}; ${groupsUsed
+    .map((gr) => `${GROUP_LABEL[gr].toLowerCase()} ${fmtLabel(groupTotals[gr])}`)
     .join(', ')}.`
 
   return (
-    <div ref={ref} className={`cf-sankey${active ? ' iso' : ''}`}>
+    <div ref={ref} className={`cf-sankey${active ? ' cf-iso' : ''}`}>
       {W > 0 && (
-        <svg className="cf-chart" width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="group" aria-label={summary}>
-          <HatchDefs id={uid} />
-          <g className="cf-rv" style={{ mixBlendMode: 'multiply' }}>
-            {ribbons}
-          </g>
-          {sources.map((s, i) =>
-            s.kind === 'from_balance' ? (
-              <rect
-                key={i}
-                x={0.75}
-                y={sLayout[i].y}
-                width={nw - 1.5}
-                height={sLayout[i].h}
-                rx={2}
-                fill={`url(#${uid}-no)`}
-                stroke={C.line}
-                strokeWidth={1.5}
-              />
-            ) : (
-              <rect key={i} x={0} y={sLayout[i].y} width={nw} height={sLayout[i].h} rx={2} fill={C.ink} />
-            ),
-          )}
-          <rect x={mx} y={my} width={mw} height={mh} rx={2} fill={C.ink} />
+        <svg width={W} height={H} viewBox={`0 0 ${W} ${H}`} role="group" aria-label={summary}>
+          <g>{ribbons}</g>
+          {sources.map((s, i) => (
+            <rect
+              key={i}
+              className={`cf-node${s.kind === 'from_balance' ? ' cf-kept' : ''}`}
+              x={0}
+              y={sLayout[i].y}
+              width={nw}
+              height={sLayout[i].h}
+              rx={2}
+            />
+          ))}
+          <rect className="cf-node cf-trunk" x={mx} y={my} width={mw} height={mh} rx={2} />
           <text x={mx + mw / 2} y={my - 32} textAnchor="middle" className="cf-sk-grp">
             MONEY IN
           </text>
-          <text
-            x={mx + mw / 2}
-            y={my - 12}
-            textAnchor="middle"
-            className="cf-lnk cf-sk-in"
-            style={{ font: '400 20px var(--font-display)' }}
-            {...buttonProps('in', `Money in: ${fmt(inTotal)}`, 'Money in', inTotal)}
-          >
-            <MiddleAmount value={inTotal} currency={currency} hidden={hidden} />
-          </text>
+          <g className="cf-sk-hit" {...buttonProps('in', `Money in: ${fmtLabel(inTotal)}`, 'Money in', inTotal)}>
+            <rect x={mx - 60} y={my - 34} width={mw + 120} height={34} fill="transparent" />
+            <AmountText value={inTotal} currency={currency} x={mx + mw / 2} y={my - 12} anchor="middle" className="cf-sk-in cf-sk-link" />
+          </g>
 
           {sources.map((s, i) => {
             const b = sBoxes[i]
             const cy = sCentres[i] - b.ch / 2
             const token = sourceToken(s)
+            const bx = nw + 12
             return (
               <g
                 key={i}
@@ -310,22 +311,25 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
                 onClick={() => select(token, s.label, s.amount)}
                 {...hover(`s${i}`, sourceTips[i])}
               >
-                <rect x={nw + 12} y={cy} width={b.cw} height={b.ch} rx={4} fill={C.surface} fillOpacity={0.9} stroke={C.rule} />
+                <rect className="cf-sk-box" x={bx} y={cy} width={b.cw} height={b.ch} rx={4} />
                 {b.small ? (
-                  <text x={nw + 24} y={cy + 18} className="cf-sk-name" style={{ fill: C.ink }}>
-                    {b.name}
-                    {'  '}
-                    <Amt value={s.amount} currency={currency} hidden={hidden} className="cf-sk-amt" />
-                  </text>
-                ) : (
                   <>
-                    <text x={nw + 24} y={cy + 17} className="cf-sk-name" style={{ fill: C.ink }}>
+                    <text x={bx + 12} y={cy + 18} className="cf-sk-name">
                       {b.name}
                     </text>
-                    <text x={nw + 24} y={cy + 32} className="cf-sk-sub">
-                      <Amt value={s.amount} currency={currency} hidden={hidden} />
-                      {s.kind === 'from_balance' ? '' : ` · ${percent(s.amount, inTotal, 0)}`}
+                    <AmountText value={s.amount} currency={currency} x={bx + b.cw - 12} y={cy + 18} anchor="end" className="cf-sk-amt" />
+                  </>
+                ) : (
+                  <>
+                    <text x={bx + 12} y={cy + 17} className="cf-sk-name">
+                      {b.name}
                     </text>
+                    <AmountText value={s.amount} currency={currency} x={bx + 12} y={cy + 32} className="cf-sk-amt" />
+                    {b.pctText && (
+                      <text x={bx + b.cw - 12} y={cy + 32} textAnchor="end" className="cf-sk-sub">
+                        {b.pctText}
+                      </text>
+                    )}
                   </>
                 )}
                 {b.name !== s.label && <title>{s.label}</title>}
@@ -340,36 +344,60 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
             const sub = targetSub(t)
             const name = clip(t.label, maxTargetChars)
             const gToken = GROUP_TOKEN[t.group]
+            const isMover = t.kind === 'category' && t.label === mover
             return (
               <g key={i}>
                 {first && (
-                  <text
-                    x={tx}
-                    y={headY[i] + 4}
-                    className={`cf-sk-grp${gToken ? ' cf-lnk' : ''}`}
-                    {...(gToken
-                      ? buttonProps(gToken, `${GROUP_LABEL[t.group]}: ${fmt(groupTotals[t.group])}`, GROUP_LABEL[t.group], groupTotals[t.group])
-                      : {})}
-                  >
-                    {GROUP_LABEL[t.group].toUpperCase()} · {fmt(groupTotals[t.group])}
-                  </text>
+                  <>
+                    <text x={tx} y={headY[i] + 4} className="cf-sk-grp">
+                      {GROUP_LABEL[t.group].toUpperCase()}
+                    </text>
+                    {gToken ? (
+                      <g
+                        className="cf-sk-hit"
+                        {...buttonProps(
+                          gToken,
+                          `${GROUP_LABEL[t.group]}: ${fmtLabel(groupTotals[t.group])}`,
+                          GROUP_LABEL[t.group],
+                          groupTotals[t.group],
+                        )}
+                      >
+                        <rect x={amtX - 90} y={headY[i] - 8} width={90} height={18} fill="transparent" />
+                        <AmountText
+                          value={groupTotals[t.group]}
+                          currency={currency}
+                          x={amtX}
+                          y={headY[i] + 4}
+                          anchor="end"
+                          className="cf-sk-grp cf-sk-link"
+                        />
+                      </g>
+                    ) : (
+                      <AmountText value={groupTotals[t.group]} currency={currency} x={amtX} y={headY[i] + 4} anchor="end" className="cf-sk-grp" />
+                    )}
+                  </>
                 )}
                 <g
-                  className={`cf-sk-lab cf-sk-node${on(`t${i}`)}`}
+                  className={`cf-sk-lab${on(`t${i}`)}`}
                   style={token ? { cursor: 'pointer' } : undefined}
                   onClick={() => select(token, t.label, t.amount)}
                   {...hover(`t${i}`, targetTips[i])}
                 >
-                  <rect x={rx} y={L.y} width={nw} height={L.h} rx={2} fill={GROUP_COLOUR[t.group]} />
-                  <text x={tx} y={ly[i] + 4} className="cf-sk-name">
+                  <rect
+                    className={`cf-node${t.group === 'kept' ? ' cf-kept' : isMover ? ' cf-mover' : ''}`}
+                    x={rx}
+                    y={L.y}
+                    width={nw}
+                    height={L.h}
+                    rx={2}
+                  />
+                  <text x={tx} y={ly[i] + 4} className={`cf-sk-name${isMover ? ' cf-mover' : ''}`}>
                     {name}
                     {sub && t.kind === 'other_categories' && <tspan className="cf-sk-sub"> ({sub})</tspan>}
                     {name !== t.label && <title>{t.label}</title>}
                   </text>
-                  <text x={amtX} y={ly[i] + 4} textAnchor="end" className="cf-sk-amt">
-                    <Amt value={t.amount} currency={currency} hidden={hidden} />
-                  </text>
-                  <text x={W} y={ly[i] + 4} textAnchor="end" className="cf-sk-pct">
+                  <AmountText value={t.amount} currency={currency} x={amtX} y={ly[i] + 4} anchor="end" className="cf-sk-amt" />
+                  <text x={W} y={ly[i] + 4} textAnchor="end" className="cf-sk-sub">
                     {percent(t.amount, share.base, 0)}
                   </text>
                 </g>
@@ -383,101 +411,94 @@ export function Sankey({ sankey, currency, hidden = false, onSelect, height = 48
   )
 }
 
-function MiddleAmount({ value, currency, hidden }: { value: number; currency: string; hidden: boolean }) {
-  const { whole, cents } = moneyParts(value, currency, hidden)
-  return (
-    <>
-      {whole}
-      {cents && <tspan style={{ fill: C.ink3, fontSize: 13 }}>{cents}</tspan>}
-    </>
-  )
-}
-
-type TableProps = { sankey: SankeyData; currency: string; hidden?: boolean; onSelect: CfSelect }
-
 /** Flow | Table toggle: the accessible equivalent of the Sankey, same tokens and figures. */
-export function SankeyTable({ sankey, currency, hidden = false, onSelect }: TableProps) {
+export function SankeyTable({ sankey, currency }: { sankey: SankeyData; currency: string }) {
   const sources = orderSources(sankey.sources)
   const targets = orderTargets(sankey.targets)
   const inTotal = incomeTotal(sources)
   const share = targetShare(sankey, inTotal)
-  const fmt = (v: number) => money(v, currency, { hidden })
-  const cell = (token: CashFlowFilter | null, label: string, amount: number) =>
-    token ? (
-      <button type="button" className="cf-lnk" onClick={() => onSelect(token, label, amount)} aria-label={`${label}: ${fmt(amount)}. Show transactions`}>
-        {fmt(amount)}
-      </button>
-    ) : (
-      fmt(amount)
+  const cell = (token: CashFlowFilter | null, label: string, amount: number) => {
+    const figure = (
+      <Amt>
+        <Figure value={amount} currency={currency} />
+      </Amt>
     )
+    return token ? (
+      <DrillButton drill={{ token, label, amount }}>
+        <span className="sr-only">Show transactions for {label}: </span>
+        {figure}
+      </DrillButton>
+    ) : (
+      figure
+    )
+  }
+  const th = 'border-b border-line py-2 text-[10.5px] font-bold tracking-[0.07em] text-ink-3 uppercase'
+  const td = 'h-9 border-b border-line text-[13px] text-ink-2'
+  const grp = 'h-9 border-b border-line text-[13px] font-semibold text-ink'
 
   return (
-    <div className="cf-sktable">
-      <div>
-        <table>
-          <thead>
-            <tr>
-              <th>Came in</th>
-              <th className="r">Amount</th>
-              <th className="r">Share</th>
+    <div className="grid grid-cols-1 gap-8 lg:grid-cols-[minmax(0,1fr)_minmax(0,1.4fr)]">
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className={`${th} text-left`}>Came in</th>
+            <th className={`${th} text-right`}>Amount</th>
+            <th className={`${th} text-right`}>Share</th>
+          </tr>
+        </thead>
+        <tbody>
+          {sources.map((s) => (
+            <tr key={s.id}>
+              <td className={td}>{s.label}</td>
+              <td className={`${td} text-right`}>{cell(sourceToken(s), s.label, s.amount)}</td>
+              <td className={`${td} figures text-right`}>{s.kind === 'from_balance' ? '—' : percent(s.amount, inTotal)}</td>
             </tr>
-          </thead>
-          <tbody>
-            {sources.map((s) => (
-              <tr key={s.id}>
-                <td>{s.label}</td>
-                <td className="r">{cell(sourceToken(s), s.label, s.amount)}</td>
-                <td className="r">{s.kind === 'from_balance' ? '—' : percent(s.amount, inTotal)}</td>
-              </tr>
-            ))}
-            <tr className="grp">
-              <td>Money in</td>
-              <td className="r">{cell('in', 'Money in', inTotal)}</td>
-              <td className="r">{inTotal > 0 ? '100.0%' : '—'}</td>
-            </tr>
-          </tbody>
-        </table>
-      </div>
-      <div>
-        <table>
-          <thead>
-            <tr>
-              <th>Went to</th>
-              <th className="r">Amount</th>
-              <th className="r">Share {share.label}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {GROUPS.map((gr) => {
-              const members = targets.filter((t) => t.group === gr)
-              if (members.length === 0) return null
-              const sum = members.reduce((a, t) => a + t.amount, 0)
-              return [
-                <tr key={gr} className="grp">
-                  <td>{GROUP_LABEL[gr]}</td>
-                  <td className="r">{cell(GROUP_TOKEN[gr], GROUP_LABEL[gr], sum)}</td>
-                  <td className="r">{percent(sum, share.base)}</td>
-                </tr>,
-                ...(members.length > 1 || members[0].label !== GROUP_LABEL[gr]
-                  ? members.map((t) => {
-                      const sub = targetSub(t)
-                      return (
-                        <tr key={t.id}>
-                          <td className="sub">
-                            {t.label}
-                            {sub && t.kind === 'other_categories' ? ` (${sub})` : ''}
-                          </td>
-                          <td className="r">{cell(targetToken(t), t.label, t.amount)}</td>
-                          <td className="r">{percent(t.amount, share.base)}</td>
-                        </tr>
-                      )
-                    })
-                  : []),
-              ]
-            })}
-          </tbody>
-        </table>
-      </div>
+          ))}
+          <tr>
+            <td className={grp}>Money in</td>
+            <td className={`${grp} text-right`}>{cell('in', 'Money in', inTotal)}</td>
+            <td className={`${grp} figures text-right`}>{inTotal > 0 ? '100.0%' : '—'}</td>
+          </tr>
+        </tbody>
+      </table>
+      <table className="w-full border-collapse">
+        <thead>
+          <tr>
+            <th className={`${th} text-left`}>Went to</th>
+            <th className={`${th} text-right`}>Amount</th>
+            <th className={`${th} text-right`}>Share {share.label}</th>
+          </tr>
+        </thead>
+        <tbody>
+          {GROUPS.map((gr) => {
+            const members = targets.filter((t) => t.group === gr)
+            if (members.length === 0) return null
+            const sum = members.reduce((a, t) => a + t.amount, 0)
+            return [
+              <tr key={gr}>
+                <td className={grp}>{GROUP_LABEL[gr]}</td>
+                <td className={`${grp} text-right`}>{cell(GROUP_TOKEN[gr], GROUP_LABEL[gr], sum)}</td>
+                <td className={`${grp} figures text-right`}>{percent(sum, share.base)}</td>
+              </tr>,
+              ...(members.length > 1 || members[0].label !== GROUP_LABEL[gr]
+                ? members.map((t) => {
+                    const sub = targetSub(t)
+                    return (
+                      <tr key={t.id}>
+                        <td className={`${td} pl-4`}>
+                          {t.label}
+                          {sub && t.kind === 'other_categories' ? ` (${sub})` : ''}
+                        </td>
+                        <td className={`${td} text-right`}>{cell(targetToken(t), t.label, t.amount)}</td>
+                        <td className={`${td} figures text-right`}>{percent(t.amount, share.base)}</td>
+                      </tr>
+                    )
+                  })
+                : []),
+            ]
+          })}
+        </tbody>
+      </table>
     </div>
   )
 }

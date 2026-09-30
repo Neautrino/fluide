@@ -1,0 +1,148 @@
+/* Sankey */
+.cashflow .cf-sankey svg {
+  display: block;
+  overflow: visible;
+  font-family: var(--font-sans);
+}
+.cashflow .cf-rib {
+  fill: var(--chart-muted);
+  opacity: 0.6;
+  cursor: pointer;
+  transition: opacity 0.15s ease;
+}
+.cashflow .cf-rib.cf-kept {
+  fill: var(--tile-2);
+  opacity: 0.85;
+  stroke: var(--line-strong);
+  stroke-width: 0.8;
+}
+.cashflow .cf-rib.cf-mover {
+  fill: var(--chart-1);
+  opacity: 0.9;
+}
+.cashflow .cf-rib.cf-static {
+  cursor: default;
+}
+.cashflow .cf-sankey.cf-iso .cf-rib {
+  opacity: 0.2;
+}
+.cashflow .cf-sankey.cf-iso .cf-rib.cf-on {
+  opacity: 0.95;
+}
+.cashflow .cf-sankey .cf-rib:focus-visible {
+  outline: none;
+  stroke: var(--accent);
+  stroke-width: 2;
+  opacity: 0.95;
+}
+.cashflow .cf-node {
+  fill: var(--surface);
+  stroke: var(--line-strong);
+  stroke-width: 1;
+}
+.cashflow .cf-node.cf-kept {
+  fill: var(--tile-2);
+}
+.cashflow .cf-node.cf-mover {
+  fill: var(--chart-1);
+}
+.cashflow .cf-node.cf-trunk {
+  fill: var(--ink);
+}
+.cashflow .cf-sk-lab {
+  transition: opacity 0.15s;
+}
+.cashflow .cf-sankey.cf-iso .cf-sk-lab {
+  opacity: 0.4;
+}
+.cashflow .cf-sankey.cf-iso .cf-sk-lab.cf-on {
+  opacity: 1;
+}
+.cashflow .cf-sk-box {
+  fill: var(--surface);
+  fill-opacity: 0.92;
+  stroke: var(--line);
+}
+.cashflow .cf-sk-name {
+  font-size: 12px;
+  font-weight: 600;
+  fill: var(--ink);
+}
+.cashflow .cf-sk-name.cf-mover {
+  font-weight: 800;
+}
+.cashflow .cf-sk-amt {
+  font-size: 11.5px;
+  font-weight: 600;
+  fill: var(--ink-2);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.cashflow .cf-sk-cents {
+  fill: var(--ink-3);
+}
+.cashflow .cf-sk-sub {
+  font-size: 10.5px;
+  fill: var(--ink-3);
+  font-variant-numeric: tabular-nums lining-nums;
+}
+.cashflow .cf-sk-grp {
+  font-size: 10.5px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  fill: var(--ink-3);
+}
+.cashflow .cf-sk-in {
+  fill: var(--ink);
+  font-family: var(--font-display);
+  font-size: 20px;
+  font-weight: 700;
+  letter-spacing: -0.01em;
+}
+.cashflow .cf-sk-link {
+  text-decoration: underline dotted var(--line-strong);
+  text-decoration-thickness: 1.5px;
+  text-underline-offset: 3px;
+}
+.cashflow .cf-sk-hit {
+  cursor: pointer;
+}
+.cashflow .cf-sk-hit:hover .cf-sk-link,
+.cashflow .cf-sk-hit:focus-visible .cf-sk-link {
+  fill: var(--accent);
+}
+
+/* Category bar */
+.cashflow .cf-track {
+  position: relative;
+  display: block;
+  width: 100%;
+  height: 14px;
+}
+.cashflow .cf-track .cf-fill {
+  position: absolute;
+  inset: 3px auto 3px 0;
+  border-radius: 2px;
+  background: var(--chart-muted);
+  transform-origin: 0 50%;
+  animation: cf-bar-in 500ms cubic-bezier(0.23, 1, 0.32, 1) both;
+}
+.cashflow .cf-track .cf-fill.cf-hl {
+  background: var(--chart-1);
+}
+.cashflow .cf-track .cf-tick {
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 0;
+  border-left: 1.5px dashed var(--ink);
+}
+.cashflow .cf-track .cf-tick.cf-in {
+  top: 3px;
+  bottom: 3px;
+  border-left: 1.5px solid var(--surface);
+}
+@keyframes cf-bar-in {
+  from {
+    transform: scaleX(0);
+  }
+}

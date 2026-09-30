@@ -65,7 +65,12 @@ export function stackTargets(targets: Target[], top: number, avail: number, spac
   let lo = 0
   let hi = total > 0 ? avail / total : 0
   if (extent(hi) <= avail) lo = hi
-  else for (let i = 0; i < 40; i++) extent((lo + hi) / 2) <= avail ? (lo = (lo + hi) / 2) : (hi = (lo + hi) / 2)
+  else
+    for (let i = 0; i < 40; i++) {
+      const mid = (lo + hi) / 2
+      if (extent(mid) <= avail) lo = mid
+      else hi = mid
+    }
   return { k: lo, nodes: stackAt(targets, lo, top, spacing) }
 }
 

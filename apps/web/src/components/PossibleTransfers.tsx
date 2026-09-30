@@ -3,7 +3,6 @@ import { decideTransfer, errorMessage, type PossibleTransfer, type TransferDecis
 import { useApp } from '../lib/app-context'
 import { formatLedgerDate, formatMoney } from '../lib/format'
 import { useResource } from '../lib/useResource'
-import { MASK } from './cashflow/shared'
 import { Button } from './ui/Button'
 import { ErrorState, Loading } from './ui/States'
 import { Money } from './ui/Typography'
@@ -15,21 +14,19 @@ type Props = {
   /** Lists the rows behind `count`; refetched when `loadKey` or the app version changes. */
   load: (signal: AbortSignal) => Promise<PossibleTransfer[]>
   loadKey: string
-  /** Masks amounts (the cash-flow page's "Hide amounts"). */
-  hidden?: boolean
 }
 
 /**
  * Bank-tagged transfers with no matching leg. The tag also covers payments to other people
  * (Zelle, Venmo, ATM cash), so they stay counted until the user says which they are.
  */
-export function PossibleTransfers({ currency, count, total, load, loadKey, hidden = false }: Props) {
+export function PossibleTransfers({ currency, count, total, load, loadKey }: Props) {
   const [open, setOpen] = useState(false)
   return (
     <div className="pt-2">
       <div className="figures flex flex-wrap items-center gap-x-3 gap-y-1 text-[12px] text-ink-3">
         <p>
-          Possible transfers: {hidden ? MASK : <span className="amt">{formatMoney(total, currency)}</span>} ({count}) — counted until you check them
+          Possible transfers: <span className="amt">{formatMoney(total, currency)}</span> ({count}) — counted until you check them
         </p>
         <Button
           variant="ghost"
@@ -41,22 +38,12 @@ export function PossibleTransfers({ currency, count, total, load, loadKey, hidde
           {open ? 'Hide' : 'Check'}
         </Button>
       </div>
-      {open && <PossibleTransferList id="possible-transfers" load={load} loadKey={loadKey} hidden={hidden} />}
+      {open && <PossibleTransferList id="possible-transfers" load={load} loadKey={loadKey} />}
     </div>
   )
 }
 
-function PossibleTransferList({
-  id,
-  load,
-  loadKey,
-  hidden,
-}: {
-  id: string
-  load: Props['load']
-  loadKey: string
-  hidden: boolean
-}) {
+function PossibleTransferList({ id, load, loadKey }: { id: string; load: Props['load']; loadKey: string }) {
   const { version, invalidate } = useApp()
   const list = useResource(load, `${loadKey}:${version}`)
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set())
@@ -107,11 +94,7 @@ function PossibleTransferList({
                       {formatLedgerDate(r.date)} · {r.accountName}
                     </p>
                   </div>
-                  {hidden ? (
-                    <span className="figures text-[14px]">{MASK}</span>
-                  ) : (
-                    <Money amount={r.amount} currency={r.currency} tone="flow" className="text-[14px]" />
-                  )}
+                  <Money amount={r.amount} currency={r.currency} tone="flow" className="text-[14px]" />
                   <div className="flex gap-2">
                     <Button size="sm" disabled={busy} onClick={() => decide(r, 'mine')}>
                       It’s my account

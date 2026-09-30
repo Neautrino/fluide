@@ -1,13 +1,13 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import type { CashFlowFilter } from '../../lib/api'
+import { formatMoneyParts } from '../../lib/format'
 import './cashflow.css'
 
 /** Drill-down: `token` is a `/cashflow/transactions` filter whose total equals `amount`. */
 export type CfSelect = (token: CashFlowFilter, label: string, amount: number) => void
 
 export const MINUS = '\u2212'
-export const MASK = '•••••'
 
 const fullFormatters = new Map<string, Intl.NumberFormat>()
 const wholeFormatters = new Map<string, Intl.NumberFormat>()
@@ -27,35 +27,28 @@ function formatter(cache: Map<string, Intl.NumberFormat>, currency: string, opti
   return f
 }
 
-type MoneyOpts = { hidden?: boolean; sign?: 'auto' | 'always' | 'never'; whole?: boolean }
+type MoneyOpts = { sign?: 'auto' | 'always' | 'never'; whole?: boolean }
 
-export function money(value: number, currency: string, { hidden = false, sign = 'never', whole = false }: MoneyOpts = {}): string {
+export function money(value: number, currency: string, { sign = 'never', whole = false }: MoneyOpts = {}): string {
   const f = whole
     ? formatter(wholeFormatters, currency, { maximumFractionDigits: 0, minimumFractionDigits: 0 })
     : formatter(fullFormatters, currency, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
-  const body = hidden ? MASK : f.format(Math.abs(value))
+  const body = f.format(Math.abs(value))
   if (sign === 'never' || value === 0) return body
   if (value < 0) return MINUS + body
   return sign === 'always' ? `+${body}` : body
 }
 
-export function compactMoney(value: number, currency: string, hidden: boolean): string {
-  if (hidden) return value === 0 ? '0' : '•••'
+export function compactMoney(value: number, currency: string): string {
   const f = formatter(compactFormatters, currency, { notation: 'compact', maximumFractionDigits: 1 })
   const body = f.format(Math.abs(value))
   return value < 0 ? MINUS + body : body
 }
 
 /** "$7,754" and ".22", so the cents can be set smaller and lighter. */
-export function moneyParts(value: number, currency: string, hidden: boolean): { whole: string; cents: string } {
-  if (hidden) return { whole: MASK, cents: '' }
-  const parts = formatter(fullFormatters, currency, { minimumFractionDigits: 2, maximumFractionDigits: 2 }).formatToParts(Math.abs(value))
-  const i = parts.findIndex((p) => p.type === 'decimal')
-  if (i < 0) return { whole: parts.map((p) => p.value).join(''), cents: '' }
-  return {
-    whole: parts.slice(0, i).map((p) => p.value).join(''),
-    cents: parts.slice(i).map((p) => p.value).join(''),
-  }
+export function moneyParts(value: number, currency: string): { whole: string; cents: string } {
+  const { whole, fraction } = formatMoneyParts(value, currency, 'never')
+  return { whole, cents: fraction }
 }
 
 export function percent(part: number, whole: number, digits = 1): string {
@@ -118,7 +111,8 @@ export function useWidth<T extends Element>(): [RefObject<T | null>, number] {
   return [ref, width]
 }
 
-export type TipRow = { swatch?: string; label: string; value: string; total?: boolean }
+/** `plain` values aren't amounts (counts, shares) and stay unblurred when amounts are hidden. */
+export type TipRow = { swatch?: string; label: string; value: string; total?: boolean; plain?: boolean }
 export type TipContent = { title: string; rows: TipRow[]; note?: string }
 type TipState = { content: TipContent; x: number; y: number }
 
@@ -143,7 +137,7 @@ function Tooltip({ content, x, y }: TipState) {
           <span key={i} className={r.total ? 'tr tot' : 'tr'}>
             <i style={{ background: r.swatch ?? 'transparent' }} />
             <span>{r.label}</span>
-            <span>{r.value}</span>
+            <span className={r.plain ? undefined : 'amt'}>{r.value}</span>
           </span>
         ))}
         {content.note && <span className="note">{content.note}</span>}
@@ -190,37 +184,28 @@ export function svgButton(label: string, onActivate: () => void) {
   }
 }
 
-/** Hatch fills: dense current-period hatch for in/out, sparse "not yet" hatch. */
+/** Hatch for days that haven't happened yet; hatch means "not final". */
 export function HatchDefs({ id }: { id: string }) {
   return (
     <defs>
-      <pattern id={`${id}-in`} width="4.5" height="4.5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-        <rect width="4.5" height="4.5" style={{ fill: 'var(--cf-in-wash)' }} />
-        <line x1="0" y1="0" x2="0" y2="4.5" style={{ stroke: 'var(--cf-in)' }} strokeWidth="2" />
-      </pattern>
-      <pattern id={`${id}-out`} width="4.5" height="4.5" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-        <rect width="4.5" height="4.5" style={{ fill: 'var(--cf-out-wash)' }} />
-        <line x1="0" y1="0" x2="0" y2="4.5" style={{ stroke: 'var(--cf-out)' }} strokeWidth="2" />
-      </pattern>
-      <pattern id={`${id}-no`} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-        <line x1="0" y1="0" x2="0" y2="6" style={{ stroke: 'var(--cf-line)' }} strokeWidth="1.25" />
+      <pattern id={id} width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
+        <line x1="0" y1="0" x2="0" y2="6" style={{ stroke: 'var(--hatch-stripe)' }} strokeWidth="1" opacity="0.4" />
       </pattern>
     </defs>
   )
 }
 
 export const C = {
-  ink: 'var(--cf-ink)',
-  ink2: 'var(--cf-ink2)',
-  ink3: 'var(--cf-ink3)',
-  line: 'var(--cf-line)',
-  rule: 'var(--cf-line)',
-  rule2: 'var(--cf-line2)',
-  accent: 'var(--cf-accent)',
-  surface: 'var(--cf-surface)',
-  grid: 'var(--cf-grid)',
-  in: 'var(--cf-in)',
-  out: 'var(--cf-out)',
-  inTint: 'var(--cf-in-tint)',
-  outTint: 'var(--cf-out-tint)',
+  ink: 'var(--ink)',
+  ink2: 'var(--ink-2)',
+  ink3: 'var(--ink-3)',
+  line: 'var(--line)',
+  strong: 'var(--line-strong)',
+  accent: 'var(--accent)',
+  surface: 'var(--surface)',
+  panel: 'var(--hero-bg)',
+  grid: 'var(--chart-grid)',
+  in: 'var(--positive)',
+  out: 'var(--chart-1)',
+  muted: 'var(--chart-muted)',
 } as const
