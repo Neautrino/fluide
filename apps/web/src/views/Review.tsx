@@ -52,7 +52,6 @@ export function Review() {
     <div className="flex flex-col gap-8">
       <PageHeader
         eyebrow="Categorization"
-        title="Review"
         lede="Suggestions the confidence gate wasn't sure enough to apply on its own. Nothing here touches the ledger until you decide."
       />
 

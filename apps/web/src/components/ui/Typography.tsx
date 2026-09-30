@@ -4,21 +4,18 @@ import { BAND_LABEL, formatConfidence, formatMoney, toNumber } from '../../lib/f
 
 export function PageHeader({
   eyebrow,
-  title,
   lede,
   actions,
 }: {
   eyebrow?: string
-  title: string
   lede?: ReactNode
   actions?: ReactNode
 }) {
   return (
     <header className="flex flex-col gap-5 border-b border-line-strong pb-6 md:flex-row md:items-end md:justify-between">
       <div className="max-w-2xl">
-        {eyebrow && <p className="eyebrow mb-2">{eyebrow}</p>}
-        <h1 className="text-[40px] leading-[1.05] text-ink md:text-[48px]">{title}</h1>
-        {lede && <p className="mt-3 max-w-xl text-[15px] leading-relaxed text-ink-2">{lede}</p>}
+        {eyebrow && <p className="eyebrow mb-1.5">{eyebrow}</p>}
+        {lede && <p className="max-w-xl text-[15px] leading-relaxed text-ink-2">{lede}</p>}
       </div>
       {actions && <div className="flex flex-wrap items-center gap-2">{actions}</div>}
     </header>

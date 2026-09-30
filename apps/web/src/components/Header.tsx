@@ -14,6 +14,7 @@ function getGreeting(date: Date) {
 function getDaysLeft(date: Date) {
   const daysLeft = new Date(date.getFullYear(), date.getMonth() + 1, 0).getDate() - date.getDate()
   const monthName = date.toLocaleString('default', { month: 'long' })
+  if (daysLeft === 0) return `Last day of ${monthName}`
   if (daysLeft === 1) return `1 day left in ${monthName}`
   return `${daysLeft} days left in ${monthName}`
 }

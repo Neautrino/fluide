@@ -78,7 +78,6 @@ export function Settings() {
     <div className="flex flex-col gap-10">
       <PageHeader
         eyebrow="Configuration"
-        title="Settings"
         lede="Your bank connections, how cautious Fluide is when it categorizes transactions on its own, and which connector providers it can reach."
       />
       <Connections />

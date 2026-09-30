@@ -69,7 +69,6 @@ export function Assistant() {
     <div className="flex flex-col gap-8">
       <PageHeader
         eyebrow="Ask your ledger"
-        title="Assistant"
         lede="Plain-English questions, answered from your own transactions. The conversation is forgotten when you reload."
         actions={
           messages.length > 0 && (

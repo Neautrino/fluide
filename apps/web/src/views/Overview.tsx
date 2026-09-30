@@ -43,7 +43,6 @@ export function Overview() {
     <div className="flex flex-col gap-12">
       <PageHeader
         eyebrow={today.format(new Date())}
-        title="Overview"
         lede="Where your money stands, read straight from the ledger."
         actions={
           !noAccounts && (
@@ -231,7 +230,7 @@ function Kpis({
     },
     {
       label: 'Net',
-      value: <Money amount={net} currency={currency} tone="flow" className={net < 0 ? 'text-broken' : ''} />,
+      value: <Money amount={net} currency={currency} tone="flow" />,
       note: net >= 0 ? 'more in than out' : 'more out than in',
     },
   ]

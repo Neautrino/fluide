@@ -449,8 +449,7 @@ function Header(p: HeaderProps) {
     <header>
       <div className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between md:gap-6">
         <div>
-          <h1 className="text-[40px] leading-[1.1] tracking-[-0.015em] text-ink">Cash flow</h1>
-          <p className="mt-2 text-[14px] text-ink-3">What came into your accounts, and where it went. Calendar months.</p>
+          <p className="text-[14px] text-ink-3">What came into your accounts, and where it went. Calendar months.</p>
         </div>
         <div className="flex items-center gap-5 text-[13px] text-ink-2">
           <button

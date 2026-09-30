@@ -115,7 +115,6 @@ export function Accounts() {
   return (
     <div className="flex flex-col gap-10">
       <PageHeader
-        title="Accounts"
         lede="Your bank accounts, cards, loans and investments — read-only."
         actions={
           <>

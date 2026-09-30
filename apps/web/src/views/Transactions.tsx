@@ -114,7 +114,6 @@ export function Transactions() {
     <div className="flex flex-col gap-8">
       <PageHeader
         eyebrow="Ledger"
-        title="Transactions"
         lede="Every posting against your bank accounts, newest first."
         actions={
           <>

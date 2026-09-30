@@ -57,7 +57,6 @@ export function Rules() {
     <div className="flex flex-col gap-10">
       <PageHeader
         eyebrow="Categorization"
-        title="Rules"
         lede="Patterns that categorize matching transactions before the model is asked."
       />
 
