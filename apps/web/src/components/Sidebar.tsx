@@ -1,15 +1,88 @@
 import { useState } from 'react'
 import type { View } from '../lib/app-context'
 
-const NAV: { view: View; label: string }[] = [
-  { view: 'overview', label: 'Overview' },
-  { view: 'accounts', label: 'Accounts' },
-  { view: 'cashflow', label: 'Cash flow' },
-  { view: 'transactions', label: 'Transactions' },
-  { view: 'review', label: 'Review' },
-  { view: 'rules', label: 'Rules' },
-  { view: 'assistant', label: 'Assistant' },
-  { view: 'settings', label: 'Settings' },
+export const NAV: {
+  view: View
+  label: string
+  icon: React.ReactNode
+}[] = [
+  {
+    view: 'overview',
+    label: 'Overview',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <rect x="1.5" y="1.5" width="5.5" height="5.5" rx="1.2" />
+        <rect x="9" y="1.5" width="5.5" height="5.5" rx="1.2" />
+        <rect x="1.5" y="9" width="5.5" height="5.5" rx="1.2" />
+        <rect x="9" y="9" width="5.5" height="5.5" rx="1.2" />
+      </svg>
+    ),
+  },
+  {
+    view: 'transactions',
+    label: 'Transactions',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
+        <path d="M3 4h10M3 8h10M3 12h6" />
+      </svg>
+    ),
+  },
+  {
+    view: 'accounts',
+    label: 'Accounts',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <path d="M1.5 6 8 2l6.5 4M3 6.5v6M6.3 6.5v6M9.7 6.5v6M13 6.5v6M1.5 14h13" />
+      </svg>
+    ),
+  },
+  {
+    view: 'cashflow',
+    label: 'Cash flow',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <path d="M2 14V9M6 14V5M10 14V7M14 14V2" />
+      </svg>
+    ),
+  },
+  {
+    view: 'review',
+    label: 'Review',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M2.5 8.5 6 12l7.5-8" />
+      </svg>
+    ),
+  },
+  {
+    view: 'rules',
+    label: 'Rules',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+        <path d="M2 2h6l6 6-6 6-6-6z" />
+        <circle cx="5.3" cy="5.3" r="1.2" fill="currentColor" />
+      </svg>
+    ),
+  },
+  {
+    view: 'assistant',
+    label: 'Assistant',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
+        <path d="M8 1.8 9.3 6.7 14.2 8 9.3 9.3 8 14.2 6.7 9.3 1.8 8 6.7 6.7z" />
+      </svg>
+    ),
+  },
+  {
+    view: 'settings',
+    label: 'Settings',
+    icon: (
+      <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
+        <circle cx="8" cy="8" r="2.3" />
+        <path d="M8 1.5v2M8 12.5v2M1.5 8h2M12.5 8h2M3.4 3.4l1.4 1.4M11.2 11.2l1.4 1.4M3.4 12.6l1.4-1.4M11.2 4.8l1.4-1.4" />
+      </svg>
+    ),
+  },
 ]
 
 type Props = {
@@ -20,18 +93,15 @@ type Props = {
 
 function Wordmark() {
   return (
-    <div>
-      <p className="font-display text-[30px] leading-none font-[450] tracking-[-0.02em] text-ink">
-        Fluide<span className="text-green">.</span>
-      </p>
-      <p className="eyebrow mt-1.5 text-[10px]">Private ledger</p>
+    <div className="font-display pl-2 text-[22px] font-extrabold tracking-[-0.02em] text-ink">
+      fluide<i className="not-italic text-ink-3">_</i>
     </div>
   )
 }
 
 function NavList({ view, onNavigate, reviewCount }: Props) {
   return (
-    <ul className="flex flex-col gap-0.5">
+    <ul className="flex flex-col gap-[2px]">
       {NAV.map((item) => {
         const active = item.view === view
         return (
@@ -40,14 +110,14 @@ function NavList({ view, onNavigate, reviewCount }: Props) {
               type="button"
               onClick={() => onNavigate(item.view)}
               aria-current={active ? 'page' : undefined}
-              className={`relative flex h-9 w-full items-center justify-between rounded-[3px] pr-2.5 pl-3.5 text-left text-[14px] transition-colors ${
-                active ? 'bg-paper-raised font-medium text-ink' : 'text-ink-2 hover:bg-paper-raised/60 hover:text-ink'
+              className={`flex w-full items-center gap-[10px] rounded-sm border px-[10px] py-[9px] text-left text-[14px] transition-colors ${
+                active ? 'border-line-strong bg-surface font-semibold text-ink' : 'border-transparent font-medium text-ink-2 hover:text-ink'
               }`}
             >
-              {active && <span aria-hidden className="absolute inset-y-1.5 left-0 w-[2px] bg-green" />}
+              <span className="h-[17px] w-[17px] flex-none [&>svg]:h-full [&>svg]:w-full">{item.icon}</span>
               {item.label}
               {item.view === 'review' && reviewCount !== null && reviewCount > 0 && (
-                <span className="figures min-w-5 rounded-full bg-green px-1.5 text-center text-[11px] leading-5 font-medium text-paper-raised">
+                <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-surface-inverse px-1.5 text-[11px] font-bold text-ink-inverse">
                   {reviewCount}
                   <span className="sr-only"> pending</span>
                 </span>
@@ -62,15 +132,8 @@ function NavList({ view, onNavigate, reviewCount }: Props) {
 
 function ReadOnlyNote() {
   return (
-    <div className="border-t border-rule pt-4">
-      <p className="flex items-center gap-2 text-[12px] font-medium text-ink-2">
-        <svg viewBox="0 0 16 16" className="size-3.5 text-green" aria-hidden>
-          <rect x="3" y="7" width="10" height="7" rx="1" fill="none" stroke="currentColor" strokeWidth="1.3" />
-          <path d="M5.5 7V5a2.5 2.5 0 0 1 5 0v2" fill="none" stroke="currentColor" strokeWidth="1.3" />
-        </svg>
-        Read-only · self-hosted
-      </p>
-      <p className="mt-1 text-[12px] leading-relaxed text-ink-3">Fluide reads your accounts. It can never move money.</p>
+    <div className="mt-auto pl-2.5 text-[11.5px] text-ink-3">
+      Read-only · self-hosted
     </div>
   )
 }
@@ -81,29 +144,23 @@ export function Sidebar(props: Props) {
 
   return (
     <>
-      <aside className="hidden w-[232px] shrink-0 border-r border-rule bg-paper-sunk/70 md:block">
-        <div className="sticky top-0 flex h-svh flex-col justify-between px-5 pt-8 pb-6">
-          <div className="flex flex-col gap-10">
-            <Wordmark />
-            <nav aria-label="Primary">
-              <NavList {...props} />
-            </nav>
-          </div>
-          <ReadOnlyNote />
-        </div>
+      <aside className="sticky top-0 hidden h-svh w-[232px] shrink-0 flex-col gap-[26px] border-r border-line bg-surface-2 px-[18px] pb-[22px] pt-[26px] md:flex">
+        <Wordmark />
+        <nav aria-label="Primary">
+          <NavList {...props} />
+        </nav>
+        <ReadOnlyNote />
       </aside>
 
-      <header className="sticky top-0 z-40 border-b border-rule bg-paper/95 backdrop-blur-[2px] md:hidden">
+      <header className="sticky top-0 z-40 border-b border-line bg-canvas/95 backdrop-blur-[2px] md:hidden">
         <div className="flex h-14 items-center justify-between px-5">
-          <p className="font-display text-[24px] leading-none font-[450] tracking-[-0.02em]">
-            Fluide<span className="text-green">.</span>
-          </p>
+          <Wordmark />
           <button
             type="button"
             aria-expanded={menuOpen}
             aria-controls="mobile-nav"
             onClick={() => setMenuOpen((o) => !o)}
-            className="flex h-9 items-center gap-2 rounded-[3px] border border-rule-strong bg-paper-raised px-3 text-[13px] font-medium text-ink"
+            className="flex h-9 items-center gap-2 rounded-sm border border-line-strong bg-surface px-3 text-[13px] font-medium text-ink"
           >
             {current}
             <svg viewBox="0 0 12 12" className={`size-3 transition-transform ${menuOpen ? 'rotate-180' : ''}`} aria-hidden>
@@ -112,7 +169,7 @@ export function Sidebar(props: Props) {
           </button>
         </div>
         {menuOpen && (
-          <nav id="mobile-nav" aria-label="Primary" className="border-t border-rule bg-paper-sunk px-4 pt-3 pb-4">
+          <nav id="mobile-nav" aria-label="Primary" className="border-t border-line bg-surface-2 px-4 pb-4 pt-3">
             <NavList
               {...props}
               onNavigate={(v) => {

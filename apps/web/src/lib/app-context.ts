@@ -9,6 +9,9 @@ export type AppContextValue = {
   invalidate: () => void
   /** Pending review items, null while unknown (loading or endpoint down). */
   reviewCount: number | null
+  pendingQuestion: string | null
+  ask: (question: string) => void
+  clearPendingQuestion: () => void
 }
 
 export const AppContext = createContext<AppContextValue | null>(null)
