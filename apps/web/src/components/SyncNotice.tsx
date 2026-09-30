@@ -13,7 +13,7 @@ const FLAG_TEXT: Record<BalanceFlag['issue'], string> = {
 function outcomeLines(outcome: SyncOutcome): string[] {
   const name = outcome.institutionName ?? 'Bank connection'
   if (!outcome.ok) {
-    const hint = outcome.status === 'reauth_required' ? ' Reconnect it in Settings › Bank connections.' : ''
+    const hint = outcome.status === 'reauth_required' ? ' Reconnect it in Settings › Connections.' : ''
     return [`${name}: ${outcome.error}.${hint}`]
   }
   const r = outcome.ingest
@@ -28,7 +28,7 @@ function outcomeLines(outcome: SyncOutcome): string[] {
   }
   for (const f of r.balanceFlags) lines.push(`${f.account}: ${FLAG_TEXT[f.issue]}.`)
   if (r.unclassifiedAccounts.length) {
-    lines.push(`${r.unclassifiedAccounts.join(', ')}: account type not recognised, counted as other assets.`)
+    lines.push(`${r.unclassifiedAccounts.join(', ')}: account type not recognized, counted as other assets.`)
   }
   if (outcome.bankFetch === 'background') {
     lines.push('Fetched in the background (the bank did not get your browser details); many banks allow this about 4 times a day.')

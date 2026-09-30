@@ -1,5 +1,7 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
+import { createPortal } from 'react-dom'
 import { errorMessage, getJson } from '../lib/api'
+import { HTTPS_REASON, isHttps } from '../lib/connection-health'
 import { startEnableBankingConnect, type EnableBankingBank } from '../lib/enable-banking'
 import { useResource } from '../lib/useResource'
 import { Button } from './ui/Button'
@@ -43,7 +45,17 @@ const COUNTRIES: Record<string, string> = {
   SE: 'Sweden',
 }
 
-export function ConnectEuropeanBank({ variant = 'primary' }: { variant?: 'primary' | 'secondary' }) {
+type Props = {
+  variant?: 'primary' | 'secondary'
+  /** Replaces the default button. The trigger stays mounted while the picker is open. */
+  renderTrigger?: (trigger: { onClick: () => void; triggerRef: RefObject<HTMLButtonElement | null> }) => ReactNode
+  /** Where the picker renders, instead of straight after the trigger. */
+  panelIn?: HTMLElement | null
+}
+
+export function ConnectEuropeanBank({ variant = 'primary', renderTrigger, panelIn }: Props) {
+  const triggerRef = useRef<HTMLButtonElement>(null)
+  const returnFocus = useRef(false)
   const [open, setOpen] = useState(false)
   const [country, setCountry] = useState('')
   const [bankName, setBankName] = useState('')
@@ -60,13 +72,34 @@ export function ConnectEuropeanBank({ variant = 'primary' }: { variant?: 'primar
     country,
   )
 
-  const httpsMissing = window.location.protocol !== 'https:'
+  const httpsMissing = !isHttps()
 
-  if (!open) {
+  useEffect(() => {
+    if (open) document.getElementById('eb-country')?.focus()
+    else if (returnFocus.current && !renderTrigger) {
+      returnFocus.current = false
+      document.getElementById('eb-open')?.focus()
+    }
+  }, [open, renderTrigger])
+
+  if (!open && !renderTrigger) {
     return (
-      <Button variant={variant} onClick={() => setOpen(true)}>
-        Connect a European bank
-      </Button>
+      <div className="flex flex-col items-start gap-1.5">
+        <Button
+          id="eb-open"
+          variant={variant}
+          disabled={httpsMissing}
+          aria-describedby={httpsMissing ? 'eb-https-reason' : undefined}
+          onClick={() => setOpen(true)}
+        >
+          Connect a European bank
+        </Button>
+        {httpsMissing && (
+          <p id="eb-https-reason" className="max-w-sm text-[12px] text-ink-3">
+            {HTTPS_REASON}
+          </p>
+        )}
+      </div>
     )
   }
 
@@ -84,14 +117,9 @@ export function ConnectEuropeanBank({ variant = 'primary' }: { variant?: 'primar
     }
   }
 
-  return (
+  const panel = (
     <div className="flex w-full max-w-sm flex-col gap-3">
-      {httpsMissing && (
-        <Notice tone="error">
-          Banks only redirect back to an https address. Set WEB_TLS_CERT_PATH and WEB_TLS_KEY_PATH in apps/web/.env
-          and open Fluide over https.
-        </Notice>
-      )}
+      {httpsMissing && <Notice tone="error">{HTTPS_REASON}</Notice>}
       <Field id="eb-country" label="Country">
         <Select
           id="eb-country"
@@ -131,7 +159,15 @@ export function ConnectEuropeanBank({ variant = 'primary' }: { variant?: 'primar
         <Button variant="primary" onClick={connect} busy={redirecting} disabled={!bank || httpsMissing}>
           {redirecting ? 'Opening your bank…' : 'Continue to bank'}
         </Button>
-        <Button variant="secondary" onClick={() => setOpen(false)} disabled={redirecting}>
+        <Button
+          variant="secondary"
+          onClick={() => {
+            returnFocus.current = true
+            setOpen(false)
+            if (renderTrigger) triggerRef.current?.focus()
+          }}
+          disabled={redirecting}
+        >
           Cancel
         </Button>
       </div>
@@ -140,5 +176,13 @@ export function ConnectEuropeanBank({ variant = 'primary' }: { variant?: 'primar
         Read-only: your bank shows exactly what Fluide may read. Fluide can never move money.
       </p>
     </div>
+  )
+
+  if (!renderTrigger) return panel
+  return (
+    <>
+      {renderTrigger({ onClick: () => setOpen(true), triggerRef })}
+      {open && (panelIn ? createPortal(panel, panelIn) : panel)}
+    </>
   )
 }

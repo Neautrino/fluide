@@ -1,4 +1,5 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
+import { createPortal } from 'react-dom'
 import { usePlaidLink } from 'react-plaid-link'
 import { duplicateLinkOf, errorMessage, sendJson, type DuplicateLink, type SyncOutcome } from '../lib/api'
 import { formatTimestamp } from '../lib/format'
@@ -13,11 +14,17 @@ type Props = {
   showSandboxHint?: boolean
   /** Opens Plaid Link in update mode for this connection instead of adding a new bank. */
   reconnectId?: string
+  /** Replaces the default button; the click, busy state and label stay ConnectBank's. */
+  renderTrigger?: (trigger: { onClick: () => void; busy: boolean; label: string }) => ReactNode
+  /** Where the error, duplicate-login choice and sync outcome render, instead of under the trigger. */
+  extrasIn?: HTMLElement | null
+  /** Tells the caller when Plaid Link is working (token request, Link open, exchange or sync). */
+  onBusyChange?: (busy: boolean) => void
 }
 
 const SYNC_TIMEOUT_MS = 120_000
 
-export function ConnectBank({ onConnected, variant = 'primary', size, showSandboxHint = true, reconnectId }: Props) {
+export function ConnectBank({ onConnected, variant = 'primary', size, showSandboxHint = true, reconnectId, renderTrigger, extrasIn, onBusyChange }: Props) {
   const [linkToken, setLinkToken] = useState<string | null>(null)
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -83,11 +90,14 @@ export function ConnectBank({ onConnected, variant = 'primary', size, showSandbo
     }
   }, [linkToken, ready, busy, open])
 
-  return (
-    <div className="flex flex-col items-start gap-2">
-      <Button variant={variant} size={size} onClick={() => void start(reconnectId ?? null, null)} busy={busy}>
-        {busy ? 'Connecting…' : reconnectId ? 'Reconnect' : 'Connect a US bank'}
-      </Button>
+  useEffect(() => {
+    onBusyChange?.(busy)
+  }, [busy, onBusyChange])
+
+  const label = busy ? 'Connecting…' : reconnectId ? 'Reconnect' : 'Connect a US bank'
+  const onClick = () => void start(reconnectId ?? null, null)
+  const extras = (
+    <>
       {duplicate && <DuplicateChoice duplicate={duplicate} onChoose={start} onCancel={() => setDuplicate(null)} />}
       {error && (
         <p role="alert" className="text-[13px] text-broken">
@@ -101,6 +111,19 @@ export function ConnectBank({ onConnected, variant = 'primary', size, showSandbo
           <code className="font-mono text-ink-2">pass_good</code>.
         </p>
       )}
+    </>
+  )
+
+  return (
+    <div className={renderTrigger ? 'contents' : 'flex flex-col items-start gap-2'}>
+      {renderTrigger ? (
+        renderTrigger({ onClick, busy, label })
+      ) : (
+        <Button variant={variant} size={size} onClick={onClick} busy={busy}>
+          {label}
+        </Button>
+      )}
+      {extrasIn ? createPortal(extras, extrasIn) : extras}
     </div>
   )
 }

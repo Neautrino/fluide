@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { useApp } from '../lib/app-context'
 import { consumeEnableBankingCallback, type CallbackOutcome } from '../lib/enable-banking'
+import { formatLocalDate } from '../lib/format'
 import { Notice } from './ui/States'
 
 /** Shows the result of a bank redirect back to Fluide (Enable Banking).
@@ -39,10 +40,10 @@ export function EnableBankingCallback() {
         Connected {institutionName}: {ingest.accountsSeen} account{ingest.accountsSeen === 1 ? '' : 's'},{' '}
         {ingest.transactionsInserted} booked transaction{ingest.transactionsInserted === 1 ? '' : 's'} imported
         {ingest.transactionsSkipped > 0 ? ` (${ingest.transactionsSkipped} already present)` : ''}. Access lasts
-        until {new Date(validUntil).toLocaleDateString()}.
+        until {formatLocalDate(validUntil)}.
         {bankFetch === 'background' && ' Fetched in the background: many banks allow this about 4 times a day.'}
       </Notice>
     )
   }
-  return <div className="mb-8">{notice}</div>
+  return <div>{notice}</div>
 }
