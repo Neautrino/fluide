@@ -27,10 +27,14 @@ export type PlaidCredentials = { clientId: string; secret: string }
 
 const PROVIDER = 'plaid'
 
+export function plaidEnvironment(): 'sandbox' | 'production' {
+  const env = process.env.PLAID_ENV || 'production'
+  if (env !== 'sandbox' && env !== 'production') throw new Error(`PLAID_ENV must be "sandbox" or "production", got "${env}"`)
+  return env
+}
+
 function plaidClient(credentials: PlaidCredentials): PlaidApi {
-  const env = process.env.PLAID_ENV ?? 'sandbox'
-  const basePath = env === 'sandbox' || env === 'production' ? PlaidEnvironments[env] : undefined
-  if (!basePath) throw new Error(`PLAID_ENV must be "sandbox" or "production", got "${env}"`)
+  const basePath = PlaidEnvironments[plaidEnvironment()]
   return new PlaidApi(
     new Configuration({
       basePath,

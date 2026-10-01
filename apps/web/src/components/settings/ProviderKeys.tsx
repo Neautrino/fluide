@@ -37,7 +37,7 @@ const PROVIDERS: Provider[] = [
   {
     id: 'plaid',
     title: 'Plaid',
-    description: 'Needed to connect a US sandbox bank. Get a client id and secret from your Plaid dashboard.',
+    description: 'Needed to connect a US bank. Get a client id and secret from your Plaid dashboard.',
     fields: [
       { key: 'clientId', label: 'Client ID', statusLabel: 'Client ID' },
       { key: 'secret', label: 'Secret', statusLabel: 'Secret', type: 'password', help: 'Stored encrypted. Not shown again once saved.' },

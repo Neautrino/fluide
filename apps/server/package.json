@@ -2,7 +2,7 @@
   "name": "server",
   "type": "module",
   "scripts": {
-    "dev": "bun run --hot src/index.ts",
+    "dev": "PLAID_ENV=sandbox bun run --hot src/index.ts",
     "start": "bun src/index.ts"
   },
   "dependencies": {

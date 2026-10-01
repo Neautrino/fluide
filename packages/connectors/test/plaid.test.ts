@@ -1,7 +1,7 @@
 import { afterEach, beforeAll, describe, expect, spyOn, test, type Mock } from 'bun:test'
 import { Configuration, PlaidApi } from 'plaid'
 import { ConnectorError } from '../src/errors.ts'
-import { createPlaidConnector, createPlaidLinkToken, exchangePlaidPublicToken, getPlaidInstitution, plaidAccountKind } from '../src/plaid.ts'
+import { createPlaidConnector, createPlaidLinkToken, exchangePlaidPublicToken, getPlaidInstitution, plaidAccountKind, plaidEnvironment } from '../src/plaid.ts'
 
 const SECRET = 'secret-SHOULD-NOT-LEAK'
 const ACCESS_TOKEN = 'access-sandbox-SHOULD-NOT-LEAK'
@@ -329,5 +329,11 @@ describe('PLAID_ENV', () => {
   test.each(['sandbox', 'production'])('%s is accepted', (value) => {
     process.env.PLAID_ENV = value
     expect(() => createPlaidConnector(credentials)).not.toThrow()
+  })
+
+  test.each([undefined, ''])('unset or empty (%p) selects production', (value) => {
+    if (value === undefined) delete process.env.PLAID_ENV
+    else process.env.PLAID_ENV = value
+    expect(plaidEnvironment()).toBe('production')
   })
 })
