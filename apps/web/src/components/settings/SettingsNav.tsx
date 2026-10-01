@@ -5,6 +5,7 @@ import { plural } from './time'
 const SECTIONS = [
   { id: 'general', label: 'General' },
   { id: 'connections', label: 'Connections' },
+  { id: 'assistant', label: 'Assistant' },
   { id: 'categorization', label: 'Categorization' },
 ] as const
 

@@ -236,6 +236,65 @@ export class ApiError extends Error {
   }
 }
 
+export type AiRole = 'categorization' | 'chat'
+export type AiProvider = 'typesafe' | 'opencode' | 'openrouter' | 'jev-custom' | 'openai' | 'anthropic' | 'gemini' | 'openai-compatible'
+
+export type AiPreset = {
+  role: AiRole
+  provider: AiProvider
+  label: string
+  endpoint: string
+  defaultModel: string
+  keyRequired: boolean
+  keyHint: string
+  keyUrl: string | null
+  endpointChoices?: { label: string; endpoint: string }[]
+  note?: string
+}
+
+export type AiRoleStatus = {
+  provider: AiProvider
+  endpoint: string
+  model: string
+  credentialId: string | null
+  updatedAt: string
+  lastTest: { ok: boolean; at: string; message: string } | null
+}
+
+export type AiCredentialStatus = {
+  id: string
+  provider: AiProvider
+  label: string
+  updatedAt: string
+  usedBy: AiRole[]
+}
+
+export type AiState = {
+  presets: AiPreset[]
+  sends: Record<AiRole, string>
+  roles: { categorization: AiRoleStatus | null; chat: AiRoleStatus | null }
+  credentials: AiCredentialStatus[]
+}
+
+export type AiKeyChoice =
+  | { use: 'existing'; credentialId: string }
+  | { use: 'new'; apiKey: string }
+  | { use: 'replace'; credentialId: string; apiKey: string }
+  | { use: 'none' }
+
+export type AiDraft = {
+  provider: AiProvider
+  endpoint: string
+  model: string
+  key: AiKeyChoice
+}
+
+export type AiTestResult = {
+  ok: boolean
+  message: string
+  latencyMs: number | null
+}
+
 export function duplicateLinkOf(error: unknown): DuplicateLink | null {
   if (!(error instanceof ApiError) || error.status !== 409) return null
   const duplicate = (error.body as { duplicateOf?: DuplicateLink } | undefined)?.duplicateOf
@@ -285,7 +344,7 @@ export async function getJson<T>(path: string, signal?: AbortSignal, timeoutMs =
 }
 
 export async function sendJson<T>(
-  method: 'POST' | 'PUT',
+  method: 'POST' | 'PUT' | 'DELETE',
   path: string,
   body?: unknown,
   timeoutMs = DEFAULT_TIMEOUT_MS,

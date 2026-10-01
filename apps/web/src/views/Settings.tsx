@@ -5,6 +5,7 @@ import { GateCard } from '../components/settings/GateCard'
 import { GeneralCard } from '../components/settings/GeneralCard'
 import { ProviderKeys } from '../components/settings/ProviderKeys'
 import { SettingsNav } from '../components/settings/SettingsNav'
+import { AiCard } from '../components/settings/AiCard'
 import { TrustLine } from '../components/settings/TrustLine'
 import { getJson, type ConnectionSummary } from '../lib/api'
 import { useApp } from '../lib/app-context'
@@ -35,6 +36,7 @@ export function Settings() {
         <Connections connections={connections} now={now} />
         <AddConnection onConnected={invalidate} />
         <ProviderKeys connections={live} />
+        <AiCard />
         <GateCard />
       </div>
     </div>
