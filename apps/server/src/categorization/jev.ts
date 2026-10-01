@@ -1,4 +1,4 @@
-import { db, categories, secretEnv } from '@repo/ledger'
+import { db, categories } from '@repo/ledger'
 
 export type CategorizationMatch = {
   categoryId: string
@@ -7,78 +7,56 @@ export type CategorizationMatch = {
 }
 
 type JevSystemOneResponse = {
-  answers: {
-    category: {
-      choice: string
-      confidence: number
-      probabilities: Record<string, number>
-    }
-  }
+  answers: Record<string, { choice: string; confidence: number }>
+  model?: string
+  usage?: { cost?: number }
 }
 
-/** Sends one posting's text to Jev and returns its answer. Never discards
- * a low-confidence answer -- the gate decides what a human sees. Returns
- * undefined only on a hard failure (no API key, network/API error, or an
- * answer that doesn't match a known category) -- those really are "nothing
- * to act on" cases. */
-export async function categorizeByJev(text: string): Promise<CategorizationMatch | undefined> {
-  const apiKey = secretEnv('OPENCODE_API_KEY')
-  if (!apiKey) return undefined
+export type JevConfig = {
+  endpoint: string
+  model: string
+  apiKey: string | null
+}
 
-  const cats = await db.select({ id: categories.id, detailed: categories.detailed, label: categories.label }).from(categories)
-  const criteria: Record<string, string> = {}
-  for (const c of cats) {
-    criteria[c.detailed] = c.label ?? c.detailed.replace(/_/g, ' ')
-  }
+export async function runJevBatch(
+  config: JevConfig,
+  state: Record<string, string>,
+  questions: Record<string, unknown>,
+  signal?: AbortSignal
+): Promise<JevSystemOneResponse> {
+  const headers: Record<string, string> = { 'Content-Type': 'application/json' }
+  if (config.apiKey) headers.Authorization = `Bearer ${config.apiKey}`
 
-  const res = await fetch('https://opencode.ai/zen/v1/systemone', {
+  const res = await fetch(config.endpoint, {
     method: 'POST',
-    headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: 'jev-1.13-free',
-      state: `Bank transaction description: ${text}`,
-      questions: {
-        category: {
-          type: 'choice',
-          instructions: 'Which spending category best matches this bank transaction?',
-          criteria,
-        },
-      },
-    }),
+    headers,
+    body: JSON.stringify({ model: config.model, state, questions }),
+    signal,
   })
-  if (!res.ok) return undefined
-
-  const data = (await res.json()) as JevSystemOneResponse
-  const answer = data.answers?.category
-  if (!answer) return undefined
-
-  const matched = cats.find((c) => c.detailed === answer.choice)
-  if (!matched) return undefined
-
-  return {
-    categoryId: matched.id,
-    confidence: answer.confidence,
-    source: 'jev',
+  if (!res.ok) {
+    const text = await res.text().catch(() => '')
+    throw { response: { status: res.status, json: text } }
   }
+
+  return (await res.json()) as JevSystemOneResponse
 }
 
-/** Batch variant: classifies many postings in one Jev API call (many
+
+/** Classifies many postings in one Jev API call (many
  * `choice` questions against one `state`), chunked to stay under Jev's
  * documented per-request token budget. Empirically ~25 questions/call at
  * this taxonomy's criteria size keeps requests well under the ceiling --
  * see project history for the real HTTP 400 max_tokens_exceeded that a
- * single 200-question call produced before this was chunked. Returns the
- * same CategorizationMatch shape as categorizeByJev. Like categorizeByJev,
- * never drops a low-confidence answer; gate.ts bands it. */
+ * single 200-question call produced before this was chunked. Never drops a
+ * low-confidence answer; gate.ts bands it. A failed chunk leaves its items
+ * unresolved. */
 export async function categorizeByJevBatch(
+  config: JevConfig,
   items: { id: string; text: string }[],
   batchSize = 25,
 ): Promise<Map<string, CategorizationMatch>> {
   const results = new Map<string, CategorizationMatch>()
   if (items.length === 0) return results
-
-  const apiKey = secretEnv('OPENCODE_API_KEY')
-  if (!apiKey) return results
 
   const cats = await db.select({ id: categories.id, detailed: categories.detailed, label: categories.label }).from(categories)
   const criteria: Record<string, string> = {}
@@ -100,24 +78,21 @@ export async function categorizeByJevBatch(
       }
     }
 
-    const res = await fetch('https://opencode.ai/zen/v1/systemone', {
-      method: 'POST',
-      headers: { Authorization: `Bearer ${apiKey}`, 'Content-Type': 'application/json' },
-      body: JSON.stringify({ model: 'jev-1.13-free', state, questions }),
-    })
-    if (!res.ok) continue // this chunk failed -- its items are left unresolved, not silently guessed
-
-    const data = (await res.json()) as { answers: Record<string, { choice: string; confidence: number }> }
-    for (const item of chunk) {
-      const answer = data.answers?.[item.id]
-      if (!answer) continue
-      const matched = byDetailed.get(answer.choice)
-      if (!matched) continue
-      results.set(item.id, {
-        categoryId: matched.id,
-        confidence: answer.confidence,
-        source: 'jev',
-      })
+    try {
+      const data = await runJevBatch(config, state, questions)
+      for (const item of chunk) {
+        const answer = data.answers?.[item.id]
+        if (!answer) continue
+        const matched = byDetailed.get(answer.choice)
+        if (!matched) continue
+        results.set(item.id, {
+          categoryId: matched.id,
+          confidence: answer.confidence,
+          source: 'jev',
+        })
+      }
+    } catch {
+      // this chunk failed -- its items are left unresolved, not silently guessed
     }
   }
 

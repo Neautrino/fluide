@@ -4,7 +4,8 @@
  */
 import { db, postings, transactions, categorizationRules, reviewQueue, getGateSettings, liveTransaction, type DbExecutor, type GateSettings } from '@repo/ledger'
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
-import { categorizeByJevBatch, type CategorizationMatch } from './jev.js'
+import { categorizeByJevBatch, type CategorizationMatch, type JevConfig } from './jev.js'
+import { getRoleConfig } from '../ai/config.js'
 import { evaluateGate, queueForReview } from './gate.js'
 import { createJevRuleIfAbsent } from './rules.js'
 import { writeAuditLog } from '../audit.js'
@@ -125,6 +126,7 @@ async function applyOrQueue(
  * uncategorized and unflagged -- that is a hard failure case, not a
  * confidence judgment. */
 export async function categorizeUncategorizedPostings(tenantId: string): Promise<CategorizeResult> {
+  const jevConfig = await getRoleConfig(tenantId, 'categorization') as JevConfig | null
   const settings = await getGateSettings(tenantId)
 
   const alreadyQueued = db
@@ -195,7 +197,10 @@ export async function categorizeUncategorizedPostings(tenantId: string): Promise
   // Pass 2: everything Tier 1 didn't resolve goes to Jev in as few batched
   // HTTP calls as possible (categorizeByJevBatch chunks internally to stay
   // under Jev's per-request token ceiling) instead of one call per row.
-  const jevResults = await categorizeByJevBatch(needsJev.map((p) => ({ id: p.id, text: p.text })))
+  let jevResults = new Map<string, CategorizationMatch>()
+  if (jevConfig) {
+    jevResults = await categorizeByJevBatch(jevConfig, needsJev.map((p) => ({ id: p.id, text: p.text })))
+  }
 
   for (const posting of needsJev) {
     const jevMatch = jevResults.get(posting.id)

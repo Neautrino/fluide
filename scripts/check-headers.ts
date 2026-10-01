@@ -4,6 +4,7 @@ import { Glob } from 'bun'
 
 // The only files allowed (and required) to carry a SOURCE OF TRUTH header.
 const ALLOWED = new Set([
+  'apps/server/src/ai/config.ts',
   'apps/server/src/audit.ts',
   'apps/server/src/categorization/categorize.ts',
   'apps/server/src/categorization/gate.ts',

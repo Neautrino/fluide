@@ -1,7 +1,7 @@
 import { Hono } from 'hono'
 import { listCategorizationRules, listPendingReviewItems, getGateSettings } from '@repo/ledger'
 import { LOCAL_TENANT_ID } from '../ingest.js'
-import { askAgent } from '../chat/agent.js'
+import { askAgent, AgentNotConfiguredError, AgentReplyError } from '../chat/agent.js'
 import { categorizeUncategorizedPostings } from '../categorization/categorize.js'
 import { createUserRule, setRuleStatus } from '../categorization/rules.js'
 import { resolveReviewItem } from '../review.js'
@@ -19,10 +19,14 @@ assistantRoutes.post('/chat', async (c) => {
     return c.json({ error: 'message and threadId are required' }, 400)
   }
   try {
-    const reply = await askAgent(body.message, body.threadId)
+    const reply = await askAgent(body.message, body.threadId, LOCAL_TENANT_ID)
     return c.json(reply)
   } catch (err) {
-    console.error('chat error', err)
+    if (err instanceof AgentNotConfiguredError) {
+      return c.json({ error: err.message }, 409)
+    }
+    // Only the redacted message is logged: a raw provider error may echo request details.
+    console.error('chat error', err instanceof AgentReplyError ? err.message : err)
     return c.json({ error: 'failed to get a reply' }, 500)
   }
 })

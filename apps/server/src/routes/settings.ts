@@ -10,6 +10,10 @@ import { saveGeneralSettings } from '../settings.js'
 import { LOCAL_TENANT_ID } from '../ingest.js'
 import { ENABLE_BANKING_AVAILABLE } from '../enable-banking-link.js'
 import { getVersionInfo } from '../version.js'
+import { getAiState, validateDraft, saveAiRole, removeAiRole, getRoleConfig, resolveDraftKey, recordTestResult } from '../ai/config.js'
+import { testCategorization, testChat } from '../ai/test.js'
+import { fetchModels } from '../ai/models.js'
+import type { AiRole, AiProvider } from '@repo/ledger'
 
 export const settingsRoutes = new Hono()
 
@@ -54,4 +58,76 @@ settingsRoutes.put('/provider-credentials/:provider', async (c) => {
         )
   if (!result.ok) return c.json({ error: result.error }, 400)
   return c.json({ ok: true })
+})
+
+const isAiRole = (value: unknown): value is AiRole => value === 'categorization' || value === 'chat'
+
+settingsRoutes.get('/ai', async (c) => {
+  return c.json(await getAiState(LOCAL_TENANT_ID))
+})
+
+settingsRoutes.put('/ai/:role', async (c) => {
+  const role = c.req.param('role')
+  if (!isAiRole(role)) return c.json({ error: 'invalid role' }, 400)
+  const body = await c.req.json().catch(() => null)
+  const val = validateDraft(role, body)
+  if (!val.ok) return c.json({ error: val.error }, 400)
+  const saveRes = await saveAiRole(LOCAL_TENANT_ID, role, val.draft)
+  if ('error' in saveRes) return c.json({ error: saveRes.error }, (saveRes.status || 500) as 400 | 401 | 403 | 404 | 409 | 500 | 502)
+  return c.json(await getAiState(LOCAL_TENANT_ID))
+})
+
+settingsRoutes.delete('/ai/:role', async (c) => {
+  const role = c.req.param('role')
+  if (!isAiRole(role)) return c.json({ error: 'invalid role' }, 400)
+  await removeAiRole(LOCAL_TENANT_ID, role)
+  return c.json(await getAiState(LOCAL_TENANT_ID))
+})
+
+settingsRoutes.post('/ai/:role/test', async (c) => {
+  const role = c.req.param('role')
+  if (!isAiRole(role)) return c.json({ error: 'invalid role' }, 400)
+  const body = await c.req.json().catch(() => null)
+  if (!body) return c.json({ error: 'invalid body' }, 400)
+  
+  const isSaved = Object.keys(body).length === 0
+  
+  let configToTest: { provider: AiProvider, endpoint: string, model: string, apiKey: string | null }
+  if (isSaved) {
+    const saved = await getRoleConfig(LOCAL_TENANT_ID, role)
+    if (!saved) return c.json({ error: 'Role not set up' }, 409)
+    configToTest = saved
+  } else {
+    const val = validateDraft(role, body)
+    if (!val.ok) return c.json({ error: val.error }, 400)
+    const d = val.draft
+    const resKey = await resolveDraftKey(LOCAL_TENANT_ID, d.provider, d.key)
+    if (resKey.error) return c.json({ error: resKey.error }, 404)
+    configToTest = { provider: d.provider, endpoint: d.endpoint, model: d.model, apiKey: resKey.apiKey }
+  }
+
+  const result = role === 'categorization' ? await testCategorization(configToTest) : await testChat(configToTest)
+  
+  if (isSaved) {
+    await recordTestResult(LOCAL_TENANT_ID, role, result)
+  }
+  return c.json(result)
+})
+
+settingsRoutes.post('/ai/:role/models', async (c) => {
+  const role = c.req.param('role')
+  if (!isAiRole(role)) return c.json({ error: 'invalid role' }, 400)
+  const body = await c.req.json().catch(() => null)
+  if (!body || typeof body !== 'object') return c.json({ error: 'invalid body' }, 400)
+  
+  // fake draft to reuse validation (model not required for /models)
+  const val = validateDraft(role, { ...body, model: 'temp-model' })
+  if (!val.ok) return c.json({ error: val.error }, 400)
+  const d = val.draft
+  const resKey = await resolveDraftKey(LOCAL_TENANT_ID, d.provider, d.key)
+  if (resKey.error) return c.json({ error: resKey.error }, 404)
+  
+  const res = await fetchModels(role, d.provider, d.endpoint, resKey.apiKey)
+  if ('error' in res) return c.json({ error: res.error }, (res.status || 500) as 400 | 401 | 403 | 404 | 409 | 500 | 502)
+  return c.json(res)
 })
