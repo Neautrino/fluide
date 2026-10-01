@@ -6,7 +6,9 @@
     "start": "bun src/index.ts"
   },
   "dependencies": {
+    "@langchain/anthropic": "^1.5.12",
     "@langchain/core": "^1.2.12",
+    "@langchain/google-genai": "^2.3.2",
     "@langchain/langgraph": "^1.4.17",
     "@langchain/openai": "^1.5.13",
     "@repo/connectors": "workspace:*",
