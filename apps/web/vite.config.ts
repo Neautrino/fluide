@@ -17,10 +17,11 @@ export default defineConfig(({ mode }) => {
   return {
     plugins: [react(), tailwindcss()],
     server: {
+      host: process.env.FLUIDE_WEB_HOST ?? 'localhost',
       port: 3000,
       https,
       proxy: {
-        '/api': 'http://localhost:4000',
+        '/api': 'http://127.0.0.1:4000',
       },
     },
   }

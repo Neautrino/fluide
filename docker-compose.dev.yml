@@ -1,0 +1,43 @@
+name: fluide-dev
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg17
+    container_name: fluide-postgres
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: fluide
+      POSTGRES_PASSWORD: fluide_dev_only
+      POSTGRES_DB: fluide
+    ports:
+      - '127.0.0.1:5433:5432' # 5432 avoided: commonly already bound by a local Postgres install
+    volumes:
+      - devdata:/var/lib/postgresql/data
+    healthcheck:
+      test: ['CMD-SHELL', 'pg_isready -U fluide -d fluide']
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  dev:
+    image: oven/bun:1.3.14
+    user: '1000:1000'
+    working_dir: /app
+    command: ['sh', '-c', 'bun install --frozen-lockfile && exec bunx turbo run dev --ui=stream']
+    environment:
+      DATABASE_URL: postgres://fluide:fluide_dev_only@postgres:5432/fluide
+      FLUIDE_HOST: 0.0.0.0
+      FLUIDE_WEB_HOST: 0.0.0.0
+      WEB_TLS_CERT_PATH: ''
+      WEB_TLS_KEY_PATH: ''
+    volumes:
+      - .:/app
+    ports:
+      - '127.0.0.1:3000:3000'
+      - '127.0.0.1:4000:4000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+volumes:
+  devdata:

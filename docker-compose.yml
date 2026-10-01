@@ -1,21 +1,125 @@
+name: fluide
+
 services:
-  postgres:
-    image: pgvector/pgvector:pg17
-    container_name: fluide-postgres
+  secrets-init:
+    image: busybox:1.37
+    network_mode: none
+    restart: 'no'
+    user: '0:0'
+    cap_drop: [ALL]
+    cap_add: [CHOWN, DAC_OVERRIDE, FOWNER]
+    security_opt: ['no-new-privileges:true']
+    volumes:
+      - pg_super:/secrets/pg_super
+      - pg_app:/secrets/pg_app
+      - vault:/secrets/vault
+    # 1000 = the `bun` user the app image runs as (Dockerfile); 999 = the migrate job's uid/gid.
+    # Existing secrets are never regenerated: pgdata and stored credentials depend on them.
+    command:
+      - sh
+      - -euc
+      - |
+        umask 077
+        password() { head -c 48 /dev/urandom | base64 | tr -dc A-Za-z0-9; }
+        vault_key() { head -c 32 /dev/urandom | base64 | tr -d '\n'; }
+        gen() { [ -s "$$1" ] || { "$$2" > "$$1.tmp" && mv "$$1.tmp" "$$1"; }; }
+        gen /secrets/pg_super/pw password
+        gen /secrets/pg_app/pw password
+        gen /secrets/vault/key vault_key
+        chown 999:999 /secrets/pg_super/pw && chmod 0400 /secrets/pg_super/pw
+        chown 1000:999 /secrets/pg_app/pw && chmod 0440 /secrets/pg_app/pw
+        chown 1000:1000 /secrets/vault/key && chmod 0400 /secrets/vault/key
+
+  db:
+    image: postgres:17-alpine
     restart: unless-stopped
     environment:
-      POSTGRES_USER: fluide
-      POSTGRES_PASSWORD: fluide_dev_only
+      POSTGRES_USER: postgres
       POSTGRES_DB: fluide
-    ports:
-      - '5433:5432' # 5432 avoided: commonly already bound by a local Postgres install
+      POSTGRES_PASSWORD_FILE: /run/fluide/pg_super/pw
     volumes:
-      - fluide_postgres_data:/var/lib/postgresql/data
+      - pgdata:/var/lib/postgresql/data
+      - pg_super:/run/fluide/pg_super:ro
+    networks: [backend]
     healthcheck:
-      test: ['CMD-SHELL', 'pg_isready -U fluide -d fluide']
+      test: ['CMD-SHELL', 'pg_isready -U postgres -d fluide']
       interval: 5s
       timeout: 5s
       retries: 10
+    depends_on:
+      secrets-init:
+        condition: service_completed_successfully
+
+  migrate:
+    image: fluide:local
+    pull_policy: never
+    restart: 'no'
+    user: '999:999'
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    command: ['bun', 'packages/ledger/src/migrate.ts']
+    environment:
+      NODE_ENV: production
+      DATABASE_URL: postgres://postgres@db:5432/fluide
+      DATABASE_PASSWORD_FILE: /run/fluide/pg_super/pw
+      FLUIDE_APP_ROLE_PASSWORD_FILE: /run/fluide/pg_app/pw
+    volumes:
+      - pg_super:/run/fluide/pg_super:ro
+      - pg_app:/run/fluide/pg_app:ro
+    networks: [backend]
+    depends_on:
+      db:
+        condition: service_healthy
+
+  app:
+    build: .
+    image: fluide:local
+    restart: unless-stopped
+    user: '1000:1000'
+    read_only: true
+    tmpfs: [/tmp]
+    cap_drop: [ALL]
+    security_opt: ['no-new-privileges:true']
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      NODE_ENV: production
+      FLUIDE_HOST: 0.0.0.0
+      PORT: 8080
+      FLUIDE_WEB_DIST: /app/apps/web/dist
+      DATABASE_URL: postgres://fluide_app@db:5432/fluide
+      DATABASE_PASSWORD_FILE: /run/fluide/pg_app/pw
+      FLUIDE_VAULT_KEY_FILE: /run/fluide/vault/key
+    volumes:
+      - pg_app:/run/fluide/pg_app:ro
+      - vault:/run/fluide/vault:ro
+    ports:
+      - '127.0.0.1:8080:8080'
+    networks: [backend, edge]
+    healthcheck:
+      test:
+        - CMD
+        - bun
+        - -e
+        - "const r = await fetch('http://127.0.0.1:8080/api/health', { headers: { host: 'localhost' } }); process.exit(r.ok ? 0 : 1)"
+      interval: 10s
+      timeout: 5s
+      start_period: 15s
+      retries: 3
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+
+networks:
+  backend:
+    internal: true
+  edge: {}
 
 volumes:
-  fluide_postgres_data:
+  pgdata:
+  pg_super:
+  pg_app:
+  vault:

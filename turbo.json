@@ -18,7 +18,8 @@
     },
     "dev": {
       "cache": false,
-      "persistent": true
+      "persistent": true,
+      "passThroughEnv": ["DATABASE_URL", "FLUIDE_HOST", "FLUIDE_WEB_HOST", "PORT", "WEB_TLS_CERT_PATH", "WEB_TLS_KEY_PATH"]
     }
   }
 }
