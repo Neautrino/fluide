@@ -6,10 +6,11 @@ import { CategorySelect } from './CategorySelect'
 import { Button } from './ui/Button'
 import { Notice } from './ui/States'
 
-type Result = { postingId: string; categoryId: string; proposedRuleId: string | null }
+type Result = { postingId: string; categoryId: string; ruleId: string | null; alsoFiled: number }
 
 type Props = {
   postingId: string
+  vendor: string
   currentCategoryId?: string | null
   submitLabel?: string
   /** 'stacked' keeps select and button on separate lines for narrow columns. */
@@ -17,7 +18,7 @@ type Props = {
   onDone?: (result: Result) => void
 }
 
-export function RecategorizeControl({ postingId, currentCategoryId = null, submitLabel = 'Recategorize', layout = 'inline', onDone }: Props) {
+export function RecategorizeControl({ postingId, vendor, currentCategoryId = null, submitLabel = 'Recategorize', layout = 'inline', onDone }: Props) {
   const { navigate, invalidate } = useApp()
   const categories = useCategories()
   const id = useId()
@@ -75,13 +76,14 @@ export function RecategorizeControl({ postingId, currentCategoryId = null, submi
       {error && <Notice tone="error">{error}</Notice>}
       {result && (
         <Notice tone="success">
-          Category saved.
-          {result.proposedRuleId && (
+          Filed under {categories.data?.byId[result.categoryId]?.label ?? 'the chosen category'}
+          {result.alsoFiled > 0 && ` and ${result.alsoFiled} more from ${vendor}`}.
+          {result.ruleId && (
             <>
               {' '}
-              Rule proposed —{' '}
+              Rule saved —{' '}
               <button type="button" className="font-medium underline underline-offset-2" onClick={() => navigate('rules')}>
-                review it under Rules
+                see Rules
               </button>
               .
             </>

@@ -3,7 +3,7 @@ import { listCategorizationRules, listPendingReviewItems, getGateSettings } from
 import { LOCAL_TENANT_ID } from '../ingest.js'
 import { askAgent } from '../chat/agent.js'
 import { categorizeUncategorizedPostings } from '../categorization/categorize.js'
-import { createUserRule, decideProposedRule } from '../categorization/rules.js'
+import { createUserRule, setRuleStatus } from '../categorization/rules.js'
 import { resolveReviewItem } from '../review.js'
 import { saveGateSettings, type GateSettingsInput } from '../settings.js'
 import { isUuid, uuidParam } from './validate.js'
@@ -53,13 +53,13 @@ assistantRoutes.post('/rules', async (c) => {
 })
 
 assistantRoutes.post('/rules/:id/activate', uuidParam('id'), async (c) => {
-  const result = await decideProposedRule(c.req.param('id'), 'active')
+  const result = await setRuleStatus(c.req.param('id'), 'active')
   if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ rule: result.rule })
 })
 
 assistantRoutes.post('/rules/:id/reject', uuidParam('id'), async (c) => {
-  const result = await decideProposedRule(c.req.param('id'), 'rejected')
+  const result = await setRuleStatus(c.req.param('id'), 'rejected')
   if (!result.ok) return c.json({ error: result.error }, result.status)
   return c.json({ rule: result.rule })
 })
@@ -74,7 +74,7 @@ assistantRoutes.post('/review-queue/:id/approve', uuidParam('id'), async (c) => 
   const id = c.req.param('id')
   const result = await resolveReviewItem(id, 'approve')
   if (!result.ok) return c.json({ error: result.error }, result.status)
-  return c.json({ approved: id, proposedRuleId: result.proposedRuleId })
+  return c.json({ approved: id, ruleId: result.ruleId, alsoFiled: result.alsoFiled })
 })
 
 assistantRoutes.post('/review-queue/:id/reject', uuidParam('id'), async (c) => {

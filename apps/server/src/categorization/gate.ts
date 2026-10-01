@@ -9,7 +9,7 @@ import type { CategorizationMatch } from './jev.js'
 export type ConfidenceBand = 'high' | 'medium' | 'low'
 
 export type GateOutcome =
-  | { action: 'auto_apply'; band: ConfidenceBand }
+  | { action: 'auto_apply'; band: ConfidenceBand; reason: string }
   | { action: 'queue_with_suggestion'; band: ConfidenceBand; reason: string }
   | { action: 'queue_uncategorized'; band: ConfidenceBand; reason: string }
 
@@ -29,13 +29,11 @@ async function vendorCategoryHistory(tenantId: string, counterpartyRaw: string, 
   return rows.map((r) => Number(r.amount))
 }
 
-/** The user's 3-tier rule. 'low' band never reaches the vendor/amount
- * checklist at all -- it's excluded from auto-apply and from showing a
- * suggestion by confidence alone, per the rule as given. 'medium' band
- * also never auto-applies (always queued with the suggestion shown,
- * regardless of vendor history) -- that's the whole point of the band.
- * Only 'high' band is eligible for the vendor-history/amount checklist to
- * decide auto-apply vs queue. */
+/** The user's 3-tier rule. 'low' band never auto-applies or shows a
+ * suggestion; 'medium' band is always queued with the suggestion shown.
+ * Only 'high' band auto-applies, on first sight of a vendor too; when the
+ * vendor already has categorized postings in this category, the amount
+ * must also fit their range. */
 export async function evaluateGate(
   tenantId: string,
   counterpartyRaw: string,
@@ -43,7 +41,7 @@ export async function evaluateGate(
   match: CategorizationMatch,
   settings: GateSettings,
 ): Promise<GateOutcome> {
-  const { highConfidence, lowConfidence, minVendorOccurrences, amountRangeTolerance } = settings
+  const { highConfidence, lowConfidence, amountRangeTolerance } = settings
   const confidence = match.confidence.toFixed(2)
 
   if (match.confidence < lowConfidence) {
@@ -62,15 +60,12 @@ export async function evaluateGate(
     }
   }
 
-  // high band: still subject to the vendor-history/amount checklist --
-  // confidence alone doesn't justify auto-applying to a brand-new vendor.
   const history = await vendorCategoryHistory(tenantId, counterpartyRaw, match.categoryId)
-
-  if (history.length < minVendorOccurrences) {
+  if (history.length === 0) {
     return {
-      action: 'queue_with_suggestion',
+      action: 'auto_apply',
       band: 'high',
-      reason: `vendor "${counterpartyRaw}" has only ${history.length} prior categorized posting(s) in this category, need ${minVendorOccurrences}`,
+      reason: `confidence ${confidence} is in the high band; no prior posting of vendor "${counterpartyRaw}" in this category, so no amount range to check`,
     }
   }
 
@@ -88,7 +83,11 @@ export async function evaluateGate(
     }
   }
 
-  return { action: 'auto_apply', band: 'high' }
+  return {
+    action: 'auto_apply',
+    band: 'high',
+    reason: `confidence ${confidence} is in the high band and amount ${candidateAmount} is within the historical range [${lower.toFixed(2)}, ${upper.toFixed(2)}] for this vendor/category`,
+  }
 }
 
 export async function queueForReview(

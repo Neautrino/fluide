@@ -1,9 +1,8 @@
-import type { Rule, RuleStatus } from '../../lib/api'
+import type { Rule } from '../../lib/api'
 import type { CategoryCatalogue } from '../../lib/categories'
 
 const TILES = ['bg-tile-1', 'bg-tile-2', 'bg-tile-3', 'bg-tile-4'] as const
 
-const dayMonthFormat = new Intl.DateTimeFormat(undefined, { day: 'numeric', month: 'short' })
 const monthFormat = new Intl.DateTimeFormat(undefined, { month: 'short' })
 
 export function categoryLabel(catalogue: CategoryCatalogue | undefined, categoryId: string): string {
@@ -19,11 +18,6 @@ export function tileClass(catalogue: CategoryCatalogue | undefined, categoryId: 
   return TILES[h]
 }
 
-export function dayMonth(iso: string): string {
-  const d = new Date(iso)
-  return Number.isNaN(d.getTime()) ? iso : dayMonthFormat.format(d)
-}
-
 export function dayParts(iso: string): { day: string; month: string } | null {
   const d = new Date(iso)
   return Number.isNaN(d.getTime()) ? null : { day: String(d.getDate()), month: monthFormat.format(d) }
@@ -31,12 +25,16 @@ export function dayParts(iso: string): { day: string; month: string } | null {
 
 const time = (iso: string) => new Date(iso).getTime() || 0
 
-/** Active: busiest first. Proposed: newest first. Rejected: most recently rejected first (updatedAt is the decision time). */
-export function sortRules(list: Rule[], status: RuleStatus): Rule[] {
-  const by = status === 'active' ? (a: Rule, b: Rule) => b.timesMatched - a.timesMatched || time(b.createdAt) - time(a.createdAt)
-    : status === 'proposed' ? (a: Rule, b: Rule) => time(b.createdAt) - time(a.createdAt)
-    : (a: Rule, b: Rule) => time(b.updatedAt) - time(a.updatedAt)
-  return list.filter((r) => r.status === status).sort(by)
+export type RuleTab = 'active' | 'off'
+
+/** Active: busiest first. Off: most recently turned off first (updatedAt is the decision time). */
+export function sortRules(list: Rule[], tab: RuleTab): Rule[] {
+  if (tab === 'active') {
+    return list
+      .filter((r) => r.status === 'active')
+      .sort((a, b) => b.timesMatched - a.timesMatched || time(b.createdAt) - time(a.createdAt))
+  }
+  return list.filter((r) => r.status !== 'active').sort((a, b) => time(b.updatedAt) - time(a.updatedAt))
 }
 
 /** updatedAt is written only by the match counter and by the decision, so for an active rule that has matched it is the last match. */

@@ -94,7 +94,6 @@ export type Rule = {
 export type GateSettings = {
   highConfidence: number
   lowConfidence: number
-  minVendorOccurrences: number
   amountRangeTolerance: number
   updatedAt: string | null
 }

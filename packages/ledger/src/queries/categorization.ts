@@ -55,7 +55,6 @@ export async function listAuditLogForPosting(postingId: string) {
 export type GateSettings = {
   highConfidence: number
   lowConfidence: number
-  minVendorOccurrences: number
   amountRangeTolerance: number
   updatedAt: Date | null
 }
@@ -68,7 +67,6 @@ export async function getGateSettings(tenantId: string): Promise<GateSettings> {
   return {
     highConfidence: Number(row.highConfidence),
     lowConfidence: Number(row.lowConfidence),
-    minVendorOccurrences: row.minVendorOccurrences,
     amountRangeTolerance: Number(row.amountRangeTolerance),
     updatedAt: row.updatedAt,
   }

@@ -16,7 +16,7 @@ export function Hero({ count, stake, high }: { count: number; stake: AtStake[]; 
       </h2>
       <p className="mt-3 max-w-2xl text-[13px] leading-normal opacity-80">
         Suggestions the model wasn't sure enough to apply on its own
-        {high !== null && ` (auto-apply needs ${pct(high)} and a vendor history)`}. They stay uncategorized and still
+        {high !== null && ` (auto-apply needs ${pct(high)} and a usual amount)`}. They stay uncategorized and still
         counted until you decide.
       </p>
     </section>

@@ -1,36 +1,32 @@
 import { useState } from 'react'
-import type { Rule, RuleStatus } from '../../lib/api'
+import type { Rule } from '../../lib/api'
 import type { CategoryCatalogue } from '../../lib/categories'
 import { formatConfidence, formatLocalDate } from '../../lib/format'
 import type { Resource } from '../../lib/useResource'
 import { Button } from '../ui/Button'
 import { Empty, ErrorState, Loading } from '../ui/States'
-import { categoryLabel, lastMatchAt, sortRules, tileClass } from './model'
+import { categoryLabel, lastMatchAt, sortRules, tileClass, type RuleTab } from './model'
 import { PANEL_ID, RuleTabs } from './RuleTabs'
 import { CARD, CardHead, DateChip, SparkIcon, UserIcon, type Decide } from './shared'
 
-const EMPTY: Record<RuleStatus, string> = {
-  proposed: 'None left. Fluide proposes one when you approve a suggestion or categorize a transaction yourself.',
-  active: 'No active rules yet. Activate a proposed one or add your own.',
-  rejected: 'Nothing rejected.',
+const EMPTY: Record<RuleTab, string> = {
+  active: 'No active rules yet. Approving a suggestion saves one, or add your own.',
+  off: 'No rules turned off.',
 }
 
-const NOTE: Record<RuleStatus, string> = {
-  proposed:
-    'Proposed rules do nothing until you activate them. Activating applies the category to transactions categorized from now on; it does not change past ones.',
+const NOTE: Record<RuleTab, string> = {
   active: 'Rules run first. Yours win over learned ones; among equals, the rule that has matched more wins.',
-  rejected: 'Rejected rules never run and won’t be proposed again.',
+  off: 'Rules that are off never run. Turning one on applies it to transactions categorized from now on; it does not change past ones.',
 }
 
-const HATCH_ROW = 'bg-[repeating-linear-gradient(135deg,transparent_0_6px,color-mix(in_srgb,var(--hatch)_var(--hatch-row),transparent)_6px_7px)]'
 const TH = 'px-2 max-[1360px]:px-1.5 pb-2 align-bottom text-[11px] font-semibold tracking-[.07em] text-ink-3 uppercase border-b border-line'
 const TAG = 'inline-flex items-center gap-[5px] rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap'
 
 type Props = {
   rules: Resource<Rule[]>
   catalogue: CategoryCatalogue | undefined
-  tab: RuleStatus
-  onTab: (tab: RuleStatus) => void
+  tab: RuleTab
+  onTab: (tab: RuleTab) => void
   acting: ReadonlySet<string>
   onDecide: Decide
 }
@@ -40,9 +36,7 @@ export function RulesCard({ rules, catalogue, tab, onTab, acting, onDecide }: Pr
   const all = rules.data
   const active = all ? sortRules(all, 'active') : []
   const inTab = all ? sortRules(all, tab) : []
-  const counts = all
-    ? { proposed: sortRules(all, 'proposed').length, active: active.length, rejected: sortRules(all, 'rejected').length }
-    : null
+  const counts = all ? { active: active.length, off: sortRules(all, 'off').length } : null
   const q = query.trim().toLowerCase()
   const shown = q
     ? inTab.filter((r) => r.pattern.toLowerCase().includes(q) || categoryLabel(catalogue, r.categoryId).toLowerCase().includes(q))
@@ -123,7 +117,6 @@ export function RulesCard({ rules, catalogue, tab, onTab, acting, onDecide }: Pr
                 <b className="font-semibold text-ink-2">Bars</b> are shares of the busiest rule ({busiest.pattern}, {busiest.timesMatched}).{' '}
               </>
             )}
-            {tab === 'proposed' && 'Hatched rows are proposed and not applied. '}
             {NOTE[tab]}
           </p>
         )}
@@ -142,13 +135,12 @@ type RowProps = {
 }
 
 function RuleRow({ rule, catalogue, max, isBusiest, busy, onDecide }: RowProps) {
-  const proposed = rule.status === 'proposed'
-  const rejected = rule.status === 'rejected'
-  const cell = `border-b border-line px-2 py-[9px] align-middle max-[1360px]:px-1.5 ${proposed ? HATCH_ROW : ''} ${rejected ? 'text-ink-3' : ''}`
+  const off = rule.status !== 'active'
+  const cell = `border-b border-line px-2 py-[9px] align-middle max-[1360px]:px-1.5 ${off ? 'text-ink-3' : ''}`
   const conf = formatConfidence(rule.confidenceLearned)
-  const originDate = rejected
-    ? `rejected by you ${formatLocalDate(rule.updatedAt)}`
-    : `${rule.isUserCustom ? 'created' : 'proposed'} ${formatLocalDate(rule.createdAt)}`
+  const originDate = off
+    ? `turned off ${formatLocalDate(rule.updatedAt)}`
+    : `${rule.isUserCustom ? 'created' : 'learned'} ${formatLocalDate(rule.createdAt)}`
 
   return (
     <tr className="[&:last-child>td]:border-b-0">
@@ -158,9 +150,9 @@ function RuleRow({ rule, catalogue, max, isBusiest, busy, onDecide }: RowProps) 
           <div className="min-w-0">
             <code
               title={rule.pattern}
-              className={`inline-block max-w-[160px] truncate rounded-sm border px-2 py-[3px] align-top font-mono text-[12.5px] font-medium ${
-                proposed ? 'border-dashed border-line-strong bg-surface' : 'border-line bg-surface-2'
-              } ${rejected ? 'line-through decoration-1' : ''}`}
+              className={`inline-block max-w-[160px] truncate rounded-sm border border-line bg-surface-2 px-2 py-[3px] align-top font-mono text-[12.5px] font-medium ${
+                off ? 'line-through decoration-1' : ''
+              }`}
             >
               {rule.pattern}
             </code>
@@ -217,24 +209,27 @@ function RuleRow({ rule, catalogue, max, isBusiest, busy, onDecide }: RowProps) 
         )}
       </td>
       <td className={`${cell} text-right`}>
-        {proposed ? (
-          <div className="flex flex-wrap items-center justify-end gap-1.5">
-            <Button size="sm" variant="primary" busy={busy} onClick={(e) => onDecide(rule, 'activate', e.currentTarget)}>
-              Activate
-            </Button>
-            <Button size="sm" disabled={busy} onClick={(e) => onDecide(rule, 'reject', e.currentTarget)}>
-              Reject
-            </Button>
-          </div>
-        ) : rejected ? (
-          <span className="rounded-[8px] border border-line px-[7px] py-0.5 text-[10.5px] font-bold tracking-[.05em] whitespace-nowrap text-ink-3 uppercase">
-            Rejected
-          </span>
-        ) : (
-          <span className="rounded-[8px] bg-positive-wash px-[7px] py-0.5 text-[10.5px] font-bold tracking-[.05em] whitespace-nowrap text-positive uppercase">
-            Active
-          </span>
-        )}
+        <div className="flex flex-wrap items-center justify-end gap-1.5">
+          {off ? (
+            <>
+              <span className="rounded-[8px] border border-line px-[7px] py-0.5 text-[10.5px] font-bold tracking-[.05em] whitespace-nowrap text-ink-3 uppercase">
+                Off
+              </span>
+              <Button size="sm" busy={busy} onClick={(e) => onDecide(rule, 'activate', e.currentTarget)}>
+                Turn on
+              </Button>
+            </>
+          ) : (
+            <>
+              <span className="rounded-[8px] bg-positive-wash px-[7px] py-0.5 text-[10.5px] font-bold tracking-[.05em] whitespace-nowrap text-positive uppercase">
+                Active
+              </span>
+              <Button size="sm" busy={busy} onClick={(e) => onDecide(rule, 'reject', e.currentTarget)}>
+                Turn off
+              </Button>
+            </>
+          )}
+        </div>
       </td>
     </tr>
   )

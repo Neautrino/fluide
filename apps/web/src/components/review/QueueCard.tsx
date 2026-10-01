@@ -14,8 +14,8 @@ type Props = {
   catalogueFailed: boolean
   threshold: number | null
   account: string | undefined
-  /** A rule for this counterparty already exists, so approving proposes none. */
-  ruleExists: boolean
+  /** Waiting items with this counterparty, case-insensitive, this one included. */
+  sameVendor: number
   /** A write is in flight somewhere on the page: every action is off. */
   disabled: boolean
   pendingKind: 'approve' | 'reject' | 'file' | null
@@ -24,7 +24,7 @@ type Props = {
   onFile: (categoryId: string) => void
 }
 
-export function QueueCard({ item, catalogue, catalogueFailed, threshold, account, ruleExists, disabled, pendingKind, onApprove, onReject, onFile }: Props) {
+export function QueueCard({ item, catalogue, catalogueFailed, threshold, account, sameVendor, disabled, pendingKind, onApprove, onReject, onFile }: Props) {
   const selectId = useId()
   const hasSuggestion = !!item.suggestedCategoryId
   const [picking, setPicking] = useState(!hasSuggestion)
@@ -44,8 +44,8 @@ export function QueueCard({ item, catalogue, catalogueFailed, threshold, account
 
   let aff: string | null = null
   if (hasSuggestion && counterparty) {
-    if (ruleExists) aff = `A rule for ${counterparty} already exists, so none is proposed`
-    else aff = `Approving may propose a rule: ${counterparty} → ${suggested ?? 'this category'}`
+    const where = `under ${suggested ?? 'this category'} and saves a rule`
+    aff = sameVendor > 1 ? `Approving files all ${sameVendor} from ${counterparty} ${where}` : `Approving files it ${where}`
   }
 
   return (

@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AfterDecide } from '../components/review/AfterDecide'
 import { AtStake } from '../components/review/AtStake'
 import { ConfidenceSplit } from '../components/review/ConfidenceSplit'
-import { useConnections, usePossibleTransfers, usePostingAccounts, useRulePatterns } from '../components/review/data'
+import { useConnections, usePossibleTransfers, usePostingAccounts } from '../components/review/data'
 import { Hero } from '../components/review/Hero'
 import { QueueCard } from '../components/review/QueueCard'
 import { atStakeByCurrency, itemAmount, itemName, tilesFor } from '../components/review/helpers'
@@ -26,7 +26,7 @@ import { useApp } from '../lib/app-context'
 import { useCategories } from '../lib/categories'
 import { useResource } from '../lib/useResource'
 
-type Outcome = { id: string; tone: 'success' | 'error'; text: string; proposedRule: boolean }
+type Outcome = { id: string; tone: 'success' | 'error'; text: string; rule: boolean }
 type Filter = 'all' | ConfidenceBand
 type Pending = { key: string; kind: 'approve' | 'reject' | 'file' }
 type Refocus = { id: string; nextId: string | null; heading: 'queue' | 'transfers' }
@@ -46,7 +46,6 @@ export function Review() {
   const gate = useResource((signal) => getJson<{ settings: GateSettings }>('/api/assistant/gate', signal).then((r) => r.settings))
   const transfers = usePossibleTransfers(version)
   const connections = useConnections()
-  const rulePatterns = useRulePatterns(version)
   const items = queue.data
   const accounts = usePostingAccounts(
     (items ?? []).map((i) => i.postingId),
@@ -117,28 +116,25 @@ export function Review() {
   })
 
   const categoryLabel = (id: string | null) => (id ? categories.data?.byId[id]?.label : undefined) ?? 'the suggested category'
+  const filedText = (item: ReviewItem, categoryId: string | null, alsoFiled: number) =>
+    `${itemName(item)}: filed under ${categoryLabel(categoryId)}${alsoFiled > 0 ? ` and ${alsoFiled} more from ${item.posting?.counterpartyRaw ?? itemName(item)}` : ''}.`
 
   const resolve = (item: ReviewItem, kind: 'approve' | 'reject') =>
     act({ key: item.id, kind }, queueFocus(item), async () => {
       const who = itemName(item)
       try {
         if (kind === 'approve') {
-          const res = await sendJson<{ approved: string; proposedRuleId: string | null }>(
+          const res = await sendJson<{ approved: string; ruleId: string | null; alsoFiled: number }>(
             'POST',
             `/api/assistant/review-queue/${item.id}/approve`,
           )
-          record({
-            id: item.id,
-            tone: 'success',
-            text: `${who}: filed under ${categoryLabel(item.suggestedCategoryId)}.`,
-            proposedRule: !!res.proposedRuleId,
-          })
+          record({ id: item.id, tone: 'success', text: filedText(item, item.suggestedCategoryId, res.alsoFiled), rule: !!res.ruleId })
         } else {
           await sendJson('POST', `/api/assistant/review-queue/${item.id}/reject`)
-          record({ id: item.id, tone: 'success', text: `${who}: rejected — it stays uncategorized and counted.`, proposedRule: false })
+          record({ id: item.id, tone: 'success', text: `${who}: rejected — it stays uncategorized and counted.`, rule: false })
         }
       } catch (e) {
-        record({ id: item.id, tone: 'error', text: `${who}: ${errorMessage(e)}`, proposedRule: false })
+        record({ id: item.id, tone: 'error', text: `${who}: ${errorMessage(e)}`, rule: false })
       }
       invalidate()
     })
@@ -147,13 +143,13 @@ export function Review() {
     act({ key: item.id, kind: 'file' }, queueFocus(item), async () => {
       const who = itemName(item)
       try {
-        const res = await sendJson<{ proposedRuleId: string | null }>('POST', `/api/ledger/postings/${item.postingId}/category`, {
+        const res = await sendJson<{ ruleId: string | null; alsoFiled: number }>('POST', `/api/ledger/postings/${item.postingId}/category`, {
           categoryId,
         })
-        record({ id: item.id, tone: 'success', text: `${who}: filed under ${categoryLabel(categoryId)}.`, proposedRule: !!res.proposedRuleId })
+        record({ id: item.id, tone: 'success', text: filedText(item, categoryId, res.alsoFiled), rule: !!res.ruleId })
         invalidate()
       } catch (e) {
-        record({ id: item.id, tone: 'error', text: `${who}: ${errorMessage(e)}`, proposedRule: false })
+        record({ id: item.id, tone: 'error', text: `${who}: ${errorMessage(e)}`, rule: false })
       }
     })
 
@@ -174,6 +170,11 @@ export function Review() {
 
   const counts: Record<ConfidenceBand, number> = { high: 0, medium: 0, low: 0 }
   for (const i of list) counts[i.confidenceBand] += 1
+  const byVendor = new Map<string, number>()
+  for (const i of list) {
+    const k = i.posting?.counterpartyRaw?.toLowerCase()
+    if (k) byVendor.set(k, (byVendor.get(k) ?? 0) + 1)
+  }
 
   const stake = atStakeByCurrency(list)
   const tiles = items ? tilesFor(items, accounts.data) : null
@@ -189,12 +190,12 @@ export function Review() {
               {outcomes.map((o) => (
                 <Notice key={o.id} tone={o.tone}>
                   {o.text}
-                  {o.proposedRule && (
+                  {o.rule && (
                     <>
                       {' '}
-                      Rule proposed —{' '}
+                      Rule saved —{' '}
                       <button type="button" className="font-medium underline underline-offset-2" onClick={() => navigate('rules')}>
-                        review it under Rules
+                        see Rules
                       </button>
                       .
                     </>
@@ -223,7 +224,7 @@ export function Review() {
             </div>
           ) : (
             <>
-              <ConfidenceSplit counts={counts} bounds={gateBounds} minVendor={gate.data?.minVendorOccurrences ?? null} />
+              <ConfidenceSplit counts={counts} bounds={gateBounds} />
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <h2
                   tabIndex={-1}
@@ -254,7 +255,7 @@ export function Review() {
                     catalogueFailed={!!categories.error}
                     threshold={gateBounds?.high ?? null}
                     account={accounts.data?.get(item.postingId)?.name}
-                    ruleExists={!!item.posting?.counterpartyRaw && !!rulePatterns.data?.has(item.posting.counterpartyRaw.toLowerCase())}
+                    sameVendor={byVendor.get(item.posting?.counterpartyRaw?.toLowerCase() ?? '') ?? 1}
                     disabled={pending !== null}
                     pendingKind={pending?.key === item.id ? pending.kind : null}
                     onApprove={() => resolve(item, 'approve')}

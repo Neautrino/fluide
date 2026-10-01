@@ -119,12 +119,14 @@ function TransactionDetail({ row, onClose, docked }: { row: DrawerRow; onClose: 
       <section className="flex flex-col gap-2">
         <h3 className="font-display text-[15px] font-bold text-ink">Recategorize</h3>
         <p className="text-[12.5px] text-ink-3">
-          Your choice is recorded in the history below and may propose a rule for similar transactions.
+          Your choice is recorded in the history below, saves a rule for {row.merchant}, and files its other uncategorized
+          transactions too.
         </p>
         {postingId ? (
           <RecategorizeControl
             key={postingId}
             postingId={postingId}
+            vendor={row.merchant}
             currentCategoryId={row.posting.categoryId}
             submitLabel="Save category"
           />

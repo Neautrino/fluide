@@ -7,21 +7,18 @@ import { db, gateSettings, getGateSettings, type GateSettings } from '@repo/ledg
 export type GateSettingsInput = Omit<GateSettings, 'updatedAt'>
 
 function validate(input: Partial<GateSettingsInput>): string | GateSettingsInput {
-  const { highConfidence, lowConfidence, minVendorOccurrences, amountRangeTolerance } = input
+  const { highConfidence, lowConfidence, amountRangeTolerance } = input
   const isNum = (v: unknown): v is number => typeof v === 'number' && Number.isFinite(v)
-  if (!isNum(highConfidence) || !isNum(lowConfidence) || !isNum(minVendorOccurrences) || !isNum(amountRangeTolerance)) {
-    return 'highConfidence, lowConfidence, minVendorOccurrences and amountRangeTolerance are all required numbers'
+  if (!isNum(highConfidence) || !isNum(lowConfidence) || !isNum(amountRangeTolerance)) {
+    return 'highConfidence, lowConfidence and amountRangeTolerance are all required numbers'
   }
   if (!(lowConfidence >= 0 && lowConfidence < highConfidence && highConfidence <= 1)) {
     return 'confidence thresholds must satisfy 0 <= lowConfidence < highConfidence <= 1'
   }
-  if (!Number.isInteger(minVendorOccurrences) || minVendorOccurrences < 1) {
-    return 'minVendorOccurrences must be a whole number of at least 1'
-  }
   if (amountRangeTolerance < 0 || amountRangeTolerance > 999) {
     return 'amountRangeTolerance must be between 0 and 999'
   }
-  return { highConfidence, lowConfidence, minVendorOccurrences, amountRangeTolerance }
+  return { highConfidence, lowConfidence, amountRangeTolerance }
 }
 
 export async function saveGateSettings(
@@ -34,7 +31,6 @@ export async function saveGateSettings(
   const values = {
     highConfidence: valid.highConfidence.toFixed(3),
     lowConfidence: valid.lowConfidence.toFixed(3),
-    minVendorOccurrences: valid.minVendorOccurrences,
     amountRangeTolerance: valid.amountRangeTolerance.toFixed(3),
     updatedAt: new Date(),
   }

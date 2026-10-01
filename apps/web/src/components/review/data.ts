@@ -1,10 +1,4 @@
-import {
-  getJson,
-  listPossibleTransfers,
-  type ConnectionSummary,
-  type PossibleTransfer,
-  type Rule,
-} from '../../lib/api'
+import { getJson, listPossibleTransfers, type ConnectionSummary, type PossibleTransfer } from '../../lib/api'
 import { useResource } from '../../lib/useResource'
 
 export type TransferGroup = { currency: string; rows: PossibleTransfer[] }
@@ -46,13 +40,5 @@ export function usePostingAccounts(postingIds: string[], version: number) {
 export function useConnections() {
   return useResource((signal) =>
     getJson<{ connections: ConnectionSummary[] }>('/api/providers/connections', signal).then((r) => r.connections),
-  )
-}
-
-export function useRulePatterns(version: number) {
-  return useResource(
-    (signal) =>
-      getJson<{ rules: Rule[] }>('/api/assistant/rules', signal).then((r) => new Set(r.rules.map((x) => x.pattern.toLowerCase()))),
-    version,
   )
 }

@@ -1,18 +1,17 @@
 import type { KeyboardEvent } from 'react'
-import type { RuleStatus } from '../../lib/api'
+import type { RuleTab } from './model'
 
-const TABS: { id: RuleStatus; label: string }[] = [
-  { id: 'proposed', label: 'Proposed' },
+const TABS: { id: RuleTab; label: string }[] = [
   { id: 'active', label: 'Active' },
-  { id: 'rejected', label: 'Rejected' },
+  { id: 'off', label: 'Off' },
 ]
 
 export const PANEL_ID = 'rules-panel'
 
 type Props = {
-  value: RuleStatus
-  counts: Record<RuleStatus, number> | null
-  onChange: (tab: RuleStatus) => void
+  value: RuleTab
+  counts: Record<RuleTab, number> | null
+  onChange: (tab: RuleTab) => void
 }
 
 export function RuleTabs({ value, counts, onChange }: Props) {

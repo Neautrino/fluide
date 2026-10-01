@@ -8,9 +8,9 @@ const SEGMENTS: { band: ConfidenceBand; swatch: string }[] = [
 ]
 
 /** `bounds` is null until the gate settings have loaded; the legend then shows bare band names rather than assumed thresholds. */
-type Props = { counts: Record<ConfidenceBand, number>; bounds: { high: number; low: number } | null; minVendor: number | null }
+type Props = { counts: Record<ConfidenceBand, number>; bounds: { high: number; low: number } | null }
 
-export function ConfidenceSplit({ counts, bounds, minVendor }: Props) {
+export function ConfidenceSplit({ counts, bounds }: Props) {
   const total = counts.high + counts.medium + counts.low
   const legend: Record<ConfidenceBand, string> = bounds
     ? { high: `High ≥${pct(bounds.high)}`, medium: `Medium ${pct(bounds.low)}–<${pct(bounds.high)}`, low: `Low <${pct(bounds.low)}` }
@@ -40,8 +40,8 @@ export function ConfidenceSplit({ counts, bounds, minVendor }: Props) {
         ))}
       </ul>
       <p className="mt-3 text-[12px] leading-normal text-ink-3">
-        High-confidence items still land here when the vendor has fewer than {minVendor ?? 'the required number of'} categorized
-        postings or the amount is unusual.
+        High-confidence items still land here when the amount is unusual for what the vendor has charged before in that
+        category.
       </p>
     </section>
   )

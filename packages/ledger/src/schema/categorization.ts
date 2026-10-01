@@ -39,10 +39,10 @@ export const categorizationRuleStatus = pgEnum('categorization_rule_status', ['p
  * `confidenceLearned`/`timesMatched` let an accepted AI categorization
  * become a permanent rule instead of a one-off relabel. `isUserCustom`
  * rules always win over system-learned ones on the same posting.
- * `status`: only 'active' rules are ever matched. A rule learned from a
- * human approval/recategorize starts 'proposed' and does nothing until the
- * user activates it (PLAN.md §5.2: the loop that turns corrections into an
- * auto-rule is itself reviewed before it changes future behavior).
+ * `status`: only 'active' rules are ever matched; 'rejected' is a rule the
+ * user turned off. A human approval/recategorize sets its vendor's rule
+ * active (created if absent); a Jev auto-apply only creates one for a vendor
+ * with no rule in any status. 'proposed' is never written (legacy rows only).
  */
 export const categorizationRules = pgTable(
   'categorization_rules',
@@ -68,8 +68,8 @@ export const categorizationRules = pgTable(
 
 /**
  * review_queue — S1-4's confidence gate output for Tier 2 (Jev) matches that
- * did not clear the auto-apply checklist (confidence + vendor seen 3+
- * times + amount in the historical range for that vendor/category pair).
+ * did not clear the auto-apply checklist (high confidence + amount in the
+ * historical range, when the vendor/category pair has one).
  * `postings.categoryId` is left NULL for these — the suggestion lives only
  * here until a human approves/rejects it (S1-5 UI). Approving writes
  * `postings.categoryId` through the normal update path; rejecting never
@@ -139,7 +139,6 @@ export const auditLog = pgTable(
 export const GATE_SETTINGS_DEFAULTS = {
   highConfidence: 0.75,
   lowConfidence: 0.5,
-  minVendorOccurrences: 3,
   amountRangeTolerance: 0.5,
 } as const
 
@@ -160,9 +159,6 @@ export const gateSettings = pgTable(
     lowConfidence: numeric('low_confidence', { precision: 4, scale: 3 })
       .notNull()
       .default(GATE_SETTINGS_DEFAULTS.lowConfidence.toFixed(3)),
-    minVendorOccurrences: integer('min_vendor_occurrences')
-      .notNull()
-      .default(GATE_SETTINGS_DEFAULTS.minVendorOccurrences),
     amountRangeTolerance: numeric('amount_range_tolerance', { precision: 6, scale: 3 })
       .notNull()
       .default(GATE_SETTINGS_DEFAULTS.amountRangeTolerance.toFixed(3)),
@@ -170,7 +166,6 @@ export const gateSettings = pgTable(
   },
   (table) => [
     check('gate_settings_confidence_bands', sql`0 <= ${table.lowConfidence} AND ${table.lowConfidence} < ${table.highConfidence} AND ${table.highConfidence} <= 1`),
-    check('gate_settings_min_vendor_occurrences', sql`${table.minVendorOccurrences} >= 1`),
     check('gate_settings_amount_range_tolerance', sql`${table.amountRangeTolerance} >= 0`),
   ],
 )

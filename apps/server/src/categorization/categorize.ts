@@ -6,6 +6,7 @@ import { db, postings, transactions, categorizationRules, reviewQueue, getGateSe
 import { and, eq, inArray, isNull, notInArray, sql } from 'drizzle-orm'
 import { categorizeByJevBatch, type CategorizationMatch } from './jev.js'
 import { evaluateGate, queueForReview } from './gate.js'
+import { createJevRuleIfAbsent } from './rules.js'
 import { writeAuditLog } from '../audit.js'
 
 export type CategorizeResult = {
@@ -51,11 +52,12 @@ async function lockUncategorizedLive(tx: DbExecutor, postingId: string) {
 
 /** Runs a Jev match through the gate and writes the outcome, all in one
  * transaction. Three possible results, matching the user's exact rule:
- *  - auto_apply: postings.categoryId is set directly.
+ *  - auto_apply: postings.categoryId is set directly, and the vendor gets
+ *    an active rule if it has none in any status.
  *  - queue_with_suggestion: postings.categoryId stays NULL, but
  *    review_queue gets a row with the suggested category so a human sees
- *    what Jev thinks it is (review band, or a high-band match that didn't
- *    clear the vendor/amount checklist).
+ *    what Jev thinks it is (review band, or a high-band match whose amount
+ *    is outside the vendor's range).
  *  - queue_uncategorized: postings.categoryId stays NULL, review_queue
  *    gets a row with NO suggested category (below the low threshold) --
  *    the posting shows as plain uncategorized in the UI, but it's still
@@ -74,6 +76,10 @@ async function applyOrQueue(
     if (!(await lockUncategorizedLive(tx, postingId))) return 'skipped'
     if (outcome.action === 'auto_apply') {
       await tx.update(postings).set({ categoryId: match.categoryId }).where(eq(postings.id, postingId))
+      const rule = await createJevRuleIfAbsent(
+        { tenantId, counterpartyRaw, categoryId: match.categoryId, confidence: match.confidence },
+        tx,
+      )
       await writeAuditLog(
         {
           postingId,
@@ -81,7 +87,7 @@ async function applyOrQueue(
           categoryId: match.categoryId,
           source: match.source,
           confidence: match.confidence,
-          reason: `gate passed: confidence band '${outcome.band}' + vendor history + amount range checks satisfied`,
+          reason: `gate passed: ${outcome.reason}` + (rule ? `; created categorization_rules ${rule.id}` : ''),
           actor: 'system',
         },
         tx,
@@ -112,9 +118,9 @@ async function applyOrQueue(
  * already deterministic, and cheap enough to run per-row), (2) Jev,
  * batched into as few HTTP calls as Jev's token budget allows rather than
  * one call per posting. Each Jev match passes through the S1-4 gate before
- * writing -- auto-apply if confidence is high AND the vendor has enough
- * history AND the amount fits, else queued to review_queue (with or
- * without a suggestion depending on confidence band). A posting where a
+ * writing -- auto-apply if confidence is high AND (for a vendor with
+ * history in that category) the amount fits, else queued to review_queue
+ * (with or without a suggestion depending on confidence band). A posting where a
  * batch call fails outright (no API key, network error) is left fully
  * uncategorized and unflagged -- that is a hard failure case, not a
  * confidence judgment. */

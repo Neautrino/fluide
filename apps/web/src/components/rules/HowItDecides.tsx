@@ -35,7 +35,9 @@ export function HowItDecides({ className = '' }: { className?: string }) {
         ))}
       </ol>
       {gate.data && <GateStrip settings={gate.data} />}
-      <p className="mt-2.5 text-[11.5px] leading-[1.45] text-ink-3">Approving a suggestion, or categorizing a transaction yourself, can propose a rule.</p>
+      <p className="mt-2.5 text-[11.5px] leading-[1.45] text-ink-3">
+        Approving a suggestion, or categorizing a transaction yourself, saves a rule and files that merchant’s other uncategorized transactions too.
+      </p>
     </section>
   )
 }
@@ -50,7 +52,6 @@ function GateStrip({ settings }: { settings: GateSettings }) {
   const high = Math.min(1, Math.max(low, toNumber(settings.highConfidence)))
   const xl = X0 + W * low
   const xh = X0 + W * high
-  const min = settings.minVendorOccurrences
 
   return (
     <>
@@ -103,8 +104,8 @@ function GateStrip({ settings }: { settings: GateSettings }) {
         </span>
       </div>
       <p className="mt-2 text-[11.5px] leading-[1.45] text-ink-3">
-        Auto-apply also needs this category chosen for the merchant {min}+ times before, and a usual amount.
-        {reviewCount !== null && ` Review holds everything below the top zone, plus high-confidence items that fail those checks: ${reviewCount} waiting now.`}
+        Auto-apply also needs a usual amount once the merchant has earlier transactions in that category.
+        {reviewCount !== null && ` Review holds everything below the top zone, plus high-confidence items that fail that check: ${reviewCount} waiting now.`}
       </p>
     </>
   )

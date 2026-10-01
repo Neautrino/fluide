@@ -96,7 +96,6 @@ function GateForm({ initial }: { initial: GateSettings }) {
       const { settings } = await sendJson<{ settings: GateSettings }>('PUT', '/api/assistant/gate', {
         highConfidence: Number(draft.highConfidence),
         lowConfidence: Number(draft.lowConfidence),
-        minVendorOccurrences: Number(draft.minVendorOccurrences),
         amountRangeTolerance: Number(draft.amountRangeTolerance),
       })
       setSaved(settings)
@@ -143,7 +142,7 @@ function GateForm({ initial }: { initial: GateSettings }) {
         />
       </div>
 
-      <div className="mt-1.5 grid grid-cols-2 gap-2.5 min-[1361px]:grid-cols-4">
+      <div className="mt-1.5 grid grid-cols-2 gap-2.5 min-[1361px]:grid-cols-3">
         {FIELDS.map((f) => {
           const error = touched ? errors[f.key] : undefined
           const id = `gate-${f.key}`
@@ -185,8 +184,8 @@ function GateForm({ initial }: { initial: GateSettings }) {
 
       <p className="mt-2.5 text-[12px] leading-normal text-ink-3">
         Rules you've activated always run first. For everything else the Jev model proposes a category with a confidence
-        score, and the gate decides what happens next. Even above the high threshold, a category is only applied if the
-        vendor has enough history and the amount looks normal — otherwise it waits in Review.
+        score, and the gate decides what happens next. At or above the high threshold a category is applied right away,
+        unless the vendor's earlier transactions in that category make the amount look unusual — then it waits in Review.
       </p>
 
       <div className="mt-3 flex flex-col gap-3 border-t border-line pt-3">

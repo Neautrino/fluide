@@ -130,5 +130,5 @@ ledgerRoutes.post('/postings/:id/category', uuidParam('id'), async (c) => {
   if (!isUuid(body.categoryId)) return c.json({ error: 'categoryId must be a UUID' }, 400)
   const result = await recategorizePosting(postingId, body.categoryId)
   if (!result.ok) return c.json({ error: result.error }, result.status)
-  return c.json({ postingId, categoryId: body.categoryId, proposedRuleId: result.proposedRuleId })
+  return c.json({ postingId, categoryId: body.categoryId, ruleId: result.ruleId, alsoFiled: result.alsoFiled })
 })

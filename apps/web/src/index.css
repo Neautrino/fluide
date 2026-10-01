@@ -60,10 +60,9 @@
   --font-mono: 'Geist Mono Variable', 'Geist Mono', ui-monospace, 'SFMono-Regular', Menlo, monospace;
 }
 
-/* hatch strength: light draws stripes in full ink and row hatch at 13%; dark overrides both */
+/* hatch strength: light draws stripes in full ink; dark overrides it */
 :root {
   --hatch-stripe: var(--hatch);
-  --hatch-row: 13%;
 }
 
 html[data-theme="dark"] {
@@ -106,9 +105,8 @@ html[data-theme="dark"] {
   --chart-muted: #58585b;
   --chart-grid: #3a3a3e;
   --hatch: #ececea;
-  /* calmer hatch: stripe = ink at 55%, row hatch 28% (light: 100% / 13%) */
+  /* calmer hatch: stripe = ink at 55% (light: 100%) */
   --hatch-stripe: color-mix(in srgb, #ececea 55%, transparent);
-  --hatch-row: 28%;
   /* same near-square radii as light */
   --radius-sm: 4px;
   --radius-md: 8px;
