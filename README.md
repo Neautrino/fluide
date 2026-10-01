@@ -20,7 +20,7 @@ European banks (via Enable Banking) are not available yet.
 ```sh
 git clone https://github.com/Neautrino/fluide.git
 cd fluide
-cp .env.example .env   # optional: set PLAID_ENV and the optional AI keys
+cp .env.example .env   # optional: set PLAID_ENV
 docker compose up -d --build
 ```
 
@@ -28,6 +28,10 @@ Open http://localhost:8080, then:
 
 1. Go to **Settings -> Provider keys** and enter your Plaid client id and secret.
 2. Click **Connect US bank** and link an account through Plaid.
+3. Optional: in **Settings -> Assistant**, pick a categorization model (Jev via
+   TypeSafe, OpenCode Zen, OpenRouter or another Jev host) and a chat model (OpenAI,
+   Claude, Gemini, OpenCode Zen, OpenRouter or any OpenAI-compatible server,
+   such as a local Ollama) and test each connection.
 
 `PLAID_ENV` in `.env` selects the Plaid environment (`production`, the default,
 or `sandbox`) and must match the keys you enter.
@@ -96,8 +100,9 @@ Your data stays in the Docker volumes and is there on the next `docker compose u
 | Recipient | When | What |
 |---|---|---|
 | Plaid | Always, when you link or sync a bank | Requests made with your Plaid keys; Plaid returns your bank accounts and transactions. |
-| opencode.ai (Jev model) | Only when `OPENCODE_API_KEY` is set and you run categorization | The description text of transactions that no categorization rule matched. |
-| OpenAI | Only when `OPENAI_API_KEY` is set and you use the Assistant | Your question and the results of the read-only ledger queries the Assistant runs, such as account balances, account masks and up to 50 transactions per query. |
+| The categorization model you pick in Settings -> Assistant (TypeSafe, OpenCode Zen, OpenRouter or your own Jev host) | Only when a categorization model is set up and you run categorization, or press Test | The description text of transactions that no categorization rule matched, and your category names. Test sends 25 made-up descriptions instead. |
+| The chat model you pick in Settings -> Assistant (OpenAI, Anthropic, Google, OpenCode Zen, OpenRouter or the OpenAI-compatible server you enter) | Only when a chat model is set up and you use the Assistant, or press Test | Your question and the results of the read-only ledger queries the Assistant runs, such as account balances, account masks and up to 50 transactions per query. A local server (for example Ollama on localhost) keeps this on your machine. |
+| The provider of the model list you load in Settings -> Assistant | Only when you press Load models | A request for the provider's model list, with your key. |
 | LangSmith | Only if you set LangChain/LangSmith tracing environment variables (for example `LANGSMITH_TRACING` and `LANGSMITH_API_KEY`) | Traces of Assistant runs. |
 | GitHub (api.github.com) | At most once a day, when you open Settings, unless `FLUIDE_UPDATE_CHECK=off` | A request for the latest Fluide release. GitHub sees your IP address and the User-Agent `fluide/<version>`; nothing else is sent. |
 
