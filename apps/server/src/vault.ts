@@ -4,6 +4,7 @@
  * See: ADR 009 — why one master key, not envelope encryption or an external vault
  */
 import { randomBytes, createCipheriv, createDecipheriv } from 'node:crypto'
+import { secretEnv } from '@repo/ledger'
 
 const ALGORITHM = 'aes-256-gcm'
 const NONCE_LENGTH = 12
@@ -13,9 +14,9 @@ let cachedKey: Buffer | undefined
 
 function key(): Buffer {
   if (cachedKey) return cachedKey
-  const raw = process.env.FLUIDE_VAULT_KEY
+  const raw = secretEnv('FLUIDE_VAULT_KEY')
   if (!raw) {
-    throw new Error('FLUIDE_VAULT_KEY must be set (openssl rand -base64 32) before any credential can be stored or read')
+    throw new Error('FLUIDE_VAULT_KEY or FLUIDE_VAULT_KEY_FILE must be set (openssl rand -base64 32) before any credential can be stored or read')
   }
   const decoded = Buffer.from(raw, 'base64')
   if (decoded.length !== 32) throw new Error('FLUIDE_VAULT_KEY must decode to exactly 32 bytes (openssl rand -base64 32)')

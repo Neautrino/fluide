@@ -1,4 +1,4 @@
-import { db, categories } from '@repo/ledger'
+import { db, categories, secretEnv } from '@repo/ledger'
 
 export type CategorizationMatch = {
   categoryId: string
@@ -22,7 +22,7 @@ type JevSystemOneResponse = {
  * answer that doesn't match a known category) -- those really are "nothing
  * to act on" cases. */
 export async function categorizeByJev(text: string): Promise<CategorizationMatch | undefined> {
-  const apiKey = process.env.OPENCODE_API_KEY
+  const apiKey = secretEnv('OPENCODE_API_KEY')
   if (!apiKey) return undefined
 
   const cats = await db.select({ id: categories.id, detailed: categories.detailed, label: categories.label }).from(categories)
@@ -77,7 +77,7 @@ export async function categorizeByJevBatch(
   const results = new Map<string, CategorizationMatch>()
   if (items.length === 0) return results
 
-  const apiKey = process.env.OPENCODE_API_KEY
+  const apiKey = secretEnv('OPENCODE_API_KEY')
   if (!apiKey) return results
 
   const cats = await db.select({ id: categories.id, detailed: categories.detailed, label: categories.label }).from(categories)

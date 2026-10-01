@@ -1,5 +1,6 @@
 import { drizzle } from 'drizzle-orm/postgres-js'
 import postgres from 'postgres'
+import { secretEnv } from './env.js'
 import * as schema from './schema/index.js'
 
 const connectionString = process.env.DATABASE_URL
@@ -10,7 +11,8 @@ if (!connectionString) {
   )
 }
 
-const client = postgres(connectionString)
+const password = secretEnv('DATABASE_PASSWORD')
+const client = postgres(connectionString, password ? { password } : {})
 export const db = drizzle(client, { schema })
 
 /** Either the pool or an open transaction handle. Write helpers that must
