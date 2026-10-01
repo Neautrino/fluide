@@ -2,6 +2,7 @@ import { useEffect, useState, useRef } from 'react'
 import { sendJson } from '../lib/api'
 import { useApp, type View } from '../lib/app-context'
 import { useHiddenAmounts, useTheme } from '../lib/prefs'
+import { Notifications } from './Notifications'
 import { NAV } from './Sidebar'
 
 function getGreeting(date: Date) {
@@ -84,22 +85,22 @@ export function Header() {
 
   return (
     <header className="flex items-center gap-4 pt-[26px]">
-      <div>
+      <div className="max-md:min-w-0">
         <small className="mb-[3px] block text-[13px] text-ink-2">
           {topLine}
         </small>
-        <h1 className="whitespace-nowrap font-display text-[23px] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">
+        <h1 className="truncate font-display text-[23px] font-extrabold leading-[1.05] tracking-[-0.02em] text-ink">
           {title}
         </h1>
       </div>
 
-      <div className="ml-auto flex items-center gap-4">
+      <div className="ml-auto flex items-center gap-4 md:min-w-0">
         {syncError && <span className="text-[12px] font-medium text-broken">{syncError}</span>}
         
         {view !== 'assistant' && (
           <form
             onSubmit={handleAsk}
-            className="hidden relative md:flex w-[360px] xl:w-[420px] items-center gap-[9px] h-[40px] rounded-[20px] border border-line bg-surface px-1.5 pl-[14px]"
+            className="hidden relative md:flex w-[360px] min-w-0 xl:w-[420px] items-center gap-[9px] h-[40px] rounded-[20px] border border-line bg-surface px-1.5 pl-[14px]"
           >
             <svg viewBox="0 0 16 16" className="h-4 w-4 flex-none text-ink-2" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinejoin="round">
               <path d="M8 1.8 9.3 6.7 14.2 8 9.3 9.3 8 14.2 6.7 9.3 1.8 8 6.7 6.7z" />
@@ -119,7 +120,7 @@ export function Header() {
           </form>
         )}
 
-        <div className="flex gap-2">
+        <div className="flex flex-none gap-2">
           <button
             type="button"
             className="grid h-[40px] w-[40px] flex-none place-items-center rounded-full border border-line-strong bg-surface hover:bg-surface-2 transition-colors disabled:opacity-50"
@@ -170,6 +171,8 @@ export function Header() {
               <path d="M8 2a6 6 0 0 0 0 12z" fill="currentColor" />
             </svg>
           </button>
+
+          <Notifications />
         </div>
       </div>
     </header>
