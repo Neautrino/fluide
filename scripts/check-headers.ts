@@ -12,6 +12,7 @@ const ALLOWED = new Set([
   'apps/server/src/connection-store.ts',
   'apps/server/src/connector-errors.ts',
   'apps/server/src/enable-banking-link.ts',
+  'apps/server/src/http-guard.ts',
   'apps/server/src/ingest.ts',
   'apps/server/src/provider-credentials.ts',
   'apps/server/src/review.ts',
