@@ -2,15 +2,21 @@ import type { ConfidenceBand } from './api'
 
 const MINUS = '\u2212'
 const moneyFormatters = new Map<string, Intl.NumberFormat>()
+const MONEY_LOCALES: Record<string, string> = { USD: 'en-US', EUR: 'en-IE', INR: 'en-IN' }
+
+/** Digit grouping follows the currency, not the browser: no lakh grouping for USD in an en-IN browser. */
+export function moneyLocale(currency: string): string | undefined {
+  return MONEY_LOCALES[currency.toUpperCase()]
+}
 
 function moneyFormatter(currency: string): Intl.NumberFormat {
   const code = currency.toUpperCase()
   let f = moneyFormatters.get(code)
   if (!f) {
     try {
-      f = new Intl.NumberFormat(undefined, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
+      f = new Intl.NumberFormat(moneyLocale(code), { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol' })
     } catch {
-      f = new Intl.NumberFormat(undefined, { minimumFractionDigits: 2, maximumFractionDigits: 2 })
+      f = new Intl.NumberFormat(moneyLocale(code), { minimumFractionDigits: 2, maximumFractionDigits: 2 })
     }
     moneyFormatters.set(code, f)
   }

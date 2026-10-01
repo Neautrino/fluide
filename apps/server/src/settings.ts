@@ -1,8 +1,15 @@
-/* SOURCE OF TRUTH: writes to gate_settings (the confidence gate's thresholds).
- * Invariant: validate() rejects everything the gate_settings CHECKs reject (400, not a constraint 500).
+/* SOURCE OF TRUTH: writes to gate_settings and tenant_settings; DISPLAY_CURRENCIES allowlist.
+ * Invariant: validation rejects everything the settings CHECKs reject (400, not a constraint 500).
  * See: ADR 002 — why thresholds live in the DB
  */
-import { db, gateSettings, getGateSettings, type GateSettings } from '@repo/ledger'
+import {
+  db,
+  gateSettings,
+  getGateSettings,
+  saveTenantSettings,
+  type GateSettings,
+  type TenantSettings,
+} from '@repo/ledger'
 
 export type GateSettingsInput = Omit<GateSettings, 'updatedAt'>
 
@@ -39,4 +46,20 @@ export async function saveGateSettings(
     .values({ tenantId, ...values })
     .onConflictDoUpdate({ target: gateSettings.tenantId, set: values })
   return { ok: true, settings: await getGateSettings(tenantId) }
+}
+
+export const DISPLAY_CURRENCIES = ['USD', 'EUR', 'INR'] as const
+export type DisplayCurrency = (typeof DISPLAY_CURRENCIES)[number]
+
+export const isDisplayCurrency = (value: unknown): value is DisplayCurrency =>
+  typeof value === 'string' && (DISPLAY_CURRENCIES as readonly string[]).includes(value)
+
+export async function saveGeneralSettings(
+  tenantId: string,
+  input: { displayCurrency?: unknown },
+): Promise<{ ok: true; settings: TenantSettings } | { ok: false; error: string }> {
+  if (!isDisplayCurrency(input.displayCurrency)) {
+    return { ok: false, error: `displayCurrency must be one of ${DISPLAY_CURRENCIES.join(', ')}` }
+  }
+  return { ok: true, settings: await saveTenantSettings(tenantId, { displayCurrency: input.displayCurrency }) }
 }

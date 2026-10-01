@@ -156,9 +156,10 @@ type Props = {
   accounts: string[]
   onAccounts: (ids: string[]) => void
   data: CashFlow | undefined
+  currency: string
 }
 
-export function Controls({ month, onMonth, compare, onCompare, accounts, onAccounts, data }: Props) {
+export function Controls({ month, onMonth, compare, onCompare, accounts, onAccounts, data, currency }: Props) {
   const now = currentMonth()
   const months = Array.from({ length: 13 }, (_, i) => shiftMonth(now, -i))
   return (
@@ -180,7 +181,7 @@ export function Controls({ month, onMonth, compare, onCompare, accounts, onAccou
       <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
         <span className="text-[11.5px] whitespace-nowrap text-ink-3">
           <span aria-hidden className="mr-1.5 inline-block size-1.5 rounded-full bg-positive align-[1px]" />
-          USD accounts · {monthRange(month)}
+          {currency} accounts · {monthRange(month)}
         </span>
         <Popover
           label="How we count"

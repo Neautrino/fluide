@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState, type KeyboardEvent, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import type { CashFlowFilter } from '../../lib/api'
-import { formatMoneyParts } from '../../lib/format'
+import { formatMoneyParts, moneyLocale } from '../../lib/format'
 import './cashflow.css'
 
 /** Drill-down: `token` is a `/cashflow/transactions` filter whose total equals `amount`. */
@@ -18,9 +18,9 @@ function formatter(cache: Map<string, Intl.NumberFormat>, currency: string, opti
   let f = cache.get(code)
   if (!f) {
     try {
-      f = new Intl.NumberFormat(undefined, { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', ...options })
+      f = new Intl.NumberFormat(moneyLocale(code), { style: 'currency', currency: code, currencyDisplay: 'narrowSymbol', ...options })
     } catch {
-      f = new Intl.NumberFormat(undefined, options)
+      f = new Intl.NumberFormat(moneyLocale(code), options)
     }
     cache.set(code, f)
   }

@@ -98,6 +98,16 @@ export type GateSettings = {
   updatedAt: string | null
 }
 
+export type GeneralSettings = { displayCurrency: string }
+
+export function getGeneralSettings(signal?: AbortSignal): Promise<GeneralSettings> {
+  return getJson<{ settings: GeneralSettings }>('/api/settings/general', signal).then((r) => r.settings)
+}
+
+export function putGeneralSettings(settings: GeneralSettings): Promise<GeneralSettings> {
+  return sendJson<{ settings: GeneralSettings }>('PUT', '/api/settings/general', settings).then((r) => r.settings)
+}
+
 export type ProviderCredentialsStatus = { configured: boolean; updatedAt?: string }
 
 export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' | 'all_time'

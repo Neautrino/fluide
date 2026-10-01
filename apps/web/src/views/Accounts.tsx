@@ -12,7 +12,7 @@ import { ConnectEuropeanBank } from '../components/ConnectEuropeanBank'
 import { Empty, ErrorState, Loading } from '../components/ui/States'
 import { Money } from '../components/ui/Typography'
 import { getJson, type AccountBalance, type ConnectionStatus, type ConnectionSummary, type LedgerRow } from '../lib/api'
-import { useApp } from '../lib/app-context'
+import { useApp, useDisplayCurrency } from '../lib/app-context'
 import { summarizeConnections, timeAgo } from '../lib/connection-health'
 import { formatLedgerDate, formatLocalDate, formatMoney, formatTimestamp } from '../lib/format'
 import { useResource } from '../lib/useResource'
@@ -117,8 +117,9 @@ function AccountsBody({
   onSettings: () => void
   onAddBank: () => void
 }) {
+  const currency = useDisplayCurrency()
   const live = accounts.filter(isLive)
-  const main = totalsByCurrency(live).find((t) => t.currency === 'USD')
+  const main = totalsByCurrency(live).find((t) => t.currency === currency)
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the clock whenever connections are (re)loaded
   const now = useMemo(() => Date.now(), [connections])
   const { live: liveConnections, syncStamp: stamp } = summarizeConnections(connections ?? [], now)
@@ -141,7 +142,7 @@ function AccountsBody({
         </div>
       )}
       {live.length > 0 && (
-        <BalanceSheet accounts={live} connections={connections} main="USD" mainTotals={main} now={now} onOpen={onOpen} onAddBank={onAddBank} />
+        <BalanceSheet accounts={live} connections={connections} main={currency} mainTotals={main} now={now} onOpen={onOpen} onAddBank={onAddBank} />
       )}
       <NoLongerConnected accounts={accounts.filter((a) => !isLive(a))} onOpen={onOpen} />
     </>

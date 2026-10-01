@@ -3,6 +3,7 @@ import { scrollToSection } from './scroll'
 import { plural } from './time'
 
 const SECTIONS = [
+  { id: 'general', label: 'General' },
   { id: 'connections', label: 'Connections' },
   { id: 'categorization', label: 'Categorization' },
 ] as const
@@ -34,7 +35,6 @@ export function SettingsNav({ brokenCount }: { brokenCount: number }) {
       aria-label="Settings sections"
       className="flex flex-wrap items-center gap-x-1 gap-y-1 border-b border-line pb-2 min-[1280px]:sticky min-[1280px]:top-6 min-[1280px]:flex-col min-[1280px]:items-stretch min-[1280px]:gap-0.5 min-[1280px]:border-r min-[1280px]:border-b-0 min-[1280px]:pr-3.5 min-[1280px]:pb-0"
     >
-      <p className="px-2.5 text-[12.5px] font-bold text-ink-2 min-[1280px]:pb-2">Settings</p>
       {SECTIONS.map((s) => (
         <a
           key={s.id}

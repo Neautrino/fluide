@@ -2,7 +2,8 @@ import { useCallback, useMemo, useState, type ComponentType } from 'react'
 import { EnableBankingCallback } from './components/EnableBankingCallback'
 import { Header } from './components/Header'
 import { Sidebar } from './components/Sidebar'
-import { getJson, type ReviewItem } from './lib/api'
+import { ErrorState, Loading } from './components/ui/States'
+import { getGeneralSettings, getJson, type ReviewItem } from './lib/api'
 import { AppContext, type View } from './lib/app-context'
 import { useResource } from './lib/useResource'
 import { Accounts } from './views/Accounts'
@@ -23,6 +24,8 @@ const VIEWS: Record<Exclude<View, 'assistant'>, ComponentType> = {
   rules: Rules,
   settings: Settings,
 }
+
+const CURRENCY_VIEWS: Partial<Record<View, true>> = { overview: true, accounts: true, cashflow: true, transactions: true }
 
 function App() {
   const [view, setView] = useState<View>('overview')
@@ -49,13 +52,17 @@ function App() {
     version,
   )
   const reviewCount = queue.data ?? null
+  const loaded = useResource(getGeneralSettings, version)
+  const settings = useMemo(() => loaded, [loaded.data, loaded.error, loaded.loading, loaded.reload]) // eslint-disable-line react-hooks/exhaustive-deps -- useResource returns a fresh object each render
+  const currency = settings.error ? null : (settings.data?.displayCurrency ?? null)
 
   const ctx = useMemo(
-    () => ({ view, navigate, version, invalidate, reviewCount, pendingQuestion, ask, clearPendingQuestion }),
-    [view, navigate, version, invalidate, reviewCount, pendingQuestion, ask, clearPendingQuestion],
+    () => ({ view, navigate, version, invalidate, reviewCount, pendingQuestion, ask, clearPendingQuestion, currency, settings }),
+    [view, navigate, version, invalidate, reviewCount, pendingQuestion, ask, clearPendingQuestion, currency, settings],
   )
 
   const ActiveView = view === 'assistant' ? null : VIEWS[view]
+  const needsCurrency = CURRENCY_VIEWS[view] === true
 
   return (
     <AppContext.Provider value={ctx}>
@@ -67,7 +74,13 @@ function App() {
             <EnableBankingCallback />
             {ActiveView && (
               <div key={`${view}:${visit}`} className="animate-rise flex min-w-0 flex-1 flex-col">
-                <ActiveView />
+                {needsCurrency && settings.error ? (
+                  <ErrorState title="Couldn't load your display currency" message={settings.error} onRetry={settings.reload} />
+                ) : needsCurrency && !currency ? (
+                  <Loading label="Loading settings" rows={6} />
+                ) : (
+                  <ActiveView />
+                )}
               </div>
             )}
             <div hidden={view !== 'assistant'} className="min-w-0">

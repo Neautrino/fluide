@@ -8,7 +8,7 @@ import { Button } from '../components/ui/Button'
 import { Select } from '../components/ui/Field'
 import { Empty, ErrorState, Loading, Notice } from '../components/ui/States'
 import { errorMessage, getJson, sendJson, getCashFlow, type Account, type CategorizeResult, type LedgerRow, type SyncOutcome, type ReviewItem, type CashFlowParams } from '../lib/api'
-import { useApp } from '../lib/app-context'
+import { useApp, useDisplayCurrency } from '../lib/app-context'
 import { formatMoneyParts, formatMoney, toNumber } from '../lib/format'
 import { useResource } from '../lib/useResource'
 
@@ -89,6 +89,7 @@ function useIsDesktop() {
 
 export function Transactions() {
   const { version, invalidate, navigate } = useApp()
+  const currency = useDisplayCurrency()
   const [query, setQuery] = useState('')
   const [category, setCategory] = useState('')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
@@ -121,8 +122,8 @@ export function Transactions() {
   )
 
   const currentMonthStr = new Date().toISOString().slice(0, 7)
-  const cfParams: CashFlowParams = useMemo(() => ({ month: currentMonthStr, compare: 'average', accounts: [], currency: null }), [currentMonthStr])
-  const cashFlow = useResource((signal) => getCashFlow(cfParams, signal), `${currentMonthStr}|${version}`)
+  const cfParams: CashFlowParams = useMemo(() => ({ month: currentMonthStr, compare: 'average', accounts: [], currency }), [currentMonthStr, currency])
+  const cashFlow = useResource((signal) => getCashFlow(cfParams, signal), `${currentMonthStr}|${currency}|${version}`)
 
   const categoryOptions = useMemo(() => {
     const seen: Record<string, string> = {}

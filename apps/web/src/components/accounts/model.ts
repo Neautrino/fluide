@@ -1,5 +1,5 @@
 import type { AccountBalance, AccountKind, ConnectionSummary } from '../../lib/api'
-import { formatMoney } from '../../lib/format'
+import { formatMoney, moneyLocale } from '../../lib/format'
 import { connectionHealth, isHttps, isLiveConnection, type Health } from '../../lib/connection-health'
 
 export const CARD = 'rounded-lg border border-line bg-surface shadow-1'
@@ -133,7 +133,7 @@ export function accountHealth(b: AccountBalance, connections: ConnectionSummary[
 
 export function currencySymbol(currency: string): string {
   try {
-    const parts = new Intl.NumberFormat(undefined, { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0)
+    const parts = new Intl.NumberFormat(moneyLocale(currency), { style: 'currency', currency, currencyDisplay: 'narrowSymbol' }).formatToParts(0)
     return parts.find((p) => p.type === 'currency')?.value ?? currency
   } catch {
     return currency

@@ -12,15 +12,16 @@ import { SpendByMonth } from '../components/overview/SpendByMonth'
 import { WhereItWent } from '../components/overview/WhereItWent'
 import { usePossibleTransfers } from '../components/review/data'
 import { getCashFlow, getJson, type AccountBalance, type ConnectionSummary, type ReviewItem } from '../lib/api'
-import { useApp } from '../lib/app-context'
+import { useApp, useDisplayCurrency } from '../lib/app-context'
 import { useResource } from '../lib/useResource'
 
 export function Overview() {
   const { version, invalidate, navigate, ask } = useApp()
+  const currency = useDisplayCurrency()
   const [now] = useState(Date.now)
   const [month] = useState(currentMonth)
 
-  const flow = useResource((signal) => getCashFlow({ month, compare: 'average', accounts: [], currency: 'USD' }, signal), version)
+  const flow = useResource((signal) => getCashFlow({ month, compare: 'average', accounts: [], currency }, signal), `${currency}|${version}`)
   const accounts = useResource(
     (signal) => getJson<{ accounts: AccountBalance[] }>('/api/ledger/account-balances', signal).then((r) => r.accounts),
     version,
@@ -43,9 +44,9 @@ export function Overview() {
       <NeedsYouStrip connections={connections} review={review} transfers={transfers} now={now} navigate={navigate} />
       <div className="grid grid-cols-1 items-start gap-4 min-[1280px]:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
         <div className="flex min-w-0 flex-col gap-4">
-          <CashOnHand accounts={accounts} currency="USD" currencyKnown fresh={fresh} navigate={navigate} />
-          <OwnAndOwe accounts={accounts} connections={connections} currency="USD" currencyKnown now={now} navigate={navigate} />
-          <LatestTransactions latest={latest} currency="USD" fresh={fresh} navigate={navigate} />
+          <CashOnHand accounts={accounts} currency={currency} currencyKnown fresh={fresh} navigate={navigate} />
+          <OwnAndOwe accounts={accounts} connections={connections} currency={currency} currencyKnown now={now} navigate={navigate} />
+          <LatestTransactions latest={latest} currency={currency} fresh={fresh} navigate={navigate} />
         </div>
         <div className="mx-auto flex w-full min-w-0 max-w-[480px] flex-col gap-4 min-[1280px]:max-w-none">
           <SpendByMonth flow={flow} review={review} fresh={fresh} />

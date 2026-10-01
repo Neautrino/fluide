@@ -18,7 +18,7 @@ import { Transfers } from '../components/cashflow/Transfers'
 import { TrustLine } from '../components/cashflow/TrustLine'
 import { Empty, ErrorState, Loading } from '../components/ui/States'
 import { getCashFlow, getJson, type CashFlowCompare, type CashFlowParams, type ConnectionSummary } from '../lib/api'
-import { useApp } from '../lib/app-context'
+import { useApp, useDisplayCurrency } from '../lib/app-context'
 import { summarizeConnections } from '../lib/connection-health'
 import { useResource } from '../lib/useResource'
 
@@ -27,14 +27,15 @@ const HALVES = `${ROW} lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]`
 
 export function CashFlow() {
   const { version } = useApp()
+  const currency = useDisplayCurrency()
   const [month, setMonth] = useState(currentMonth)
   const [compare, setCompare] = useState<CashFlowCompare>('average')
   const [accounts, setAccounts] = useState<string[]>([])
   const [drill, setDrill] = useState<Drill | null>(null)
   const [now] = useState(Date.now)
 
-  const params: CashFlowParams = { month, compare, accounts, currency: 'USD' }
-  const paramsKey = `${month}|${compare}|${accounts.join(',')}`
+  const params: CashFlowParams = { month, compare, accounts, currency }
+  const paramsKey = `${month}|${compare}|${accounts.join(',')}|${currency}`
   const flow = useResource((signal) => getCashFlow(params, signal), `${paramsKey}|${version}`)
   const connections = useResource(
     (signal) => getJson<{ connections: ConnectionSummary[] }>('/api/providers/connections', signal).then((r) => r.connections),
@@ -64,6 +65,7 @@ export function CashFlow() {
           accounts={accounts}
           onAccounts={setAccounts}
           data={data}
+          currency={currency}
         />
 
         {flow.error && !data ? (

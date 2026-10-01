@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import { Connections } from '../components/Connections'
 import { AddConnection } from '../components/settings/AddConnection'
 import { GateCard } from '../components/settings/GateCard'
+import { GeneralCard } from '../components/settings/GeneralCard'
 import { ProviderKeys } from '../components/settings/ProviderKeys'
 import { SettingsNav } from '../components/settings/SettingsNav'
 import { TrustLine } from '../components/settings/TrustLine'
@@ -29,6 +30,7 @@ export function Settings() {
     <div className="grid grid-cols-1 items-start gap-4 min-[1280px]:grid-cols-[164px_minmax(0,1fr)] min-[1280px]:gap-[18px] min-[1361px]:grid-cols-[184px_minmax(0,1fr)] min-[1361px]:gap-[26px]">
       <SettingsNav brokenCount={broken.length} />
       <div className="flex min-w-0 flex-col gap-[18px]">
+        <GeneralCard />
         <TrustLine connections={connections.data ?? []} now={now} />
         <Connections connections={connections} now={now} />
         <AddConnection onConnected={invalidate} />
