@@ -54,6 +54,10 @@ git pull && docker compose up -d --build
 
 Migrations for the new version run automatically before the app starts.
 
+When a newer release is published, Settings → General shows "Update available"
+with a link to the release notes and this command to copy. Fluide never
+updates itself.
+
 ### Stop
 
 ```sh
@@ -95,6 +99,7 @@ Your data stays in the Docker volumes and is there on the next `docker compose u
 | opencode.ai (Jev model) | Only when `OPENCODE_API_KEY` is set and you run categorization | The description text of transactions that no categorization rule matched. |
 | OpenAI | Only when `OPENAI_API_KEY` is set and you use the Assistant | Your question and the results of the read-only ledger queries the Assistant runs, such as account balances, account masks and up to 50 transactions per query. |
 | LangSmith | Only if you set LangChain/LangSmith tracing environment variables (for example `LANGSMITH_TRACING` and `LANGSMITH_API_KEY`) | Traces of Assistant runs. |
+| GitHub (api.github.com) | At most once a day, when you open Settings, unless `FLUIDE_UPDATE_CHECK=off` | A request for the latest Fluide release. GitHub sees your IP address and the User-Agent `fluide/<version>`; nothing else is sent. |
 
 Nothing else is sent anywhere.
 

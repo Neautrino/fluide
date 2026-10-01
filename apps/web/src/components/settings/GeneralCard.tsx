@@ -1,16 +1,18 @@
-import { useState } from 'react'
-import { errorMessage, getJson, putGeneralSettings, type AccountBalance } from '../../lib/api'
+import { useEffect, useState } from 'react'
+import { errorMessage, getJson, getVersionInfo, putGeneralSettings, type AccountBalance } from '../../lib/api'
 import { useApp } from '../../lib/app-context'
 import { useResource } from '../../lib/useResource'
 import { isLive } from '../accounts/model'
 import { Segmented } from '../ui/Segmented'
 import { ErrorState, Loading } from '../ui/States'
-import { CardHeader, Stamp } from './ui'
+import { CardHeader, Stamp, TextButton } from './ui'
 
 const CURRENCIES = ['USD', 'EUR', 'INR'] as const
 type Currency = (typeof CURRENCIES)[number]
 
 type Status = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved' } | { kind: 'error'; message: string }
+
+const UPDATE_COMMAND = 'git pull && docker compose up -d --build'
 
 export function GeneralCard() {
   const { settings, version, invalidate } = useApp()
@@ -79,8 +81,73 @@ export function GeneralCard() {
               Couldn't save: {status.message}
             </p>
           )}
+          <VersionRow />
         </>
       )}
     </section>
+  )
+}
+
+function VersionRow() {
+  const info = useResource(getVersionInfo)
+  const [copied, setCopied] = useState(false)
+
+  useEffect(() => {
+    if (!copied) return
+    const timer = setTimeout(() => setCopied(false), 2000)
+    return () => clearTimeout(timer)
+  }, [copied])
+
+  const copy = () => {
+    navigator.clipboard.writeText(UPDATE_COMMAND).then(
+      () => setCopied(true),
+      () => setCopied(false),
+    )
+  }
+
+  const data = info.data
+  const latest = data?.updateAvailable ? data.latest : null
+  const statusText = info.error
+    ? 'Could not check for updates'
+    : !data
+      ? 'Checking for updates…'
+      : data.status === 'disabled'
+        ? 'Update check is off (FLUIDE_UPDATE_CHECK=off)'
+        : data.status === 'no-release'
+          ? 'No release published yet'
+          : data.status === 'unavailable'
+            ? 'Could not check for updates'
+            : latest
+              ? `Update available: v${latest.version}`
+              : 'Up to date'
+
+  return (
+    <div className="mt-4">
+      <div className="flex flex-wrap items-center gap-3">
+        <span className="text-[13px] font-semibold text-ink">Version</span>
+        {data && <span className="figures font-mono text-[12.5px] font-medium text-ink-2">{data.current}</span>}
+        <span role="status" className={`text-[12px] ${latest ? 'font-semibold text-ink' : 'text-ink-3'}`}>
+          {statusText}
+        </span>
+        {latest && (
+          <a
+            href={latest.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="text-[12px] whitespace-nowrap text-ink-3 hover:text-ink"
+          >
+            Release notes ›
+          </a>
+        )}
+      </div>
+      {latest && (
+        <div className="mt-2.5 flex flex-wrap items-center gap-3">
+          <code className="truncate rounded-sm border border-line bg-surface-2 px-[9px] py-1.5 font-mono text-[12px] font-medium text-ink">
+            {UPDATE_COMMAND}
+          </code>
+          <TextButton onClick={copy}>{copied ? 'Copied' : 'Copy'}</TextButton>
+        </div>
+      )}
+    </div>
   )
 }

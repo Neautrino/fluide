@@ -9,6 +9,7 @@ import { getTenantSettings } from '@repo/ledger'
 import { saveGeneralSettings } from '../settings.js'
 import { LOCAL_TENANT_ID } from '../ingest.js'
 import { ENABLE_BANKING_AVAILABLE } from '../enable-banking-link.js'
+import { getVersionInfo } from '../version.js'
 
 export const settingsRoutes = new Hono()
 
@@ -16,6 +17,8 @@ settingsRoutes.get('/general', async (c) => {
   const { displayCurrency } = await getTenantSettings(LOCAL_TENANT_ID)
   return c.json({ settings: { displayCurrency } })
 })
+
+settingsRoutes.get('/version', async (c) => c.json(await getVersionInfo()))
 
 settingsRoutes.put('/general', async (c) => {
   const body = await c.req.json<unknown>().catch(() => null)

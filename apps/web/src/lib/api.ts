@@ -108,6 +108,19 @@ export function putGeneralSettings(settings: GeneralSettings): Promise<GeneralSe
   return sendJson<{ settings: GeneralSettings }>('PUT', '/api/settings/general', settings).then((r) => r.settings)
 }
 
+export type VersionInfo = {
+  current: string
+  checkEnabled: boolean
+  latest: { version: string; url: string; publishedAt: string | null } | null
+  updateAvailable: boolean
+  status: 'ok' | 'no-release' | 'unavailable' | 'disabled'
+  checkedAt: string | null
+}
+
+export function getVersionInfo(signal?: AbortSignal): Promise<VersionInfo> {
+  return getJson<VersionInfo>('/api/settings/version', signal)
+}
+
 export type ProviderCredentialsStatus = { configured: boolean; updatedAt?: string }
 
 export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' | 'all_time'
