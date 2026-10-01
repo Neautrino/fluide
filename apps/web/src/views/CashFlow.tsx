@@ -30,12 +30,11 @@ export function CashFlow() {
   const [month, setMonth] = useState(currentMonth)
   const [compare, setCompare] = useState<CashFlowCompare>('average')
   const [accounts, setAccounts] = useState<string[]>([])
-  const [currency, setCurrency] = useState<string | null>(null)
   const [drill, setDrill] = useState<Drill | null>(null)
   const [now] = useState(Date.now)
 
-  const params: CashFlowParams = { month, compare, accounts, currency }
-  const paramsKey = `${month}|${compare}|${accounts.join(',')}|${currency ?? ''}`
+  const params: CashFlowParams = { month, compare, accounts, currency: 'USD' }
+  const paramsKey = `${month}|${compare}|${accounts.join(',')}`
   const flow = useResource((signal) => getCashFlow(params, signal), `${paramsKey}|${version}`)
   const connections = useResource(
     (signal) => getJson<{ connections: ConnectionSummary[] }>('/api/providers/connections', signal).then((r) => r.connections),
@@ -51,8 +50,6 @@ export function CashFlow() {
         : `${accounts.length} accounts`
   // The drawer describes the figures on screen, which stay the previous response's while a new one loads.
   const drawerMonth = data ? `${monthShortYear.format(monthStart(data.month))}${data.partial ? ' to date' : ''}` : ''
-  // The user's pick shows at once; once the scope turns out not to hold it, the server's fallback does.
-  const shownCurrency = currency && (!data || data.currencies.includes(currency)) ? currency : (data?.currency ?? null)
   const health = data && connections.data ? summarizeConnections(scopedConnections(data.accounts, accounts, connections.data), now) : null
 
   return (
@@ -66,8 +63,6 @@ export function CashFlow() {
           onCompare={setCompare}
           accounts={accounts}
           onAccounts={setAccounts}
-          currency={shownCurrency}
-          onCurrency={setCurrency}
           data={data}
         />
 
@@ -78,7 +73,6 @@ export function CashFlow() {
         ) : data.totals.moneyIn === 0 &&
           data.totals.moneyOut === 0 &&
           data.notCounted.length === 0 &&
-          data.otherCurrencies.length === 0 &&
           data.possibleTransfers.count === 0 ? (
           <div className="border-t border-line">
             <Empty title={`Nothing counted in ${monthLong.format(monthStart(data.month))}`}>
@@ -100,7 +94,7 @@ export function CashFlow() {
             </div>
             <div className={HALVES}>
               <DailySpend data={data} />
-              <NotCounted data={data} params={params} paramsKey={paramsKey} onCurrency={setCurrency} />
+              <NotCounted data={data} params={params} paramsKey={paramsKey} />
             </div>
             <div
               className={`${ROW} lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] min-[110rem]:grid-cols-[minmax(0,1.3fr)_minmax(0,.85fr)_minmax(0,1.1fr)]`}

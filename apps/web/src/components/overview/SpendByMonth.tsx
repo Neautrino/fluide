@@ -111,7 +111,7 @@ function Stat({ label, sign, value, currency, bg, children }: { label: string; s
   )
 }
 
-function Body({ flow, items, onCurrency }: { flow: CashFlow; items: ReviewItem[]; onCurrency: (currency: string) => void }) {
+function Body({ flow, items }: { flow: CashFlow; items: ReviewItem[] }) {
   const currency = flow.currency
   const month = shortMonth(flow.month)
   const typical = typicalByNow(flow)
@@ -168,36 +168,6 @@ function Body({ flow, items, onCurrency }: { flow: CashFlow; items: ReviewItem[]
           ))}
         </p>
       )}
-      {flow.otherCurrencies.length > 0 && (
-        <p className="mt-1.5 text-[11.5px] leading-[1.45] text-ink-3">
-          {flow.otherCurrencies.map((o, i) => (
-            <Fragment key={o.currency}>
-              {i > 0 && ' · '}
-              <button
-                type="button"
-                onClick={() => onCurrency(o.currency)}
-                title={`Switch the page to ${o.currency}`}
-                className="cursor-pointer rounded-[2px] underline decoration-ink-3 decoration-dotted underline-offset-[3px] hover:text-ink hover:decoration-ink"
-              >
-                Other currency ({o.currency}){' '}
-                {o.moneyIn > 0 && (
-                  <>
-                    <span className="amt">{formatMoney(o.moneyIn, o.currency)}</span> in
-                  </>
-                )}
-                {o.moneyIn > 0 && o.moneyOut > 0 && ', '}
-                {o.moneyOut > 0 && (
-                  <>
-                    <span className="amt">{formatMoney(o.moneyOut, o.currency)}</span> out
-                  </>
-                )}{' '}
-                ({o.count})
-              </button>
-            </Fragment>
-          ))}{' '}
-          — not in these totals
-        </p>
-      )}
       <div className="mt-3 grid grid-cols-2 gap-2.5">
         <Stat label={`In · ${month}`} sign="+" value={moneyIn} currency={currency} bg="bg-tile-3">
           <svg aria-hidden viewBox="0 0 16 16" className="size-3.5" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round">
@@ -228,21 +198,11 @@ function Body({ flow, items, onCurrency }: { flow: CashFlow; items: ReviewItem[]
   )
 }
 
-export function SpendByMonth({
-  flow,
-  review,
-  fresh,
-  onCurrency,
-}: {
-  flow: Resource<CashFlow>
-  review: Resource<ReviewItem[]>
-  fresh: Fresh | null
-  onCurrency: (currency: string) => void
-}) {
+export function SpendByMonth({ flow, review, fresh }: { flow: Resource<CashFlow>; review: Resource<ReviewItem[]>; fresh: Fresh | null }) {
   return (
     <OverviewCard title="Spend by month" aside={<Freshness fresh={fresh} />} className={flow.loading && flow.data ? 'opacity-60' : ''}>
       <Pending resource={flow} what="spending" ready={flow.data !== undefined} />
-      {flow.data && <Body flow={flow.data} items={review.data ?? []} onCurrency={onCurrency} />}
+      {flow.data && <Body flow={flow.data} items={review.data ?? []} />}
     </OverviewCard>
   )
 }

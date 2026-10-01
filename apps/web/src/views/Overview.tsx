@@ -1,5 +1,4 @@
 import { useState } from 'react'
-import { isLive, totalsByCurrency } from '../components/accounts/model'
 import { currentMonth } from '../components/cashflow/figures'
 import { CashOnHand } from '../components/overview/CashOnHand'
 import { ConnectFirst } from '../components/overview/ConnectFirst'
@@ -18,11 +17,10 @@ import { useResource } from '../lib/useResource'
 
 export function Overview() {
   const { version, invalidate, navigate, ask } = useApp()
-  const [currency, setCurrency] = useState<string | null>(null)
   const [now] = useState(Date.now)
   const [month] = useState(currentMonth)
 
-  const flow = useResource((signal) => getCashFlow({ month, compare: 'average', accounts: [], currency }, signal), `${currency ?? ''}|${version}`)
+  const flow = useResource((signal) => getCashFlow({ month, compare: 'average', accounts: [], currency: 'USD' }, signal), version)
   const accounts = useResource(
     (signal) => getJson<{ accounts: AccountBalance[] }>('/api/ledger/account-balances', signal).then((r) => r.accounts),
     version,
@@ -37,34 +35,20 @@ export function Overview() {
 
   if (accounts.data?.length === 0) return <ConnectFirst onConnected={invalidate} />
 
-  // The balance cards wait for the cash-flow response to name the currency; if it fails, the counted balances decide.
-  const live = totalsByCurrency((accounts.data ?? []).filter(isLive))
-  const shown = flow.data
-    ? currency && flow.data.currencies.includes(currency)
-      ? currency
-      : flow.data.currency
-    : flow.error
-      ? (currency ?? live[0]?.currency ?? null)
-      : null
-  const currencyKnown = flow.data !== undefined || flow.error !== null
-  const currencies = flow.data?.currencies ?? live.map((t) => t.currency)
-  const pick = (c: string) => {
-    if (c !== shown) setCurrency(c)
-  }
   const fresh = freshness(accounts.data, connections.data, now)
 
   return (
     <div className="flex flex-col gap-5">
-      <PromptChips flow={flow.data} currencies={currencies} currency={shown} onCurrency={pick} ask={ask} />
+      <PromptChips flow={flow.data} ask={ask} />
       <NeedsYouStrip connections={connections} review={review} transfers={transfers} now={now} navigate={navigate} />
       <div className="grid grid-cols-1 items-start gap-4 min-[1280px]:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
         <div className="flex min-w-0 flex-col gap-4">
-          <CashOnHand accounts={accounts} currency={shown} currencyKnown={currencyKnown} fresh={fresh} navigate={navigate} />
-          <OwnAndOwe accounts={accounts} connections={connections} currency={shown} currencyKnown={currencyKnown} now={now} navigate={navigate} />
-          <LatestTransactions latest={latest} currency={shown} fresh={fresh} navigate={navigate} />
+          <CashOnHand accounts={accounts} currency="USD" currencyKnown fresh={fresh} navigate={navigate} />
+          <OwnAndOwe accounts={accounts} connections={connections} currency="USD" currencyKnown now={now} navigate={navigate} />
+          <LatestTransactions latest={latest} currency="USD" fresh={fresh} navigate={navigate} />
         </div>
         <div className="mx-auto flex w-full min-w-0 max-w-[480px] flex-col gap-4 min-[1280px]:max-w-none">
-          <SpendByMonth flow={flow} review={review} fresh={fresh} onCurrency={pick} />
+          <SpendByMonth flow={flow} review={review} fresh={fresh} />
           <WhereItWent flow={flow} review={review} fresh={fresh} navigate={navigate} />
         </div>
       </div>

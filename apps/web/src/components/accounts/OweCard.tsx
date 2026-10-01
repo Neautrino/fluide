@@ -7,7 +7,7 @@ function countOf(accounts: AccountBalance[], kind: AccountBalance['kind'], curre
   return accounts.filter((b) => b.kind === kind && b.currency === currency && b.countsTowardTotals && b.balance !== null).length
 }
 
-export function OweCard({ totals: t, others, accounts }: { totals: CurrencyTotals; others: CurrencyTotals[]; accounts: AccountBalance[] }) {
+export function OweCard({ totals: t, accounts }: { totals: CurrencyTotals; accounts: AccountBalance[] }) {
   const inCurrency = accounts.filter((b) => b.currency === t.currency)
   const usage = creditUsage(inCurrency)
   const cards = countOf(accounts, 'credit', t.currency)
@@ -47,17 +47,6 @@ export function OweCard({ totals: t, others, accounts }: { totals: CurrencyTotal
           </li>
         ))}
       </ul>
-      {others.length > 0 && (
-        <p className="figures border-t border-ink-inverse/20 pt-2.5 text-[11.5px] opacity-70">
-          Also owed in other currencies, not added:{' '}
-          {others.map((o, i) => (
-            <span key={o.currency}>
-              {i > 0 && ' · '}
-              <span className="amt">{formatMoney(o.owed, o.currency)}</span>
-            </span>
-          ))}
-        </p>
-      )}
     </section>
   )
 }

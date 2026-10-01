@@ -22,10 +22,6 @@ function monthRange(month: string): string {
   return `1–${end} ${short} ${d.getUTCFullYear()}${partial ? ' · to date' : ''}`
 }
 
-function joinNames(names: string[]): string {
-  return names.length < 2 ? names.join('') : `${names.slice(0, -1).join(', ')} and ${names[names.length - 1]}`
-}
-
 function Popover({
   button,
   buttonClassName,
@@ -159,15 +155,12 @@ type Props = {
   onCompare: (c: CashFlowCompare) => void
   accounts: string[]
   onAccounts: (ids: string[]) => void
-  currency: string | null
-  onCurrency: (c: string) => void
   data: CashFlow | undefined
 }
 
-export function Controls({ month, onMonth, compare, onCompare, accounts, onAccounts, currency, onCurrency, data }: Props) {
+export function Controls({ month, onMonth, compare, onCompare, accounts, onAccounts, data }: Props) {
   const now = currentMonth()
   const months = Array.from({ length: 13 }, (_, i) => shiftMonth(now, -i))
-  const multi = data && data.currencies.length > 1
   return (
     <div className="flex flex-wrap items-center gap-x-3 gap-y-2">
       <Select pill aria-label="Month" value={month} onChange={(e) => onMonth(e.target.value)} className="w-[250px]">
@@ -184,21 +177,11 @@ export function Controls({ month, onMonth, compare, onCompare, accounts, onAccou
         <Segmented label="Compare with" value={compare} options={COMPARE_OPTIONS} onChange={onCompare} />
       </span>
       {data && <AccountFilter all={data.accounts} selected={accounts} onChange={onAccounts} />}
-      {multi && currency && (
-        <Segmented label="Currency" value={currency} options={data.currencies.map((c) => ({ value: c, label: c }))} onChange={onCurrency} />
-      )}
       <div className="ml-auto flex flex-wrap items-center gap-x-3 gap-y-2">
-        {multi && (
-          <span className="rounded-full border border-line bg-surface px-[9px] py-[3px] text-[11.5px] font-semibold whitespace-nowrap text-ink-2">
-            {joinNames(data.currencies)} are kept separate · not converted
-          </span>
-        )}
-        {currency && (
-          <span className="text-[11.5px] whitespace-nowrap text-ink-3">
-            <span aria-hidden className="mr-1.5 inline-block size-1.5 rounded-full bg-positive align-[1px]" />
-            {currency} accounts · {monthRange(month)}
-          </span>
-        )}
+        <span className="text-[11.5px] whitespace-nowrap text-ink-3">
+          <span aria-hidden className="mr-1.5 inline-block size-1.5 rounded-full bg-positive align-[1px]" />
+          USD accounts · {monthRange(month)}
+        </span>
         <Popover
           label="How we count"
           align="right"

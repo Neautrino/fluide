@@ -118,11 +118,7 @@ function AccountsBody({
   onAddBank: () => void
 }) {
   const live = accounts.filter(isLive)
-  const totals = totalsByCurrency(live)
-  const main = totals[0]
-  // Like the summary's currency (ADR 029): the currency with the most counted accounts, else the first by code.
-  const mainCurrency = main?.currency ?? [...new Set(live.map((a) => a.currency))].sort()[0]
-  const otherTotals = totals.slice(1)
+  const main = totalsByCurrency(live).find((t) => t.currency === 'USD')
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the clock whenever connections are (re)loaded
   const now = useMemo(() => Date.now(), [connections])
   const { live: liveConnections, syncStamp: stamp } = summarizeConnections(connections ?? [], now)
@@ -137,39 +133,19 @@ function AccountsBody({
           No net worth to show: every account is either left out of net worth or has no known balance.
         </p>
       )}
-      {main && (
-        <NetWorthCard
-          totals={main}
-          otherCurrencies={uniqueCurrencies(live, main.currency)}
-          uncounted={live.filter((a) => !a.countsTowardTotals).length}
-          stamp={stamp}
-        />
-      )}
+      {main && <NetWorthCard totals={main} uncounted={live.filter((a) => !a.countsTowardTotals).length} stamp={stamp} />}
       {(hasDebt || showAge) && (
         <div className={`grid gap-4 ${hasDebt && showAge ? 'lg:grid-cols-2' : ''}`}>
-          {main && hasDebt && <OweCard totals={main} others={otherTotals.filter((t) => t.owed > 0)} accounts={live} />}
+          {main && hasDebt && <OweCard totals={main} accounts={live} />}
           {showAge && <DataAge connections={liveConnections} stamp={stamp} now={now} />}
         </div>
       )}
-      {mainCurrency && (
-        <BalanceSheet
-          accounts={live}
-          connections={connections}
-          main={mainCurrency}
-          mainTotals={main}
-          now={now}
-          onOpen={onOpen}
-          onSettings={onSettings}
-          onAddBank={onAddBank}
-        />
+      {live.length > 0 && (
+        <BalanceSheet accounts={live} connections={connections} main="USD" mainTotals={main} now={now} onOpen={onOpen} onAddBank={onAddBank} />
       )}
       <NoLongerConnected accounts={accounts.filter((a) => !isLive(a))} onOpen={onOpen} />
     </>
   )
-}
-
-function uniqueCurrencies(list: AccountBalance[], except: string): string[] {
-  return [...new Set(list.filter((a) => a.currency !== except).map((a) => a.currency))].sort()
 }
 
 function NoLongerConnected({ accounts, onOpen }: { accounts: AccountBalance[]; onOpen: (id: string) => void }) {

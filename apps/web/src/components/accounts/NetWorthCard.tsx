@@ -24,17 +24,7 @@ function SplitBar({ parts, widthPct, label }: { parts: { key: string; bg: string
   )
 }
 
-export function NetWorthCard({
-  totals: t,
-  otherCurrencies,
-  uncounted,
-  stamp,
-}: {
-  totals: CurrencyTotals
-  otherCurrencies: string[]
-  uncounted: number
-  stamp: string | null
-}) {
+export function NetWorthCard({ totals: t, uncounted, stamp }: { totals: CurrencyTotals; uncounted: number; stamp: string | null }) {
   const hidden = useAmountsHidden()
   const scale = Math.max(t.assets, t.owed)
   const assetsPct = scale > 0 ? (Math.max(0, t.assets) / scale) * 100 : 0
@@ -148,26 +138,17 @@ export function NetWorthCard({
         </div>
       </div>
 
-      {(otherCurrencies.length > 0 || uncounted > 0) && (
+      {uncounted > 0 && (
         <p className="mt-3.5 flex items-start gap-2 border-t border-dashed border-line pt-3 text-[12px] leading-[1.45] text-ink-3">
           <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" aria-hidden className="mt-px size-3.5 shrink-0">
             <circle cx="8" cy="8" r="6.5" />
             <path d="M8 7v4.2M8 4.8v.1" />
           </svg>
           <span>
-            {otherCurrencies.length > 0 && (
-              <>
-                <b className="font-semibold text-ink-2">Excludes</b> money held in <b className="font-semibold text-ink-2">{otherCurrencies.join(', ')}</b>, which stays in its own currency below.{' '}
-              </>
-            )}
-            {uncounted > 0 && (
-              <>
-                <b className="font-semibold text-ink-2">
-                  {uncounted} account{uncounted === 1 ? '' : 's'} not counted
-                </b>{' '}
-                (left out of net worth).
-              </>
-            )}
+            <b className="font-semibold text-ink-2">
+              {uncounted} account{uncounted === 1 ? '' : 's'} not counted
+            </b>{' '}
+            (left out of net worth).
           </span>
         </p>
       )}

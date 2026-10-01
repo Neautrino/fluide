@@ -4,7 +4,6 @@ import { shortName, timeAgo } from '../../lib/connection-health'
 import { formatMoney } from '../../lib/format'
 import { AccountIcon } from '../AccountIcon'
 import { Segmented } from '../ui/Segmented'
-import { OtherCurrencies } from './OtherCurrencies'
 import { accountHealth, CARD, CARD_TITLE, connectionFor, creditUsage, debtNote, displayBalance, identity, isDebt, KIND_GROUPS, owedSign, percent, PROVIDER_LABEL, shareOf, TAG, totalsByCurrency, usedPercent, type CurrencyTotals } from './model'
 import { Amt, MismatchNote, StatusDot } from './shared'
 
@@ -143,7 +142,6 @@ export function BalanceSheet({
   mainTotals,
   now,
   onOpen,
-  onSettings,
   onAddBank,
 }: {
   accounts: AccountBalance[]
@@ -152,7 +150,6 @@ export function BalanceSheet({
   mainTotals: CurrencyTotals | undefined
   now: number
   onOpen: (id: string) => void
-  onSettings: () => void
   onAddBank: () => void
 }) {
   const [mode, setMode] = useState<Mode>('kind')
@@ -163,7 +160,6 @@ export function BalanceSheet({
   const institutions = uniq(accounts.map((a) => a.institutionName)).length
   const needAttention = connections ? accounts.filter((a) => accountHealth(a, conns, now).severity === 'broken').length : 0
   const current = accounts.length - needAttention
-  const others = accounts.filter((a) => a.currency !== main)
 
   return (
     <section aria-label="Accounts" className={`${CARD} overflow-hidden`}>
@@ -173,7 +169,6 @@ export function BalanceSheet({
           <p className="mt-0.5 text-[12px] text-ink-3">
             {accounts.length} account{accounts.length === 1 ? '' : 's'}
             {institutions > 0 && ` at ${institutions} institution${institutions === 1 ? '' : 's'}`} · {inMain} in {main}
-            {others.length > 0 && ` · ${others.length} in other currencies`}
           </p>
         </div>
         <div className="ml-auto flex flex-wrap items-center justify-end gap-2">
@@ -219,18 +214,11 @@ export function BalanceSheet({
         ))}
       </div>
 
-      {mode === 'kind' && others.length > 0 && <OtherCurrencies accounts={others} connections={conns} now={now} onSettings={onSettings} />}
-
       {mainTotals && (
         <div className="grid grid-cols-2 items-end gap-x-8 gap-y-3 bg-surface-2 px-6 pt-3.5 pb-4 sm:grid-cols-[repeat(3,auto)_1fr]">
           <FootFigure label="Assets" value={mainTotals.assets} currency={main} />
           <FootFigure label={mainTotals.owed < 0 ? 'In credit' : 'Owed'} value={-mainTotals.owed} currency={main} />
           <FootFigure label={`Net worth · ${main}`} value={mainTotals.net} currency={main} />
-          {others.length > 0 && (
-            <p className="col-span-2 text-[12px] leading-[1.45] text-ink-3 sm:col-span-1 sm:text-right">
-              Other currencies are shown above and left out of these.
-            </p>
-          )}
         </div>
       )}
     </section>

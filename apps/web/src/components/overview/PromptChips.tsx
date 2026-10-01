@@ -1,5 +1,4 @@
 import type { CashFlow } from '../../lib/api'
-import { Segmented } from '../ui/Segmented'
 import { risingCategory } from './model'
 
 /** Only questions the assistant's tools can answer: merchants, categories, and income against spending. */
@@ -13,30 +12,12 @@ function questionsFor(flow: CashFlow): string[] {
   return questions
 }
 
-export function PromptChips({
-  flow,
-  currencies,
-  currency,
-  onCurrency,
-  ask,
-}: {
-  flow: CashFlow | undefined
-  currencies: string[]
-  currency: string | null
-  onCurrency: (currency: string) => void
-  ask: (question: string) => void
-}) {
+export function PromptChips({ flow, ask }: { flow: CashFlow | undefined; ask: (question: string) => void }) {
   const questions = flow ? questionsFor(flow) : []
-  const switcher = currencies.length > 1 && currency !== null
-  if (!switcher && questions.length === 0) return null
+  if (questions.length === 0) return null
 
   return (
     <div className="flex flex-wrap items-center gap-2">
-      {switcher && (
-        <div className="[&_button:focus-visible]:-outline-offset-2 [&_button[aria-pressed=true]:focus-visible]:outline-surface">
-          <Segmented label="Currency" value={currency} options={currencies.map((c) => ({ value: c, label: c }))} onChange={onCurrency} />
-        </div>
-      )}
       <div className="ml-auto flex flex-wrap justify-end gap-1.5">
         {questions.map((q) => (
           <button
