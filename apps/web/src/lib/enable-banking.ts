@@ -2,6 +2,8 @@ import { sendJson, errorMessage, type BankFetch } from './api'
 
 export const ENABLE_BANKING_CALLBACK_PATH = '/connect/enable-banking/callback'
 
+export const ENABLE_BANKING_AVAILABLE = false
+
 export type EnableBankingBank = { name: string; country: string; logo?: string; beta: boolean }
 
 export type ConnectedSummary = {

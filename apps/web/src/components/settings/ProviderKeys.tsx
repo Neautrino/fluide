@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage, getJson, sendJson, type ConnectionSummary, type ProviderCredentialsStatus } from '../../lib/api'
+import { ENABLE_BANKING_AVAILABLE } from '../../lib/enable-banking'
 import { formatLocalDate } from '../../lib/format'
 import { useResource } from '../../lib/useResource'
 import { Button } from '../ui/Button'
@@ -14,6 +15,7 @@ type Provider = {
   title: string
   description: string
   fields: CredentialField[]
+  disabled?: boolean
 }
 
 const PROVIDERS: Provider[] = [
@@ -21,6 +23,7 @@ const PROVIDERS: Provider[] = [
     id: 'enable-banking',
     title: 'Enable Banking',
     description: 'Needed to connect an EU (PSD2) bank. Get an application id and a private key from your Enable Banking Control Panel.',
+    disabled: !ENABLE_BANKING_AVAILABLE,
     fields: [
       { key: 'appId', label: 'Application ID', statusLabel: 'Application ID' },
       {
@@ -60,7 +63,7 @@ export function ProviderKeys({ connections }: { connections: ConnectionSummary[]
 }
 
 function ProviderBlock({ provider, banks }: { provider: Provider; banks: string }) {
-  const { id, title, description, fields } = provider
+  const { id, title, description, fields, disabled = false } = provider
   const status = useResource((signal) => getJson<ProviderCredentialsStatus>(`/api/settings/provider-credentials/${id}`, signal))
   const emptyDraft = () => Object.fromEntries(fields.map((f) => [f.key, ''])) as Record<string, string>
   const [draft, setDraft] = useState<Record<string, string>>(emptyDraft)
@@ -125,11 +128,17 @@ function ProviderBlock({ provider, banks }: { provider: Provider; banks: string 
       <div className="flex items-baseline gap-2 text-[13px] font-bold text-ink">
         <h4>{title}</h4>
         {banks && <small className="min-w-0 truncate text-[11.5px] font-medium text-ink-3">for {banks}</small>}
-        {status.data && !configured && <span className="ml-auto text-[11.5px] font-medium whitespace-nowrap text-ink-3">Not configured</span>}
-        {configured && !editing && (
-          <TextButton data-replace className="ml-auto" onClick={replace}>
-            Replace<span className="sr-only"> {title} keys</span>
-          </TextButton>
+        {disabled ? (
+          <span className="ml-auto text-[11.5px] font-medium whitespace-nowrap text-ink-3">Not available yet</span>
+        ) : (
+          <>
+            {status.data && !configured && <span className="ml-auto text-[11.5px] font-medium whitespace-nowrap text-ink-3">Not configured</span>}
+            {configured && !editing && (
+              <TextButton data-replace className="ml-auto" onClick={replace}>
+                Replace<span className="sr-only"> {title} keys</span>
+              </TextButton>
+            )}
+          </>
         )}
       </div>
       {status.error ? (
@@ -146,6 +155,7 @@ function ProviderBlock({ provider, banks }: { provider: Provider; banks: string 
                 type={f.type ?? 'text'}
                 autoComplete={f.type === 'password' ? 'new-password' : undefined}
                 value={draft[f.key]}
+                disabled={disabled}
                 onChange={(e) => update(f.key, e.target.value)}
                 aria-describedby={f.help ? `${id}-${f.key}-help` : undefined}
                 className="max-w-md"
@@ -154,7 +164,7 @@ function ProviderBlock({ provider, banks }: { provider: Provider; banks: string 
           ))}
           {serverError && <Notice tone="error">{serverError}</Notice>}
           <div className="flex flex-wrap gap-2">
-            <Button size="sm" variant="primary" busy={busy} disabled={!complete} onClick={() => void save()}>
+            <Button size="sm" variant="primary" busy={busy} disabled={disabled || !complete} onClick={() => void save()}>
               {busy ? 'Saving…' : 'Save'}
             </Button>
             {configured && (

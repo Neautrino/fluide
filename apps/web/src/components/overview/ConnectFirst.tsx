@@ -8,7 +8,7 @@ export function ConnectFirst({ onConnected }: { onConnected: () => void }) {
         <p className="eyebrow mb-3">Getting started</p>
         <h2 className="text-[34px] leading-tight text-ink">Connect your first account.</h2>
         <p className="mt-3 max-w-lg text-[15px] leading-relaxed text-ink-2">
-          Fluide links to your bank through Plaid (US) or Enable Banking (Europe) with read-only access, imports
+          Fluide links to your bank through Plaid (US) with read-only access, imports
           your transactions into a double-entry ledger on your own server, and never has permission to move money.
         </p>
         <div className="mt-6 flex flex-col items-start gap-3">

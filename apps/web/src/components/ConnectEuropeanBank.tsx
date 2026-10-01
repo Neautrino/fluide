@@ -2,7 +2,7 @@ import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'rea
 import { createPortal } from 'react-dom'
 import { errorMessage, getJson } from '../lib/api'
 import { HTTPS_REASON, isHttps } from '../lib/connection-health'
-import { startEnableBankingConnect, type EnableBankingBank } from '../lib/enable-banking'
+import { ENABLE_BANKING_AVAILABLE, startEnableBankingConnect, type EnableBankingBank } from '../lib/enable-banking'
 import { useResource } from '../lib/useResource'
 import { Button } from './ui/Button'
 import { Field, Select } from './ui/Field'
@@ -83,20 +83,21 @@ export function ConnectEuropeanBank({ variant = 'primary', renderTrigger, panelI
   }, [open, renderTrigger])
 
   if (!open && !renderTrigger) {
+    const reason = !ENABLE_BANKING_AVAILABLE ? 'Not available yet' : httpsMissing ? HTTPS_REASON : null
     return (
       <div className="flex flex-col items-start gap-1.5">
         <Button
           id="eb-open"
           variant={variant}
-          disabled={httpsMissing}
-          aria-describedby={httpsMissing ? 'eb-https-reason' : undefined}
+          disabled={reason !== null}
+          aria-describedby={reason ? 'eb-reason' : undefined}
           onClick={() => setOpen(true)}
         >
           Connect a European bank
         </Button>
-        {httpsMissing && (
-          <p id="eb-https-reason" className="max-w-sm text-[12px] text-ink-3">
-            {HTTPS_REASON}
+        {reason && (
+          <p id="eb-reason" className="max-w-sm text-[12px] text-ink-3">
+            {reason}
           </p>
         )}
       </div>

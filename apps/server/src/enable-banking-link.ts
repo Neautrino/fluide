@@ -18,6 +18,8 @@ import { recordConnectionStatus, retireReplacedConnections, saveConnection } fro
 import { connectorFailure } from './connector-errors.js'
 import { ingestConnection, LOCAL_TENANT_ID, type IngestResult } from './ingest.js'
 
+export const ENABLE_BANKING_AVAILABLE = false
+
 const STATE_TTL_MS = 15 * 60 * 1000
 const DEFAULT_CONSENT_SECONDS = 90 * 24 * 60 * 60
 

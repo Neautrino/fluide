@@ -29,6 +29,7 @@ import {
 } from '../connection-store.js'
 import { ingestConnection, LOCAL_TENANT_ID, type IngestResult } from '../ingest.js'
 import {
+  ENABLE_BANKING_AVAILABLE,
   startEnableBankingLink,
   completeEnableBankingLink,
   enableBankingPsuHeadersFor,
@@ -44,6 +45,7 @@ export const providerRoutes = new Hono()
 const COUNTRY_RE = /^[A-Z]{2}$/
 const PLAID_NOT_CONFIGURED = 'Plaid is not configured — add a client id and secret in Settings first.'
 const EB_NOT_CONFIGURED = 'Enable Banking is not configured — add an app id and key path in Settings first.'
+const EB_UNAVAILABLE = 'Enable Banking is not available yet.'
 
 type SyncOutcome =
   | { connectionId: string; institutionName: string | null; ok: true; ingest: IngestResult; bankFetch?: BankFetch }
@@ -254,6 +256,7 @@ providerRoutes.post('/connections/:id/reconnect', uuidParam('id'), async (c) => 
       return connectorErrorResponse(c, 'update link-token error', err, 'failed to create a reconnect link')
     }
   }
+  if (!ENABLE_BANKING_AVAILABLE) return c.json({ error: EB_UNAVAILABLE }, 403)
   const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
   if (!credentials) return c.json({ error: EB_NOT_CONFIGURED }, 409)
   const aspsp = parseEnableBankingInstitutionId(connection.institutionId)
@@ -289,6 +292,7 @@ providerRoutes.post('/connections/:id/disconnect', uuidParam('id'), async (c) =>
 // --- Enable Banking ---
 
 providerRoutes.get('/enable-banking/aspsps', async (c) => {
+  if (!ENABLE_BANKING_AVAILABLE) return c.json({ error: EB_UNAVAILABLE }, 403)
   const country = c.req.query('country')?.toUpperCase()
   if (!country || !COUNTRY_RE.test(country)) return c.json({ error: 'country must be a 2-letter ISO code' }, 400)
   const credentials = await getEnableBankingCredentials(LOCAL_TENANT_ID)
@@ -304,6 +308,7 @@ providerRoutes.get('/enable-banking/aspsps', async (c) => {
 })
 
 providerRoutes.post('/enable-banking/auth', async (c) => {
+  if (!ENABLE_BANKING_AVAILABLE) return c.json({ error: EB_UNAVAILABLE }, 403)
   const body = await c.req.json<{ aspspName?: string; country?: string }>().catch(() => null)
   if (!body) return c.json({ error: 'body must be JSON' }, 400)
   const country = body.country?.toUpperCase()
@@ -322,6 +327,7 @@ providerRoutes.post('/enable-banking/auth', async (c) => {
 })
 
 providerRoutes.post('/enable-banking/session', async (c) => {
+  if (!ENABLE_BANKING_AVAILABLE) return c.json({ error: EB_UNAVAILABLE }, 403)
   const body = await c.req.json<{ code?: string; state?: string }>().catch(() => null)
   if (!body) return c.json({ error: 'body must be JSON' }, 400)
   if (!body.code || !body.state) return c.json({ error: 'code and state are required' }, 400)
