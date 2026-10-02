@@ -181,10 +181,14 @@ export function periodWindow(period: Period, now: Date): ScopeWindow {
       }
     case 'this_month':
       return monthWindow(monthOf(now), now)
+    case 'last_month':
+      return monthWindow(addMonths(monthOf(now), -1), now)
     case 'last_30_days':
       return { start: new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000), end: null }
     case 'this_year':
       return { start: new Date(Date.UTC(year, 0, 1)), end: new Date(Date.UTC(year + 1, 0, 1)) }
+    case 'last_year':
+      return { start: new Date(Date.UTC(year - 1, 0, 1)), end: new Date(Date.UTC(year, 0, 1)) }
     case 'all_time':
       return { start: null, end: null }
   }
@@ -550,7 +554,7 @@ const nameSql = sql<string>`coalesce(nullif(${postings.counterpartyRaw}, ''), ${
 
 function scopeFilter(tenantId: string, from: Date | null, to: Date | null, accountIds?: string[], currency?: string): SQL {
   return and(
-    cashFlowScopeFilter(tenantId, 'all_time'),
+    cashFlowScopeFilter(tenantId),
     eq(accounts.tenantId, tenantId),
     from ? gte(transactions.date, from) : undefined,
     to ? lt(transactions.date, to) : undefined,

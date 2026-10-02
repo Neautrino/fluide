@@ -12,6 +12,7 @@ import {
   round,
   summarizeMonth,
   type MonthSummary,
+  type ScopeWindow,
 } from './cashflow.js'
 
 const DAY_SLOTS = 31
@@ -39,10 +40,10 @@ const blockOf = (currency: string, s: MonthSummary): CurrencyBlock => ({
   merchants: s.merchants.map((m) => ({ merchant: m.name, total: m.amount, count: m.count })),
 })
 
-/** One block per currency the period holds, most legs first. Nothing is ever
+/** One block per currency the window holds, most legs first. Nothing is ever
  * added across currencies. */
-export async function getCurrencyBreakdown(tenantId: string, period: Period, now = new Date()): Promise<CurrencyBlock[]> {
-  const { currencies, allLegs } = await loadScope(tenantId, periodWindow(period, now), {})
+export async function getCurrencyBreakdown(tenantId: string, window: ScopeWindow): Promise<CurrencyBlock[]> {
+  const { currencies, allLegs } = await loadScope(tenantId, window, {})
   return currencies.map((currency) =>
     blockOf(currency, summarizeMonth(allLegs.filter((leg) => leg.currency === currency), DAY_SLOTS)),
   )
@@ -54,11 +55,10 @@ export type CategorySpend = { currency: string; category: string; total: number;
 export async function spendingInCategory(
   tenantId: string,
   categoryQuery: string,
-  period: Period,
-  now = new Date(),
+  window: ScopeWindow,
 ): Promise<CategorySpend[]> {
   const needle = categoryQuery.toLowerCase()
-  const blocks = await getCurrencyBreakdown(tenantId, period, now)
+  const blocks = await getCurrencyBreakdown(tenantId, window)
   return blocks.map((block) => {
     const hit = block.categories.find((c) => c.category.toLowerCase().includes(needle))
     return {
@@ -96,7 +96,7 @@ export async function listPossibleTransfers(tenantId: string, period: Period, cu
     .innerJoin(transferMarks, eq(transferMarks.transactionId, transactions.id))
     .where(
       and(
-        cashFlowScopeFilter(tenantId, period),
+        cashFlowScopeFilter(tenantId, periodWindow(period, new Date())),
         suggestedMark,
         currency ? eq(postings.currency, currency) : undefined,
       ),

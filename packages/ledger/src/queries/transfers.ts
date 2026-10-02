@@ -46,7 +46,7 @@ export async function decideTransfer(tenantId: string, transactionId: string, de
       .from(postings)
       .innerJoin(transactions, eq(transactions.id, postings.transactionId))
       .innerJoin(accounts, eq(accounts.id, postings.accountId))
-      .where(and(bankPostingsFilter(tenantId, 'all_time'), eq(transactions.id, transactionId)))
+      .where(and(bankPostingsFilter(tenantId), eq(transactions.id, transactionId)))
       .limit(1)
     if (!leg) throw new TransferDecisionNotFoundError(transactionId)
     const kind = decision === 'mine' ? 'transfer' : 'not_transfer'
@@ -81,7 +81,7 @@ async function rederiveMarks(tx: Tx, tenantId: string): Promise<{ marked: number
     .from(postings)
     .innerJoin(transactions, eq(transactions.id, postings.transactionId))
     .innerJoin(accounts, eq(accounts.id, postings.accountId))
-    .where(and(bankPostingsFilter(tenantId, 'all_time'), countedHistory))
+    .where(and(bankPostingsFilter(tenantId), countedHistory))
   const existing = await tx
     .select({ transactionId: transferMarks.transactionId, pairTransactionId: transferMarks.pairTransactionId, method: transferMarks.method })
     .from(transferMarks)

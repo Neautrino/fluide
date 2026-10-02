@@ -14,7 +14,9 @@ export {
   getCashFlowTransactions,
   isMonth,
   monthOf,
+  monthWindow,
   parseCashFlowFilter,
+  periodWindow,
   type CashFlow,
   type CashFlowCompare,
   type CashFlowDelta,
@@ -28,4 +30,5 @@ export {
   type CashFlowTransferKind,
   type DrillRow,
   type NotCountedKind,
+  type ScopeWindow,
 } from './cashflow.js'

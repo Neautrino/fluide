@@ -1,7 +1,8 @@
 import { and, desc, eq, inArray, ne, sql } from 'drizzle-orm'
 import { db } from '../db.js'
 import { accounts, transactions, postings, categories } from '../schema/index.js'
-import { bankPostingsFilter, countedHistory, type Period } from './period.js'
+import { bankPostingsFilter, countedHistory } from './period.js'
+import type { ScopeWindow } from './cashflow.js'
 import { liveTransaction } from './live.js'
 
 export type TransactionRow = {
@@ -17,15 +18,15 @@ export type TransactionRow = {
  * get_orders: those return a raw list for the calling model to reason
  * over; our other tools are all pre-aggregated. Same join as
  * listTransactionsWithPostings, narrowed to one account-type filter and an
- * optional merchant/period filter, capped at 50 rows so a broad match
+ * optional merchant/window filter, capped at 50 rows so a broad match
  * doesn't dump the whole ledger into context. */
 export async function listRecentTransactions(
   tenantId: string,
-  period: Period,
+  window: ScopeWindow,
   merchantQuery?: string,
   limit = 20,
 ): Promise<TransactionRow[]> {
-  const conditions = [bankPostingsFilter(tenantId, period), countedHistory]
+  const conditions = [bankPostingsFilter(tenantId, window), countedHistory]
   if (merchantQuery) {
     conditions.push(sql`${postings.counterpartyRaw} ILIKE '%' || ${merchantQuery} || '%'`)
   }

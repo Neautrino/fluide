@@ -78,6 +78,20 @@ describe('periodWindow', () => {
     ])
     expect(periodWindow('all_time', new Date('2026-09-29T20:00:00Z'))).toEqual({ start: null, end: null })
   })
+
+  test('last_month and last_year are the whole previous UTC calendar month and year, across a year boundary', () => {
+    const now = new Date('2026-01-01T00:30:00Z')
+    const month = periodWindow('last_month', now)
+    expect([month.start!.toISOString(), month.end!.toISOString()]).toEqual([
+      '2025-12-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+    ])
+    const year = periodWindow('last_year', now)
+    expect([year.start!.toISOString(), year.end!.toISOString()]).toEqual([
+      '2025-01-01T00:00:00.000Z',
+      '2026-01-01T00:00:00.000Z',
+    ])
+  })
 })
 
 describe('chooseCurrency', () => {

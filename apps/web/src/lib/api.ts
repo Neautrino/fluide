@@ -123,7 +123,7 @@ export function getVersionInfo(signal?: AbortSignal): Promise<VersionInfo> {
 
 export type ProviderCredentialsStatus = { configured: boolean; updatedAt?: string }
 
-export type Period = 'this_week' | 'this_month' | 'last_30_days' | 'this_year' | 'all_time'
+export type Period = 'this_week' | 'this_month' | 'last_month' | 'last_30_days' | 'this_year' | 'last_year' | 'all_time'
 
 export type AccountKind = 'cash' | 'investment' | 'property' | 'vehicle' | 'crypto' | 'credit' | 'loan' | 'other'
 

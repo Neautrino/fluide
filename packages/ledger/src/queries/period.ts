@@ -1,42 +1,23 @@
-import { and, eq, gte, inArray, isNotNull, isNull, ne, notExists, or } from 'drizzle-orm'
+import { and, eq, gte, inArray, isNotNull, isNull, lt, ne, notExists, or } from 'drizzle-orm'
 import { db } from '../db.js'
 import { accounts, connectors, transactions, transferMarks } from '../schema/index.js'
 import { liveTransaction } from './live.js'
 import { EXCLUDING_METHODS, SUGGESTED_MARK, type ExcludedKind } from './transfer-match.js'
+import type { ScopeWindow } from './cashflow.js'
 
-export const PERIODS = ['this_week', 'this_month', 'last_30_days', 'this_year', 'all_time'] as const
+export const PERIODS = ['this_week', 'this_month', 'last_month', 'last_30_days', 'this_year', 'last_year', 'all_time'] as const
 export type Period = (typeof PERIODS)[number]
 
-function periodStart(period: Period): Date | undefined {
-  const now = new Date()
-  switch (period) {
-    case 'this_week': {
-      const d = new Date(now)
-      d.setDate(d.getDate() - d.getDay())
-      d.setHours(0, 0, 0, 0)
-      return d
-    }
-    case 'this_month':
-      return new Date(now.getFullYear(), now.getMonth(), 1)
-    case 'last_30_days':
-      return new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
-    case 'this_year':
-      return new Date(now.getFullYear(), 0, 1)
-    case 'all_time':
-      return undefined
-  }
-}
-
-export function bankPostingsFilter(tenantId: string, period: Period) {
-  const start = periodStart(period)
-  const conditions = [
+/** No `window` means all time; bounds come from periodWindow / monthWindow (UTC). */
+export function bankPostingsFilter(tenantId: string, window?: ScopeWindow) {
+  return and(
     eq(transactions.tenantId, tenantId),
     inArray(accounts.type, ['asset', 'liability']),
     ne(transactions.source, 'opening-balance'),
     liveTransaction,
-  ]
-  if (start) conditions.push(gte(transactions.date, start))
-  return and(...conditions)
+    window?.start ? gte(transactions.date, window.start) : undefined,
+    window?.end ? lt(transactions.date, window.end) : undefined,
+  )
 }
 
 /** SQL twin of isExcludedMark, built from the same EXCLUDING_METHODS table.
@@ -68,9 +49,9 @@ export const countedHistory = notExists(
 
 /** Bank legs whose movements can be cash flow at all. Loan and investment
  * accounts never count: the everyday-account side of the movement does. */
-export function cashFlowScopeFilter(tenantId: string, period: Period) {
+export function cashFlowScopeFilter(tenantId: string, window?: ScopeWindow) {
   return and(
-    bankPostingsFilter(tenantId, period),
+    bankPostingsFilter(tenantId, window),
     or(isNull(accounts.kind), inArray(accounts.kind, ['cash', 'credit', 'other'])),
     countedHistory,
   )
@@ -78,9 +59,9 @@ export function cashFlowScopeFilter(tenantId: string, period: Period) {
 
 /** Income and money out (spending + debt payments): in scope and not an
  * excluded transfer, card payment or investment. Possible transfers count. */
-export function cashFlowPostingsFilter(tenantId: string, period: Period) {
+export function cashFlowPostingsFilter(tenantId: string, window?: ScopeWindow) {
   return and(
-    cashFlowScopeFilter(tenantId, period),
+    cashFlowScopeFilter(tenantId, window),
     notExists(
       db
         .select({ transactionId: transferMarks.transactionId })
@@ -91,9 +72,9 @@ export function cashFlowPostingsFilter(tenantId: string, period: Period) {
 }
 
 /** Spending (categories, merchants): cash flow minus debt payments. */
-export function spendingPostingsFilter(tenantId: string, period: Period) {
+export function spendingPostingsFilter(tenantId: string, window?: ScopeWindow) {
   return and(
-    cashFlowScopeFilter(tenantId, period),
+    cashFlowScopeFilter(tenantId, window),
     notExists(
       db
         .select({ transactionId: transferMarks.transactionId })
