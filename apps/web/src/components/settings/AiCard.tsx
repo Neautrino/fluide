@@ -150,6 +150,7 @@ function AiRoleCard({ role, state, reload }: { role: AiRole; state: AiState; rel
   const [models, setModels] = useState<string[] | null>(null)
   const [modelsError, setModelsError] = useState<string | null>(null)
   const [confirming, setConfirming] = useState(false)
+  const [keyVisible, setKeyVisible] = useState(false)
 
   const card = useRef<HTMLDivElement>(null)
   const focusNext = useRef<keyof typeof FOCUS_TARGET | null>(null)
@@ -396,18 +397,36 @@ function AiRoleCard({ role, state, reload }: { role: AiRole; state: AiState; rel
   }
 
   const keyInput = (
-    <Input
-      id={`${base}-key`}
-      type="password"
-      autoComplete="new-password"
-      spellCheck={false}
-      aria-label={key.use === 'replace' ? `New value for ${selectedCred?.label ?? 'this key'}` : `${preset.label} key`}
-      aria-describedby={`${base}-key-help`}
-      placeholder={key.use === 'replace' ? 'Paste the new key' : 'Paste the key'}
-      value={typedKey}
-      disabled={locked}
-      onChange={(e) => setTypedKey(e.target.value)}
-    />
+    <span className="relative block">
+      <Input
+        id={`${base}-key`}
+        type={keyVisible ? 'text' : 'password'}
+        autoComplete="new-password"
+        spellCheck={false}
+        aria-label={key.use === 'replace' ? `New value for ${selectedCred?.label ?? 'this key'}` : `${preset.label} key`}
+        aria-describedby={`${base}-key-help`}
+        placeholder={key.use === 'replace' ? 'Paste the new key' : 'Paste the key'}
+        value={typedKey}
+        disabled={locked}
+        onChange={(e) => setTypedKey(e.target.value)}
+        className="pr-10 font-mono"
+      />
+      <button
+        type="button"
+        aria-label={keyVisible ? 'Hide key' : 'Show key'}
+        title={keyVisible ? 'Hide key' : 'Show key'}
+        aria-pressed={keyVisible}
+        aria-controls={`${base}-key`}
+        disabled={locked}
+        onClick={() => setKeyVisible((v) => !v)}
+        className="absolute top-1/2 right-1.5 grid size-7 -translate-y-1/2 place-items-center rounded-full text-ink-3 transition-colors hover:bg-surface-2 hover:text-ink focus-visible:outline-accent disabled:cursor-not-allowed"
+      >
+        <svg viewBox="0 0 16 16" aria-hidden className="size-4" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round">
+          <path d="M1.5 8S4 3.5 8 3.5 14.5 8 14.5 8 12 12.5 8 12.5 1.5 8 1.5 8z" />
+          {keyVisible ? <path d="M14 2L2 14" /> : <circle cx="8" cy="8" r="2" />}
+        </svg>
+      </button>
+    </span>
   )
 
   const radio = (value: string, checked: boolean, onSelect: () => void, label: string, meta?: string) => (
