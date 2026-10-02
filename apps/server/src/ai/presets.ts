@@ -26,7 +26,7 @@ export const AI_PRESETS: AiPreset[] = [
   {
     role: 'categorization',
     provider: 'typesafe',
-    label: 'TypeSafe (official)',
+    label: 'TypeSafe',
     endpoint: 'https://api.typesafe.ai/v1/systemone',
     defaultModel: 'jev-1.13.0',
     keyRequired: true,
