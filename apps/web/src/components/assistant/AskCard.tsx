@@ -1,6 +1,5 @@
 import type { Ref } from 'react'
 import { Composer } from './Composer'
-import { Exchange, type Message } from './Turn'
 
 const PROMPTS = [
   { question: 'Biggest merchants this month', tag: 'top merchants', tile: 'bg-tile-1', chip: 'text-tile-1' },
@@ -11,14 +10,12 @@ const PROMPTS = [
 const CAN_LOOK_AT = ['Spending by category', 'Top merchants', 'Income vs expense', 'Account balances', 'Individual transactions']
 
 type Props = {
-  latest: Message[] | null
   loading: boolean
-  endRef: Ref<HTMLDivElement>
   inputRef: Ref<HTMLTextAreaElement>
   onSend: (text: string) => void
 }
 
-export function AskCard({ latest, loading, endRef, inputRef, onSend }: Props) {
+export function AskCard({ loading, inputRef, onSend }: Props) {
   return (
     <section
       aria-label="Ask about your money"
@@ -66,29 +63,22 @@ export function AskCard({ latest, loading, endRef, inputRef, onSend }: Props) {
       </div>
 
       <div className="flex min-w-0 flex-col gap-4 border-t border-line-strong bg-surface-2 px-6 pt-[22px] pb-[18px] md:border-t-0 md:border-l">
-        {latest ? (
-          <div aria-live="polite" className="flex flex-col gap-4">
-            <Exchange turn={latest} tone="surface" pending={loading} />
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            <h3 className="text-[19px] leading-tight text-ink">Your answer appears here</h3>
-            <p className="max-w-prose text-[13.5px] leading-[1.55] text-ink-2">
-              Ask in plain words. The assistant can look at these parts of your ledger:
-            </p>
-            <ul className="flex flex-wrap gap-1.5">
-              {CAN_LOOK_AT.map((c) => (
-                <li key={c} className="rounded-full border border-line bg-surface px-2.5 py-0.5 text-[11.5px] text-ink-2">
-                  {c}
-                </li>
-              ))}
-            </ul>
-            <p className="max-w-prose text-[12px] leading-[1.45] text-ink-3">
-              Spending, merchants, income and transactions can be limited to this week, this month, the last 30 days, this year or all time.
-            </p>
-          </div>
-        )}
-        <div ref={endRef} />
+        <div className="flex flex-col gap-3">
+          <h3 className="text-[19px] leading-tight text-ink">Answers appear in the conversation below</h3>
+          <p className="max-w-prose text-[13.5px] leading-[1.55] text-ink-2">
+            Ask in plain words. The assistant can look at these parts of your ledger:
+          </p>
+          <ul className="flex flex-wrap gap-1.5">
+            {CAN_LOOK_AT.map((c) => (
+              <li key={c} className="rounded-full border border-line bg-surface px-2.5 py-0.5 text-[11.5px] text-ink-2">
+                {c}
+              </li>
+            ))}
+          </ul>
+          <p className="max-w-prose text-[12px] leading-[1.45] text-ink-3">
+            Spending, merchants, income and transactions can be limited to this week, this month, the last 30 days, this year or all time.
+          </p>
+        </div>
       </div>
     </section>
   )

@@ -1,11 +1,9 @@
 import { createAgent } from 'langchain'
-import { MemorySaver } from '@langchain/langgraph'
 import { buildChatModel } from './model.js'
 import { getRoleConfig } from '../ai/config.js'
 import { mapAiError } from '../ai/errors.js'
 import { chatTools } from './tools.js'
-
-const checkpointer = new MemorySaver()
+import { appendExchange, getThread } from './history.js'
 
 let cachedAgent: { version: string, agent: any } | null = null
 
@@ -36,7 +34,6 @@ async function getAgent(tenantId: string) {
   const agent = createAgent({
     model,
     tools: chatTools,
-    checkpointer,
     systemPrompt:
       'You are a careful personal-finance assistant for Fluide, a self-hosted, ' +
       'read-only finance ledger. Always call a tool before answering any ' +
@@ -63,22 +60,21 @@ async function getAgent(tenantId: string) {
   return { agent, config }
 }
 
-export type ChatReply = { answer: string }
+export type ChatReply = { answer: string; thread: { id: string; title: string } }
 
-/** Memory is per threadId in process (MemorySaver) on purpose: by the user's
- * rule, a chat never survives closing it or a server restart. */
+/** The model sees the thread's stored turns, then the new question; only a successful reply is saved. */
 export async function askAgent(message: string, threadId: string, tenantId: string): Promise<ChatReply> {
   const { agent, config } = await getAgent(tenantId)
+  const stored = await getThread(tenantId, threadId)
+  const history = (stored?.messages ?? []).map(({ role, content }) => ({ role, content }))
   let result
   try {
-    result = await agent.invoke(
-      { messages: [{ role: 'user', content: message }] },
-      { configurable: { thread_id: threadId } },
-    )
+    result = await agent.invoke({ messages: [...history, { role: 'user', content: message }] })
   } catch (error) {
     throw new AgentReplyError(mapAiError(error, config.endpoint, config.apiKey))
   }
   const last = result.messages[result.messages.length - 1]
   const answer = typeof last?.content === 'string' ? last.content : JSON.stringify(last?.content)
-  return { answer }
+  const thread = await appendExchange(tenantId, threadId, message, answer)
+  return { answer, thread }
 }

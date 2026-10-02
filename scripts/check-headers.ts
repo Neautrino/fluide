@@ -9,6 +9,7 @@ const ALLOWED = new Set([
   'apps/server/src/categorization/categorize.ts',
   'apps/server/src/categorization/gate.ts',
   'apps/server/src/categorization/rules.ts',
+  'apps/server/src/chat/history.ts',
   'apps/server/src/chat/tools.ts',
   'apps/server/src/connection-store.ts',
   'apps/server/src/connector-errors.ts',

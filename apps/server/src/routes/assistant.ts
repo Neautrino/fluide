@@ -2,6 +2,7 @@ import { Hono } from 'hono'
 import { listCategorizationRules, listPendingReviewItems, getGateSettings } from '@repo/ledger'
 import { LOCAL_TENANT_ID } from '../ingest.js'
 import { askAgent, AgentNotConfiguredError, AgentReplyError } from '../chat/agent.js'
+import { listThreads, getThread, deleteThread, deleteAllThreads } from '../chat/history.js'
 import { categorizeUncategorizedPostings } from '../categorization/categorize.js'
 import { createUserRule, setRuleStatus } from '../categorization/rules.js'
 import { resolveReviewItem } from '../review.js'
@@ -18,6 +19,7 @@ assistantRoutes.post('/chat', async (c) => {
   if (!body?.message?.trim() || !body?.threadId) {
     return c.json({ error: 'message and threadId are required' }, 400)
   }
+  if (!isUuid(body.threadId)) return c.json({ error: 'threadId must be a UUID' }, 400)
   try {
     const reply = await askAgent(body.message, body.threadId, LOCAL_TENANT_ID)
     return c.json(reply)
@@ -29,6 +31,25 @@ assistantRoutes.post('/chat', async (c) => {
     console.error('chat error', err instanceof AgentReplyError ? err.message : err)
     return c.json({ error: 'failed to get a reply' }, 500)
   }
+})
+
+assistantRoutes.get('/threads', async (c) => {
+  return c.json({ threads: await listThreads(LOCAL_TENANT_ID) })
+})
+
+assistantRoutes.get('/threads/:id', uuidParam('id'), async (c) => {
+  const thread = await getThread(LOCAL_TENANT_ID, c.req.param('id'))
+  if (!thread) return c.json({ error: 'conversation not found' }, 404)
+  return c.json({ thread })
+})
+
+assistantRoutes.delete('/threads/:id', uuidParam('id'), async (c) => {
+  if (!(await deleteThread(LOCAL_TENANT_ID, c.req.param('id')))) return c.json({ error: 'conversation not found' }, 404)
+  return c.json({ ok: true })
+})
+
+assistantRoutes.delete('/threads', async (c) => {
+  return c.json({ ok: true, deleted: await deleteAllThreads(LOCAL_TENANT_ID) })
 })
 
 // --- Categorization Batch Run ---

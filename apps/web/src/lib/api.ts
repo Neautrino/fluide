@@ -368,6 +368,35 @@ export async function decideTransfer(transactionId: string, decision: TransferDe
   await sendJson<{ ok: true }>('POST', `/api/ledger/transfers/${encodeURIComponent(transactionId)}/decision`, { decision })
 }
 
+/** A saved assistant conversation; `questions` counts the user's messages in it. */
+export type ChatThreadSummary = { id: string; title: string; updatedAt: string; questions: number }
+
+export type ChatThread = {
+  id: string
+  title: string
+  messages: { role: 'user' | 'assistant'; content: string; at: string }[]
+}
+
+export type ChatReply = { answer: string; thread: { id: string; title: string } }
+
+export async function listChatThreads(signal?: AbortSignal): Promise<ChatThreadSummary[]> {
+  const { threads } = await getJson<{ threads: ChatThreadSummary[] }>('/api/assistant/threads', signal)
+  return threads
+}
+
+export async function getChatThread(id: string): Promise<ChatThread> {
+  const { thread } = await getJson<{ thread: ChatThread }>(`/api/assistant/threads/${encodeURIComponent(id)}`)
+  return thread
+}
+
+export async function deleteChatThread(id: string): Promise<void> {
+  await sendJson<{ ok: true }>('DELETE', `/api/assistant/threads/${encodeURIComponent(id)}`)
+}
+
+export async function deleteAllChatThreads(): Promise<void> {
+  await sendJson<{ ok: true; deleted: number }>('DELETE', '/api/assistant/threads')
+}
+
 export type CashFlowCompare = 'average' | 'previous' | 'last_year'
 
 /** `change` = (value − baseline) / |baseline|; null when there is no baseline or it is 0. */
