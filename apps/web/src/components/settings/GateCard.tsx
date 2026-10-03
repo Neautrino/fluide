@@ -1,9 +1,10 @@
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
-import { errorMessage, getJson, sendJson, type GateSettings, type ReviewItem } from '../../lib/api'
-import { useApp } from '../../lib/app-context'
-import { categoryName, useCategories } from '../../lib/categories'
+import { errorMessage, sendJson, type GateSettings, type ReviewItem } from '../../lib/api'
+import { categoryName } from '../../lib/categories'
 import { formatConfidence, formatMoneyParts, formatTimestamp, toNumber } from '../../lib/format'
-import { useResource } from '../../lib/useResource'
+import { gateOptions, queryError, reviewQueueOptions, useCategories } from '../../lib/queries'
 import { Button } from '../ui/Button'
 import { ErrorState, Loading, Notice } from '../ui/States'
 import { GateChart } from './GateChart'
@@ -42,12 +43,12 @@ function WaitingNote({ items }: { items: ReviewItem[] }) {
 }
 
 export function GateCard() {
-  const settings = useResource((signal) => getJson<{ settings: GateSettings }>('/api/assistant/gate', signal).then((r) => r.settings))
+  const settings = useQuery(gateOptions())
 
   return (
     <section id="categorization" className="scroll-mt-6 rounded-lg border border-line bg-surface px-[18px] py-4 shadow-1">
-      {settings.error ? (
-        <ErrorState title="Couldn't load the gate settings" message={settings.error} onRetry={settings.reload} />
+      {settings.isError ? (
+        <ErrorState title="Couldn't load the gate settings" message={queryError(settings)} onRetry={() => void settings.refetch()} />
       ) : !settings.data ? (
         <Loading label="Loading settings" rows={4} />
       ) : (
@@ -65,12 +66,9 @@ function GateForm({ initial }: { initial: GateSettings }) {
   const [serverError, setServerError] = useState<string | null>(null)
   const [justSaved, setJustSaved] = useState(false)
   const inputs = useRef<Partial<Record<Key, HTMLInputElement | null>>>({})
-  const { version, navigate } = useApp()
-  const queue = useResource(
-    (signal) => getJson<{ items: ReviewItem[] }>('/api/assistant/review-queue', signal).then((r) => r.items),
-    version,
-  )
-  const waiting = queue.data ?? []
+  const navigate = useNavigate()
+  const queue = useQuery(reviewQueueOptions())
+  const waiting = queue.isError ? [] : (queue.data ?? [])
 
   const errors = validate(draft)
   const dirty = (Object.keys(draft) as Key[]).some((k) => draft[k].trim() === '' || Number(draft[k]) !== toNumber(saved[k]))
@@ -125,7 +123,7 @@ function GateForm({ initial }: { initial: GateSettings }) {
             {waiting.length > 0 && (
               <>
                 <Stamp>{waiting.length} waiting</Stamp>
-                <button type="button" onClick={() => navigate('review')} className="hover:text-ink">
+                <button type="button" onClick={() => void navigate({ to: '/review' })} className="hover:text-ink">
                   Open Review ›
                 </button>
               </>

@@ -1,5 +1,5 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useEffect, useId, useRef, useState } from 'react'
-import { useApp } from '../lib/app-context'
 import { useNotifications, type Notification, type NotificationTone } from '../lib/notifications'
 import { scrollToSection } from './settings/scroll'
 
@@ -28,7 +28,7 @@ function scrollWhenSettled(id: string) {
 }
 
 export function Notifications() {
-  const { navigate } = useApp()
+  const navigate = useNavigate()
   const items = useNotifications()
   const [open, setOpen] = useState(false)
   const root = useRef<HTMLDivElement>(null)
@@ -58,7 +58,7 @@ export function Notifications() {
   const go = (n: Notification) => {
     setOpen(false)
     bell.current?.focus()
-    navigate(n.view)
+    void navigate({ to: n.to })
     const { section } = n
     if (section) scrollWhenSettled(section)
   }

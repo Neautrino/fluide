@@ -1,8 +1,8 @@
+import { useQuery } from '@tanstack/react-query'
 import { useId } from 'react'
-import { getJson, type GateSettings } from '../../lib/api'
-import { useApp } from '../../lib/app-context'
+import type { GateSettings } from '../../lib/api'
 import { toNumber } from '../../lib/format'
-import { useResource } from '../../lib/useResource'
+import { gateOptions, useReviewCount } from '../../lib/queries'
 import { CARD, CardHead } from './shared'
 
 const STEPS = [
@@ -12,8 +12,7 @@ const STEPS = [
 ]
 
 export function HowItDecides({ className = '' }: { className?: string }) {
-  const { version } = useApp()
-  const gate = useResource((signal) => getJson<{ settings: GateSettings }>('/api/assistant/gate', signal).then((r) => r.settings), version)
+  const gate = useQuery(gateOptions())
 
   return (
     <section className={`${CARD} ${className}`} aria-label="How categorization decides">
@@ -46,7 +45,7 @@ const X0 = 8
 const W = 300
 
 function GateStrip({ settings }: { settings: GateSettings }) {
-  const { reviewCount } = useApp()
+  const reviewCount = useReviewCount()
   const hatch = useId()
   const low = Math.min(1, Math.max(0, toNumber(settings.lowConfidence)))
   const high = Math.min(1, Math.max(low, toNumber(settings.highConfidence)))

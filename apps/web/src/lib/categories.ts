@@ -1,21 +1,5 @@
-import { getJson, type Category } from './api'
+import type { Category } from './api'
 import { humanizeKey } from './format'
-import { useResource } from './useResource'
-
-let cached: Promise<Category[]> | null = null
-
-function loadCategories(): Promise<Category[]> {
-  if (!cached) {
-    cached = getJson<{ categories: Category[] }>('/api/ledger/categories').then(
-      (r) => r.categories ?? [],
-      (e: unknown) => {
-        cached = null
-        throw e
-      },
-    )
-  }
-  return cached
-}
 
 export type CategoryGroup = { primary: string; label: string; categories: Category[] }
 
@@ -25,7 +9,7 @@ export type CategoryCatalogue = {
   groups: CategoryGroup[]
 }
 
-function buildCatalogue(list: Category[]): CategoryCatalogue {
+export function buildCatalogue(list: Category[]): CategoryCatalogue {
   const byId: Record<string, Category> = {}
   const groupsByPrimary: Record<string, CategoryGroup> = {}
   const groups: CategoryGroup[] = []
@@ -42,10 +26,6 @@ function buildCatalogue(list: Category[]): CategoryCatalogue {
   groups.sort((a, b) => a.label.localeCompare(b.label))
   for (const g of groups) g.categories.sort((a, b) => a.label.localeCompare(b.label))
   return { list, byId, groups }
-}
-
-export function useCategories() {
-  return useResource(() => loadCategories().then(buildCatalogue))
 }
 
 /** Label for a category reference that may be an id, a `detailed` key or already a label. */

@@ -1,7 +1,7 @@
+import type { UseQueryResult } from '@tanstack/react-query'
 import { Fragment, type ReactNode } from 'react'
 import type { CashFlow, ReviewItem } from '../../lib/api'
 import { formatMoney } from '../../lib/format'
-import type { Resource } from '../../lib/useResource'
 import { Amt } from '../accounts/shared'
 import { AMOUNT_HIDDEN, useAmountsHidden } from '../cashflow/amounts'
 import { formatWhole } from '../cashflow/figures'
@@ -198,11 +198,20 @@ function Body({ flow, items }: { flow: CashFlow; items: ReviewItem[] }) {
   )
 }
 
-export function SpendByMonth({ flow, review, fresh }: { flow: Resource<CashFlow>; review: Resource<ReviewItem[]>; fresh: Fresh | null }) {
+export function SpendByMonth({
+  flow,
+  review,
+  fresh,
+}: {
+  flow: UseQueryResult<CashFlow>
+  review: UseQueryResult<ReviewItem[]>
+  fresh: Fresh | null
+}) {
+  const data = flow.isError ? undefined : flow.data
   return (
-    <OverviewCard title="Spend by month" aside={<Freshness fresh={fresh} />} className={flow.loading && flow.data ? 'opacity-60' : ''}>
-      <Pending resource={flow} what="spending" ready={flow.data !== undefined} />
-      {flow.data && <Body flow={flow.data} items={review.data ?? []} />}
+    <OverviewCard title="Spend by month" aside={<Freshness fresh={fresh} />} className={flow.isFetching && data ? 'opacity-60' : ''}>
+      <Pending resource={flow} what="spending" ready={data !== undefined} />
+      {data && <Body flow={data} items={review.data ?? []} />}
     </OverviewCard>
   )
 }

@@ -1,8 +1,10 @@
-import { useApp } from '../../lib/app-context'
+import { useNavigate } from '@tanstack/react-router'
+import { useReviewCount } from '../../lib/queries'
 import { Button } from '../ui/Button'
 
 export function TrustStrip() {
-  const { navigate, reviewCount } = useApp()
+  const navigate = useNavigate()
+  const reviewCount = useReviewCount()
   const waiting = reviewCount ?? 0
   if (waiting === 0) return null
 
@@ -12,7 +14,7 @@ export function TrustStrip() {
         <span aria-hidden className="size-2.5 rounded-full bg-warning shadow-[0_0_0_3px_var(--warning-wash)]" />
         {waiting} waiting in Review
       </span>
-      <Button size="sm" variant="primary" className="ml-auto" onClick={() => navigate('review')}>
+      <Button size="sm" variant="primary" className="ml-auto" onClick={() => void navigate({ to: '/review' })}>
         Review {waiting}
       </Button>
     </div>

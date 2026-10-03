@@ -1,5 +1,6 @@
+import type { UseQueryResult } from '@tanstack/react-query'
 import type { ReactNode } from 'react'
-import type { Resource } from '../../lib/useResource'
+import { queryError } from '../../lib/queries'
 import { CARD } from '../accounts/model'
 import { StatusDot } from '../accounts/shared'
 import { ErrorState, Loading } from '../ui/States'
@@ -49,12 +50,12 @@ export function CardLink({ onClick, children }: { onClick: () => void; children:
 }
 
 /** Stands in for a card body until `ready`: loading, or the error that stopped the source. */
-export function Pending({ resource, what, ready }: { resource: Resource<unknown>; what: string; ready: boolean }) {
+export function Pending({ resource, what, ready }: { resource: UseQueryResult<unknown>; what: string; ready: boolean }) {
   if (ready) return null
   return (
     <div className="mt-3">
-      {resource.error ? (
-        <ErrorState title={`Couldn't load ${what}`} message={resource.error} onRetry={resource.reload} />
+      {resource.isError ? (
+        <ErrorState title={`Couldn't load ${what}`} message={queryError(resource)} onRetry={() => void resource.refetch()} />
       ) : (
         <Loading label={`Loading ${what}`} rows={3} />
       )}

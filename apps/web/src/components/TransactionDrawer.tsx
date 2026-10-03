@@ -1,9 +1,8 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, type ReactNode } from 'react'
-import { getJson, type AuditAction, type AuditEntry, type LedgerRow } from '../lib/api'
-import { useApp } from '../lib/app-context'
-import { useCategories } from '../lib/categories'
+import type { AuditAction, LedgerRow } from '../lib/api'
 import { bandFor, formatLedgerDate, formatTimestamp, sourceLabel, toNumber } from '../lib/format'
-import { useResource } from '../lib/useResource'
+import { auditLogOptions, queryError, useCategories } from '../lib/queries'
 import { RecategorizeControl } from './RecategorizeControl'
 import { Drawer } from './ui/Drawer'
 import { Empty, ErrorState, Loading } from './ui/States'
@@ -20,16 +19,10 @@ const ACTION_LABEL: Record<AuditAction, string> = {
 }
 
 function TransactionDetail({ row, onClose, docked }: { row: DrawerRow; onClose: () => void; docked: boolean }) {
-  const { version } = useApp()
   const categories = useCategories()
   const postingId = row.posting.id
-  const audit = useResource(
-    (signal) =>
-      postingId
-        ? getJson<{ entries: AuditEntry[] }>(`/api/ledger/audit-log/${postingId}`, signal).then((r) => r.entries)
-        : Promise.reject(new Error('This row has no posting id, so its history cannot be looked up.')),
-    `${postingId}:${version}`,
-  )
+  const audit = useQuery(auditLogOptions(postingId))
+  const auditError = postingId ? queryError(audit) : 'This row has no posting id, so its history cannot be looked up.'
   const headingRef = useRef<HTMLHeadingElement>(null)
   useEffect(() => {
     if (docked) headingRef.current?.focus()
@@ -137,8 +130,12 @@ function TransactionDetail({ row, onClose, docked }: { row: DrawerRow; onClose: 
 
       <section>
         <h3 className="mb-2.5 font-display text-[15px] font-bold text-ink">History</h3>
-        {audit.error ? (
-          <ErrorState title="Couldn't load the history" message={audit.error} onRetry={postingId ? audit.reload : undefined} />
+        {auditError ? (
+          <ErrorState
+            title="Couldn't load the history"
+            message={auditError}
+            onRetry={postingId ? () => void audit.refetch() : undefined}
+          />
         ) : !audit.data ? (
           <Loading label="Loading history" rows={2} />
         ) : audit.data.length === 0 ? (

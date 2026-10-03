@@ -1,8 +1,8 @@
+import { useQuery } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useMemo } from 'react'
-import { getJson, type ConnectionSummary } from '../../lib/api'
-import { useApp } from '../../lib/app-context'
 import { chipText, othersConnectedText, summarizeConnections, type Severity } from '../../lib/connection-health'
-import { useResource } from '../../lib/useResource'
+import { connectionsOptions, useReviewCount } from '../../lib/queries'
 
 const CHIP: Record<Severity, string> = {
   ok: '',
@@ -14,11 +14,10 @@ const DOT: Record<Severity, string> = { ok: '', warning: 'bg-warning', broken: '
 
 /** Shown only while something limits what answers can see; silent when all is well or the check fails. */
 export function TrustLine() {
-  const { navigate, reviewCount, version } = useApp()
-  const { data } = useResource(
-    (signal) => getJson<{ connections: ConnectionSummary[] }>('/api/providers/connections', signal).then((r) => r.connections),
-    version,
-  )
+  const navigate = useNavigate()
+  const reviewCount = useReviewCount()
+  const connections = useQuery(connectionsOptions())
+  const data = connections.isError ? undefined : connections.data
 
   // eslint-disable-next-line react-hooks/exhaustive-deps -- re-read the clock whenever connections are (re)loaded
   const now = useMemo(() => Date.now(), [data])
@@ -45,7 +44,7 @@ export function TrustLine() {
           <button
             key={f.id}
             type="button"
-            onClick={() => navigate('settings')}
+            onClick={() => void navigate({ to: '/settings' })}
             className={`inline-flex items-center gap-1.5 rounded-full border px-[9px] py-[3px] text-[11.5px] whitespace-nowrap ${CHIP[f.severity]}`}
           >
             <span aria-hidden className={`size-1.5 rounded-full ${DOT[f.severity]}`} />
@@ -53,7 +52,7 @@ export function TrustLine() {
           </button>
         ))}
         {flags.length > 0 && others > 0 && (
-          <button type="button" onClick={() => navigate('settings')} className="text-[12px] whitespace-nowrap text-ink-3 hover:text-ink">
+          <button type="button" onClick={() => void navigate({ to: '/settings' })} className="text-[12px] whitespace-nowrap text-ink-3 hover:text-ink">
             {othersConnectedText(others)} ›
           </button>
         )}
@@ -62,7 +61,7 @@ export function TrustLine() {
       {waiting > 0 && (
         <button
           type="button"
-          onClick={() => navigate('review')}
+          onClick={() => void navigate({ to: '/review' })}
           aria-label={`${waiting} waiting for review`}
           className={`${syncStamp ? '' : 'ml-auto '}inline-flex h-6 items-center rounded-[12px] border border-line-strong bg-surface bg-[repeating-linear-gradient(45deg,var(--hatch-stripe)_0_1px,transparent_1px_5px)] px-2.5 text-[12px] font-semibold whitespace-nowrap`}
         >

@@ -1,3 +1,5 @@
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getRouteApi, useRouter } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
 import { AccountIcon } from '../components/AccountIcon'
 import { BalanceSheet } from '../components/accounts/BalanceSheet'
@@ -11,11 +13,11 @@ import { ConnectBank } from '../components/ConnectBank'
 import { ConnectEuropeanBank } from '../components/ConnectEuropeanBank'
 import { Empty, ErrorState, Loading } from '../components/ui/States'
 import { Money } from '../components/ui/Typography'
-import { getJson, type AccountBalance, type ConnectionStatus, type ConnectionSummary, type LedgerRow } from '../lib/api'
-import { useApp, useDisplayCurrency } from '../lib/app-context'
+import type { AccountBalance, ConnectionStatus, ConnectionSummary, LedgerRow } from '../lib/api'
+import { useDisplayCurrency } from '../lib/app-context'
 import { summarizeConnections, timeAgo } from '../lib/connection-health'
 import { formatLedgerDate, formatLocalDate, formatMoney, formatTimestamp } from '../lib/format'
-import { useResource } from '../lib/useResource'
+import { accountBalancesOptions, connectionsOptions, queryError, transactionsOptions } from '../lib/queries'
 
 const STRIP = 'bg-surface-2/60'
 const PREVIEW_ROWS = 10
@@ -27,9 +29,11 @@ const STATUS_DOT: Record<ConnectionStatus, string> = {
   disconnected: 'bg-ink-3',
 }
 
+const route = getRouteApi('/currency/accounts')
+
 const ADD_CONNECTION = '#add-connection'
 
-/** Settings mounts after `navigate`; bring its "Add a connection" section into view as soon as it exists. */
+/** Settings mounts after the navigation; bring its "Add a connection" section into view as soon as it exists. */
 function showAddConnection(tries = 20) {
   const section = document.querySelector<HTMLElement>(ADD_CONNECTION)
   if (section) {
@@ -42,23 +46,29 @@ function showAddConnection(tries = 20) {
 }
 
 export function Accounts() {
-  const { version, invalidate, navigate } = useApp()
-  const [selectedId, setSelectedId] = useState<string | null>(null)
-  const accounts = useResource(
-    (signal) => getJson<{ accounts: AccountBalance[] }>('/api/ledger/account-balances', signal).then((r) => r.accounts),
-    version,
-  )
-  const connections = useResource(
-    (signal) => getJson<{ connections: ConnectionSummary[] }>('/api/providers/connections', signal).then((r) => r.connections),
-    version,
-  )
+  const { account: selectedId } = route.useSearch()
+  const navigate = route.useNavigate()
+  const queryClient = useQueryClient()
+  const accounts = useQuery(accountBalancesOptions())
+  const connections = useQuery(connectionsOptions())
 
+  const router = useRouter()
   const returnTo = useRef<string | null>(null)
+  const openedHere = useRef(false)
 
   const select = (id: string | null) => {
-    if (id === null) returnTo.current = selectedId
-    setSelectedId(id)
-    window.scrollTo({ top: 0 })
+    if (id !== null) {
+      openedHere.current = true
+      void navigate({ to: '/accounts', search: { account: id } })
+      return
+    }
+    returnTo.current = selectedId ?? null
+    if (openedHere.current) {
+      openedHere.current = false
+      router.history.back()
+      return
+    }
+    void navigate({ to: '/accounts', search: {}, replace: true })
   }
 
   const data = accounts.data
@@ -73,27 +83,27 @@ export function Accounts() {
 
   return (
     <div className="flex flex-col gap-5">
-      {accounts.error ? (
-        <ErrorState title="Couldn't load your accounts" message={accounts.error} onRetry={accounts.reload} />
+      {accounts.isError ? (
+        <ErrorState title="Couldn't load your accounts" message={queryError(accounts)} onRetry={() => void accounts.refetch()} />
       ) : !data ? (
         <Loading label="Loading accounts" rows={4} />
       ) : data.length === 0 ? (
         <Empty title="No accounts yet">
           Connect a bank and your accounts will appear here.
           <div className="mt-3 flex flex-wrap items-center gap-2">
-            <ConnectBank onConnected={invalidate} variant="secondary" showSandboxHint={false} />
+            <ConnectBank onConnected={() => void queryClient.invalidateQueries()} variant="secondary" showSandboxHint={false} />
             <ConnectEuropeanBank variant="secondary" />
           </div>
         </Empty>
       ) : (
         <AccountsBody
           accounts={data}
-          connections={connections.data}
-          connectionsError={connections.error}
+          connections={connections.isError ? undefined : connections.data}
+          connectionsError={queryError(connections)}
           onOpen={select}
-          onSettings={() => navigate('settings')}
+          onSettings={() => void navigate({ to: '/settings' })}
           onAddBank={() => {
-            navigate('settings')
+            void navigate({ to: '/settings' })
             requestAnimationFrame(() => showAddConnection())
           }}
         />
@@ -187,14 +197,8 @@ function NoLongerConnected({ accounts, onOpen }: { accounts: AccountBalance[]; o
 }
 
 function AccountDetail({ account: b, onBack }: { account: AccountBalance; onBack: () => void }) {
-  const { version } = useApp()
-  const tx = useResource(
-    (signal) =>
-      getJson<{ transactions: LedgerRow[] }>(`/api/ledger/transactions?accountId=${encodeURIComponent(b.id)}`, signal).then(
-        (r) => r.transactions,
-      ),
-    `${b.id}:${version}`,
-  )
+  const tx = useQuery({ ...transactionsOptions({ accountId: b.id }), placeholderData: keepPreviousData })
+  const rows = tx.isError ? undefined : tx.data
   const [now] = useState(() => Date.now())
   const idLine = [b.institutionName, identity(b), b.currency].filter(Boolean).join(' · ')
   const reach = isDebt(b) ? { label: 'Limit', value: b.creditLimit } : { label: 'Available', value: b.availableBalance }
@@ -261,34 +265,32 @@ function AccountDetail({ account: b, onBack }: { account: AccountBalance; onBack
         <div className="flex items-baseline justify-between gap-4 px-5 pt-4 pb-3">
           <h2 className="font-sans text-[15px] font-semibold tracking-normal text-ink">
             Transactions
-            {tx.data && tx.data.length > 0 && (
-              <span className="figures ml-1.5 text-[13px] font-normal text-ink-3">{tx.data.length}</span>
-            )}
+            {rows && rows.length > 0 && <span className="figures ml-1.5 text-[13px] font-normal text-ink-3">{rows.length}</span>}
           </h2>
-          {tx.data && tx.data.length > 0 && <p className="text-[12.5px] text-ink-3">Newest first</p>}
+          {rows && rows.length > 0 && <p className="text-[12.5px] text-ink-3">Newest first</p>}
         </div>
-        {tx.error ? (
+        {tx.isError ? (
           <div className="px-5 pb-5">
-            <ErrorState title="Couldn't load transactions" message={tx.error} onRetry={tx.reload} />
+            <ErrorState title="Couldn't load transactions" message={queryError(tx)} onRetry={() => void tx.refetch()} />
           </div>
-        ) : !tx.data ? (
+        ) : !rows ? (
           <div className="px-5 pb-5">
             <Loading label="Loading transactions" rows={6} />
           </div>
-        ) : tx.data.length === 0 ? (
+        ) : rows.length === 0 ? (
           <div className="border-t border-line px-5 pb-2">
             <Empty title="This bank reports a balance only — no transactions imported." />
           </div>
         ) : (
           <>
-            <TransactionTable rows={showAll ? tx.data : tx.data.slice(0, PREVIEW_ROWS)} />
-            {!showAll && tx.data.length > PREVIEW_ROWS && (
+            <TransactionTable rows={showAll ? rows : rows.slice(0, PREVIEW_ROWS)} />
+            {!showAll && rows.length > PREVIEW_ROWS && (
               <button
                 type="button"
                 onClick={() => setShowAll(true)}
                 className="figures w-full border-t border-line px-5 py-3 text-[13px] font-medium text-ink-2 transition-colors hover:bg-surface-2/40 hover:text-ink"
               >
-                Show all {tx.data.length} transactions
+                Show all {rows.length} transactions
               </button>
             )}
           </>

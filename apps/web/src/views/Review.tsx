@@ -1,11 +1,12 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { AfterDecide } from '../components/review/AfterDecide'
 import { AtStake } from '../components/review/AtStake'
 import { ConfidenceSplit } from '../components/review/ConfidenceSplit'
-import { useConnections, usePossibleTransfers, usePostingAccounts } from '../components/review/data'
 import { Hero } from '../components/review/Hero'
 import { QueueCard } from '../components/review/QueueCard'
-import { atStakeByCurrency, itemAmount, itemName, tilesFor } from '../components/review/helpers'
+import { atStakeByCurrency, itemAmount, itemName, tilesFor, type ReviewFilter } from '../components/review/helpers'
 import { TransferCard } from '../components/review/TransferCard'
 import { TrustLine } from '../components/review/TrustLine'
 import { Segmented } from '../components/ui/Segmented'
@@ -14,20 +15,23 @@ import { ErrorState, Loading, Notice } from '../components/ui/States'
 import {
   decideTransfer,
   errorMessage,
-  getJson,
   sendJson,
   type ConfidenceBand,
-  type GateSettings,
   type PossibleTransfer,
   type ReviewItem,
   type TransferDecision,
 } from '../lib/api'
-import { useApp } from '../lib/app-context'
-import { useCategories } from '../lib/categories'
-import { useResource } from '../lib/useResource'
+import {
+  connectionsOptions,
+  gateOptions,
+  possibleTransfersOptions,
+  queryError,
+  reviewQueueOptions,
+  useCategories,
+  usePostingAccounts,
+} from '../lib/queries'
 
 type Outcome = { id: string; tone: 'success' | 'error'; text: string; rule: boolean }
-type Filter = 'all' | ConfidenceBand
 type Pending = { key: string; kind: 'approve' | 'reject' | 'file' }
 type Refocus = { id: string; nextId: string | null; heading: 'queue' | 'transfers' }
 
@@ -36,25 +40,22 @@ const nextAfter = (ids: string[], id: string) => {
   return ids[i + 1] ?? ids[i - 1] ?? null
 }
 
+const route = getRouteApi('/review')
+
 export function Review() {
-  const { version, invalidate, navigate } = useApp()
+  const { filter } = route.useSearch()
+  const navigate = route.useNavigate()
+  const queryClient = useQueryClient()
   const categories = useCategories()
-  const queue = useResource(
-    (signal) => getJson<{ items: ReviewItem[] }>('/api/assistant/review-queue', signal).then((r) => r.items),
-    version,
-  )
-  const gate = useResource((signal) => getJson<{ settings: GateSettings }>('/api/assistant/gate', signal).then((r) => r.settings))
-  const transfers = usePossibleTransfers(version)
-  const connections = useConnections()
-  const items = queue.data
-  const accounts = usePostingAccounts(
-    (items ?? []).map((i) => i.postingId),
-    version,
-  )
+  const queue = useQuery(reviewQueueOptions())
+  const gate = useQuery(gateOptions())
+  const transfers = useQuery(possibleTransfersOptions())
+  const connections = useQuery(connectionsOptions())
+  const items = queue.isError ? undefined : queue.data
+  const accounts = usePostingAccounts((items ?? []).map((i) => i.postingId))
 
   const [pending, setPending] = useState<Pending | null>(null)
   const [outcomes, setOutcomes] = useState<Outcome[]>([])
-  const [filter, setFilter] = useState<Filter>('all')
   const [decided, setDecided] = useState<ReadonlySet<string>>(new Set())
   const [transferError, setTransferError] = useState<string | null>(null)
   const wrapRef = useRef<HTMLDivElement>(null)
@@ -69,7 +70,7 @@ export function Review() {
   // is still there (a failed write), else the next card's first action, else the list heading.
   useEffect(() => {
     const r = refocus.current
-    if (!r || pending || queue.loading || transfers.loading) return
+    if (!r || pending || queue.isFetching || transfers.isFetching) return
     refocus.current = null
     const first = (id: string | null) =>
       id ? document.querySelector<HTMLElement>(`[data-review-id="${id}"] :is(select, button):not(:disabled)`) : null
@@ -89,7 +90,7 @@ export function Review() {
     }
   }
 
-  const gateBounds = gate.data ? { high: gate.data.highConfidence, low: gate.data.lowConfidence } : null
+  const gateBounds = !gate.isError && gate.data ? { high: gate.data.highConfidence, low: gate.data.lowConfidence } : null
   const list = items ?? []
   const currencyOrder = [...new Set(list.map((i) => i.posting?.currency ?? ''))]
   const visible = list
@@ -99,7 +100,7 @@ export function Review() {
         currencyOrder.indexOf(a.posting?.currency ?? '') - currencyOrder.indexOf(b.posting?.currency ?? '') ||
         Math.abs(itemAmount(b)) - Math.abs(itemAmount(a)),
     )
-  const transferGroups = (transfers.data ?? [])
+  const transferGroups = (transfers.isError ? [] : (transfers.data ?? []))
     .map((g) => ({ ...g, rows: g.rows.filter((r) => !decided.has(r.transactionId)) }))
     .filter((g) => g.rows.length > 0)
 
@@ -136,7 +137,7 @@ export function Review() {
       } catch (e) {
         record({ id: item.id, tone: 'error', text: `${who}: ${errorMessage(e)}`, rule: false })
       }
-      invalidate()
+      void queryClient.invalidateQueries()
     })
 
   const file = (item: ReviewItem, categoryId: string) =>
@@ -147,7 +148,7 @@ export function Review() {
           categoryId,
         })
         record({ id: item.id, tone: 'success', text: filedText(item, categoryId, res.alsoFiled), rule: !!res.ruleId })
-        invalidate()
+        void queryClient.invalidateQueries()
       } catch (e) {
         record({ id: item.id, tone: 'error', text: `${who}: ${errorMessage(e)}`, rule: false })
       }
@@ -159,14 +160,14 @@ export function Review() {
       try {
         await decideTransfer(row.transactionId, decision)
         setDecided((prev) => new Set(prev).add(row.transactionId))
-        invalidate()
+        void queryClient.invalidateQueries()
       } catch (e) {
         setTransferError(errorMessage(e))
-        invalidate()
+        void queryClient.invalidateQueries()
       }
     })
 
-  if (!items && !queue.error) return <Loading label="Loading review queue" rows={4} />
+  if (!items && !queue.isError) return <Loading label="Loading review queue" rows={4} />
 
   const counts: Record<ConfidenceBand, number> = { high: 0, medium: 0, low: 0 }
   for (const i of list) counts[i.confidenceBand] += 1
@@ -177,12 +178,12 @@ export function Review() {
   }
 
   const stake = atStakeByCurrency(list)
-  const tiles = items ? tilesFor(items, accounts.data) : null
+  const tiles = items ? tilesFor(items, accounts.isError ? undefined : accounts.data) : null
 
   return (
     <div ref={wrapRef} tabIndex={-1} className="flex flex-col gap-6 outline-none">
       {items && items.length > 0 && <Hero count={items.length} stake={stake} high={gateBounds?.high ?? null} />}
-      {items && <TrustLine count={items.length} stake={stake} transfers={transferGroups} connections={connections.data} />}
+      {items && <TrustLine count={items.length} stake={stake} transfers={transferGroups} connections={connections.isError ? undefined : connections.data} />}
       <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-x-[26px]">
         <div className="flex min-w-0 flex-col gap-4">
           {outcomes.length > 0 && (
@@ -194,7 +195,7 @@ export function Review() {
                     <>
                       {' '}
                       Rule saved —{' '}
-                      <button type="button" className="font-medium underline underline-offset-2" onClick={() => navigate('rules')}>
+                      <button type="button" className="font-medium underline underline-offset-2" onClick={() => void navigate({ to: '/rules' })}>
                         see Rules
                       </button>
                       .
@@ -204,9 +205,9 @@ export function Review() {
               ))}
             </div>
           )}
-          {categories.error && <Notice tone="error">Categories unavailable: {categories.error}</Notice>}
+          {categories.isError && <Notice tone="error">Categories unavailable: {queryError(categories)}</Notice>}
           {!items ? (
-            <ErrorState title="Couldn't load the review queue" message={queue.error} onRetry={queue.reload} />
+            <ErrorState title="Couldn't load the review queue" message={queryError(queue)} onRetry={() => void queue.refetch()} />
           ) : items.length === 0 ? (
             <div className="rounded-lg border border-line bg-surface px-6 py-8 shadow-1">
               <p tabIndex={-1} data-review-heading="queue" className="font-display text-xl font-bold text-ink outline-none">
@@ -217,7 +218,7 @@ export function Review() {
                 here.
               </p>
               <div className="mt-4">
-                <Button size="sm" onClick={() => navigate('transactions')}>
+                <Button size="sm" onClick={() => void navigate({ to: '/transactions' })}>
                   Open Transactions
                 </Button>
               </div>
@@ -233,10 +234,10 @@ export function Review() {
                 >
                   Waiting <span className="font-normal text-ink-3">· largest amount first</span>
                 </h2>
-                <Segmented<Filter>
+                <Segmented<ReviewFilter>
                   label="Filter by confidence"
                   value={filter}
-                  onChange={setFilter}
+                  onChange={(next) => void navigate({ to: '/review', search: { filter: next }, resetScroll: false })}
                   options={[
                     { value: 'all', label: `All ${items.length}` },
                     { value: 'high', label: `High ${counts.high}` },

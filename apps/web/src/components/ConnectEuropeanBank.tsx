@@ -1,9 +1,10 @@
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
-import { errorMessage, getJson } from '../lib/api'
+import { errorMessage } from '../lib/api'
 import { HTTPS_REASON, isHttps } from '../lib/connection-health'
-import { ENABLE_BANKING_AVAILABLE, startEnableBankingConnect, type EnableBankingBank } from '../lib/enable-banking'
-import { useResource } from '../lib/useResource'
+import { ENABLE_BANKING_AVAILABLE, startEnableBankingConnect } from '../lib/enable-banking'
+import { aspspsOptions, queryError } from '../lib/queries'
 import { Button } from './ui/Button'
 import { Field, Select } from './ui/Field'
 import { Notice } from './ui/States'
@@ -62,15 +63,8 @@ export function ConnectEuropeanBank({ variant = 'primary', renderTrigger, panelI
   const [redirecting, setRedirecting] = useState(false)
   const [startError, setStartError] = useState<string | null>(null)
 
-  const banks = useResource(
-    (signal) =>
-      country
-        ? getJson<{ aspsps: EnableBankingBank[] }>(`/api/providers/enable-banking/aspsps?country=${country}`, signal).then(
-            (r) => r.aspsps,
-          )
-        : Promise.resolve([] as EnableBankingBank[]),
-    country,
-  )
+  const banks = useQuery({ ...aspspsOptions(country), placeholderData: keepPreviousData })
+  const bankList = banks.isError ? undefined : banks.data
 
   const httpsMissing = !isHttps()
 
@@ -104,7 +98,7 @@ export function ConnectEuropeanBank({ variant = 'primary', renderTrigger, panelI
     )
   }
 
-  const bank = banks.data?.find((b) => b.name === bankName)
+  const bank = bankList?.find((b) => b.name === bankName)
 
   const connect = async () => {
     if (!bank) return
@@ -139,16 +133,16 @@ export function ConnectEuropeanBank({ variant = 'primary', renderTrigger, panelI
         </Select>
       </Field>
       {country && (
-        <Field id="eb-bank" label="Bank" error={banks.error}>
+        <Field id="eb-bank" label="Bank" error={queryError(banks)}>
           <Select
             id="eb-bank"
             aria-describedby="eb-bank-error"
             value={bankName}
-            disabled={banks.loading}
+            disabled={banks.isFetching}
             onChange={(e) => setBankName(e.target.value)}
           >
-            <option value="">{banks.loading ? 'Loading banks…' : 'Choose a bank'}</option>
-            {banks.data?.map((b) => (
+            <option value="">{banks.isFetching ? 'Loading banks…' : 'Choose a bank'}</option>
+            {bankList?.map((b) => (
               <option key={b.name} value={b.name}>
                 {b.beta ? `${b.name} (beta)` : b.name}
               </option>

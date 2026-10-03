@@ -1,8 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { getJson, getVersionInfo, type ConnectionSummary } from './api'
-import { useApp, type View } from './app-context'
 import { shortName, summarizeConnections } from './connection-health'
-import { useResource } from './useResource'
+import { connectionsOptions, useReviewCount, versionInfoOptions } from './queries'
 
 export type NotificationTone = 'accent' | 'warning' | 'broken'
 
@@ -11,19 +10,16 @@ export type Notification = {
   tone: NotificationTone
   text: string
   detail: string
-  view: View
+  to: '/settings' | '/review'
   section?: 'general' | 'connections'
 }
 
 export function useNotifications(): Notification[] {
-  const { version, reviewCount } = useApp()
-  const versionInfo = useResource(getVersionInfo, version)
-  const connections = useResource(
-    (signal) => getJson<{ connections: ConnectionSummary[] }>('/api/providers/connections', signal).then((r) => r.connections),
-    version,
-  )
-  const info = versionInfo.data
-  const list = connections.data
+  const reviewCount = useReviewCount()
+  const versionInfo = useQuery(versionInfoOptions())
+  const connections = useQuery(connectionsOptions())
+  const info = versionInfo.isError ? undefined : versionInfo.data
+  const list = connections.isError ? undefined : connections.data
 
   return useMemo(() => {
     const items: Notification[] = []
@@ -33,7 +29,7 @@ export function useNotifications(): Notification[] {
         tone: 'accent',
         text: `Update available: v${info.latest.version}`,
         detail: `You're on v${info.current}`,
-        view: 'settings',
+        to: '/settings',
         section: 'general',
       })
     }
@@ -43,12 +39,12 @@ export function useNotifications(): Notification[] {
         tone: health.severity === 'broken' ? 'broken' : 'warning',
         text: shortName(connection.institutionName ?? 'Bank'),
         detail: health.label ?? '',
-        view: 'settings',
+        to: '/settings',
         section: 'connections',
       })
     }
     if (reviewCount && reviewCount > 0) {
-      items.push({ id: 'review', tone: 'warning', text: `${reviewCount} waiting in Review`, detail: 'Open Review to clear them', view: 'review' })
+      items.push({ id: 'review', tone: 'warning', text: `${reviewCount} waiting in Review`, detail: 'Open Review to clear them', to: '/review' })
     }
     return items
   }, [info, list, reviewCount])

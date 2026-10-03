@@ -1,8 +1,8 @@
 import { useState } from 'react'
 import type { PossibleTransfer, TransferDecision } from '../../lib/api'
+import type { TransferGroup } from '../../lib/queries'
 import { Button } from '../ui/Button'
 import { Notice } from '../ui/States'
-import type { TransferGroup } from './data'
 import { dateParts, ledgerWeekday } from './helpers'
 import { Amt } from './shared'
 

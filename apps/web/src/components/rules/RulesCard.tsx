@@ -1,8 +1,9 @@
+import type { UseQueryResult } from '@tanstack/react-query'
 import { useState } from 'react'
 import type { Rule } from '../../lib/api'
 import type { CategoryCatalogue } from '../../lib/categories'
 import { formatConfidence, formatLocalDate } from '../../lib/format'
-import type { Resource } from '../../lib/useResource'
+import { queryError } from '../../lib/queries'
 import { Button } from '../ui/Button'
 import { Empty, ErrorState, Loading } from '../ui/States'
 import { categoryLabel, lastMatchAt, sortRules, tileClass, type RuleTab } from './model'
@@ -23,7 +24,7 @@ const TH = 'px-2 max-[1360px]:px-1.5 pb-2 align-bottom text-[11px] font-semibold
 const TAG = 'inline-flex items-center gap-[5px] rounded-full border px-2 py-0.5 text-[11px] font-semibold whitespace-nowrap'
 
 type Props = {
-  rules: Resource<Rule[]>
+  rules: UseQueryResult<Rule[]>
   catalogue: CategoryCatalogue | undefined
   tab: RuleTab
   onTab: (tab: RuleTab) => void
@@ -33,7 +34,7 @@ type Props = {
 
 export function RulesCard({ rules, catalogue, tab, onTab, acting, onDecide }: Props) {
   const [query, setQuery] = useState('')
-  const all = rules.data
+  const all = rules.isError ? undefined : rules.data
   const active = all ? sortRules(all, 'active') : []
   const inTab = all ? sortRules(all, tab) : []
   const counts = all ? { active: active.length, off: sortRules(all, 'off').length } : null
@@ -63,8 +64,8 @@ export function RulesCard({ rules, catalogue, tab, onTab, acting, onDecide }: Pr
       </CardHead>
 
       <div role="tabpanel" id={PANEL_ID} tabIndex={-1} aria-labelledby={`rules-tab-${tab}`}>
-        {rules.error ? (
-          <ErrorState title="Couldn’t load rules" message={rules.error} onRetry={rules.reload} />
+        {rules.isError ? (
+          <ErrorState title="Couldn’t load rules" message={queryError(rules)} onRetry={() => void rules.refetch()} />
         ) : !all ? (
           <Loading rows={4} label="Loading rules…" />
         ) : shown.length === 0 ? (

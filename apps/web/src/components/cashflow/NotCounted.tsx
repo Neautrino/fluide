@@ -1,4 +1,4 @@
-import { getCashFlowTransactions, type CashFlow, type CashFlowParams, type NotCountedKind } from '../../lib/api'
+import type { CashFlow, CashFlowParams, NotCountedKind } from '../../lib/api'
 import { PossibleTransfers } from '../PossibleTransfers'
 import { Amt, Card, DrillButton, Figure } from './primitives'
 
@@ -18,7 +18,7 @@ const NOTE: Record<NotCountedKind, string> = {
 
 const ROW = 'grid grid-cols-[minmax(0,1fr)_auto] items-baseline gap-3 border-t border-line py-[9px] text-[12.5px]'
 
-export function NotCounted({ data, params, paramsKey }: { data: CashFlow; params: CashFlowParams; paramsKey: string }) {
+export function NotCounted({ data, params }: { data: CashFlow; params: CashFlowParams }) {
   const { currency, possibleTransfers } = data
   const entries = data.notCounted.filter((n) => n.count > 0)
   const nothing = entries.length === 0
@@ -31,8 +31,7 @@ export function NotCounted({ data, params, paramsKey }: { data: CashFlow; params
             currency={currency}
             count={possibleTransfers.count}
             total={possibleTransfers.total}
-            load={(signal) => getCashFlowTransactions({ ...params, currency }, 'possible', signal).then((r) => r.rows)}
-            loadKey={paramsKey}
+            params={{ ...params, currency }}
           />
         )}
         {nothing ? (

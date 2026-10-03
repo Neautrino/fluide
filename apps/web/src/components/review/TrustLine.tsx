@@ -1,7 +1,7 @@
 import { useMemo } from 'react'
 import type { ConnectionSummary } from '../../lib/api'
 import { chipText, summarizeConnections, type Severity } from '../../lib/connection-health'
-import type { TransferGroup } from './data'
+import type { TransferGroup } from '../../lib/queries'
 import { Amt, StakeAmounts } from './shared'
 import type { AtStake } from './helpers'
 

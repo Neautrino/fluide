@@ -1,8 +1,8 @@
+import { useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useEffect, useRef, type ReactNode } from 'react'
 import type { ConnectionSummary } from '../lib/api'
-import { useApp } from '../lib/app-context'
 import { connectionHealth, isLiveConnection, summarizeConnections } from '../lib/connection-health'
-import type { Resource } from '../lib/useResource'
+import { queryError } from '../lib/queries'
 import { ConnectionRow } from './settings/ConnectionRow'
 import { plural } from './settings/time'
 import { CardHeader, Stamp } from './settings/ui'
@@ -17,9 +17,9 @@ function missingAccounts(successor: ConnectionSummary, all: ConnectionSummary[])
   return shortfalls.length === 0 ? 0 : Math.max(0, ...shortfalls)
 }
 
-export function Connections({ connections, now }: { connections: Resource<ConnectionSummary[]>; now: number }) {
-  const { invalidate } = useApp()
-  const all = connections.data
+export function Connections({ connections, now }: { connections: UseQueryResult<ConnectionSummary[]>; now: number }) {
+  const queryClient = useQueryClient()
+  const all = connections.isError ? undefined : connections.data
   const live = all?.filter(isLiveConnection) ?? []
   const disconnected = all?.filter((c) => !isLiveConnection(c)) ?? []
   const { accounts, syncStamp } = summarizeConnections(live, now)
@@ -54,8 +54,12 @@ export function Connections({ connections, now }: { connections: Resource<Connec
         aside={syncStamp ? <Stamp>{syncStamp}</Stamp> : undefined}
       />
       <div className="mt-3 rounded-lg border border-line bg-surface px-3 pt-3.5 pb-2 shadow-1">
-        {connections.error ? (
-          <ErrorState title="Couldn't load bank connections" message={connections.error} onRetry={connections.reload} />
+        {connections.isError ? (
+          <ErrorState
+            title="Couldn't load bank connections"
+            message={queryError(connections)}
+            onRetry={() => void connections.refetch()}
+          />
         ) : !all ? (
           <Loading label="Loading bank connections" rows={2} />
         ) : all.length === 0 ? (
@@ -64,12 +68,24 @@ export function Connections({ connections, now }: { connections: Resource<Connec
           <>
             {live.length > 0 && (
               <Group title="Live sync" note="read-only bank access" first>
-                <RowList connections={live} all={all} now={now} onChanged={invalidate} onRemoved={removed} />
+                <RowList
+                  connections={live}
+                  all={all}
+                  now={now}
+                  onChanged={() => void queryClient.invalidateQueries()}
+                  onRemoved={removed}
+                />
               </Group>
             )}
             {disconnected.length > 0 && (
               <Group title="Disconnected" note="history stays in the ledger" first={live.length === 0}>
-                <RowList connections={disconnected} all={all} now={now} onChanged={invalidate} onRemoved={removed} />
+                <RowList
+                  connections={disconnected}
+                  all={all}
+                  now={now}
+                  onChanged={() => void queryClient.invalidateQueries()}
+                  onRemoved={removed}
+                />
               </Group>
             )}
           </>

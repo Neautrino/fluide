@@ -1,6 +1,7 @@
-import { getCashFlowTransactions, type CashFlowParams } from '../../lib/api'
+import { keepPreviousData, useQuery } from '@tanstack/react-query'
+import type { CashFlowParams } from '../../lib/api'
 import { formatLedgerDate } from '../../lib/format'
-import { useResource } from '../../lib/useResource'
+import { cashFlowTransactionsOptions, queryError } from '../../lib/queries'
 import { Drawer } from '../ui/Drawer'
 import { Empty, ErrorState, Loading } from '../ui/States'
 import { Money } from '../ui/Typography'
@@ -9,37 +10,34 @@ import { Amt, Figure, type Drill } from './primitives'
 export function DrillDrawer({
   drill,
   params,
-  paramsKey,
-  version,
   title,
   onClose,
 }: {
   drill: Drill
   params: CashFlowParams & { currency: string }
-  paramsKey: string
-  version: number
   title: string
   onClose: () => void
 }) {
-  const res = useResource((signal) => getCashFlowTransactions(params, drill.token, signal), `${drill.token}|${paramsKey}|${version}`)
+  const res = useQuery({ ...cashFlowTransactionsOptions(params, drill.token), placeholderData: keepPreviousData })
+  const data = res.isError ? undefined : res.data
   return (
     <Drawer title={title} onClose={onClose}>
-      {res.data ? (
+      {data ? (
         <>
           <div className="border-b border-ink pb-4">
             <p className="eyebrow">Total</p>
             <Amt className="mt-1 block font-display text-[36px] leading-none text-ink">
-              <Figure value={res.data.total} currency={params.currency} />
+              <Figure value={data.total} currency={params.currency} />
             </Amt>
             <p className="figures mt-2 text-[13px] text-ink-3">
-              {res.data.count} {res.data.count === 1 ? 'transaction' : 'transactions'}
+              {data.count} {data.count === 1 ? 'transaction' : 'transactions'}
             </p>
           </div>
-          {res.data.rows.length === 0 ? (
+          {data.rows.length === 0 ? (
             <Empty title="No transactions" />
           ) : (
             <ul>
-              {res.data.rows.map((r, i) => (
+              {data.rows.map((r, i) => (
                 <li key={`${r.transactionId}:${i}`} className="flex items-baseline justify-between gap-4 border-b border-line py-3">
                   <div className="min-w-0">
                     <p className="truncate text-[14px] text-ink">
@@ -57,8 +55,8 @@ export function DrillDrawer({
             </ul>
           )}
         </>
-      ) : res.error ? (
-        <ErrorState title="Couldn't load these transactions" message={res.error} onRetry={res.reload} />
+      ) : res.isError ? (
+        <ErrorState title="Couldn't load these transactions" message={queryError(res)} onRetry={() => void res.refetch()} />
       ) : (
         <Loading label="Loading transactions" rows={5} />
       )}

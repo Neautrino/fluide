@@ -1,6 +1,6 @@
+import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { CashFlow, CashFlowCompare } from '../../lib/api'
-import { useApp } from '../../lib/app-context'
 import { Button } from '../ui/Button'
 import { Empty } from '../ui/States'
 import { CategoryBar } from './CategoryBar'
@@ -22,7 +22,7 @@ const TD_FIRST = 'border-t border-line pr-1.5 text-left'
 const WIDE = 'hidden @[540px]:table-cell'
 
 export function Categories({ data }: { data: CashFlow }) {
-  const { navigate } = useApp()
+  const navigate = useNavigate()
   const [all, setAll] = useState(false)
   const { compare, currency, totals } = data
   const noun = baselineNoun(compare, data.month)
@@ -76,7 +76,7 @@ export function Categories({ data }: { data: CashFlow }) {
               from bank
             </span>
           )}
-          <TextLink onClick={() => navigate('rules')}>Rules</TextLink>
+          <TextLink onClick={() => void navigate({ to: '/rules' })}>Rules</TextLink>
         </>
       }
     >

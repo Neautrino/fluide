@@ -1,7 +1,10 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { useMatchRoute } from '@tanstack/react-router'
 import { useEffect, useState, useRef } from 'react'
 import { sendJson } from '../lib/api'
-import { useApp, type View } from '../lib/app-context'
+import { useApp } from '../lib/app-context'
 import { useHiddenAmounts, useTheme } from '../lib/prefs'
+import { useReviewCount } from '../lib/queries'
 import { Notifications } from './Notifications'
 import { NAV } from './Sidebar'
 
@@ -20,32 +23,31 @@ function getDaysLeft(date: Date) {
   return `${daysLeft} days left in ${monthName}`
 }
 
-const SUBTITLE: Partial<Record<View, string>> = {
-  transactions: 'every account, one list',
-  accounts: 'what you have and owe',
-  cashflow: 'money in and out',
-  rules: 'categorization',
-  settings: 'connections and categorization',
-  assistant: 'answers from your ledger',
-}
-
-function subtitleFor(view: View, reviewCount: number | null) {
-  if (view === 'review') return reviewCount === null ? 'waiting' : `${reviewCount} waiting`
-  return SUBTITLE[view]
+const SUBTITLE: Record<string, string> = {
+  '/transactions': 'every account, one list',
+  '/accounts': 'what you have and owe',
+  '/cashflow': 'money in and out',
+  '/rules': 'categorization',
+  '/settings': 'connections and categorization',
+  '/assistant': 'answers from your ledger',
 }
 
 export function Header() {
-  const { view, invalidate, ask, reviewCount } = useApp()
+  const { ask } = useApp()
+  const matchRoute = useMatchRoute()
+  const queryClient = useQueryClient()
+  const reviewCount = useReviewCount()
   const { hiddenAmounts, toggleHiddenAmounts } = useHiddenAmounts()
   const { theme, toggleTheme } = useTheme()
   const [syncing, setSyncing] = useState(false)
   const [syncError, setSyncError] = useState<string | null>(null)
   
-  const title = NAV.find((n) => n.view === view)?.label || 'Overview'
+  const current = NAV.find((item) => matchRoute({ to: item.to, fuzzy: item.to !== '/' }))
+  const title = current?.label || 'Overview'
   const date = new Date()
 
   const dateStr = new Intl.DateTimeFormat(undefined, { weekday: 'short', day: 'numeric', month: 'short' }).format(date)
-  const subtitle = subtitleFor(view, reviewCount)
+  const subtitle = current?.to === '/review' ? (reviewCount === null ? 'waiting' : `${reviewCount} waiting`) : SUBTITLE[current?.to ?? '']
   const topLine = subtitle ? `${dateStr} · ${subtitle}` : `${getGreeting(date)} · ${getDaysLeft(date)}`
 
   const handleSync = async () => {
@@ -54,7 +56,7 @@ export function Header() {
     setSyncError(null)
     try {
       await sendJson('POST', '/api/providers/sync', undefined, 120_000)
-      invalidate()
+      void queryClient.invalidateQueries()
     } catch {
       setSyncError('Sync failed')
     } finally {
@@ -97,7 +99,7 @@ export function Header() {
       <div className="ml-auto flex items-center gap-4 md:min-w-0">
         {syncError && <span className="text-[12px] font-medium text-broken">{syncError}</span>}
         
-        {view !== 'assistant' && (
+        {current?.to !== '/assistant' && (
           <form
             onSubmit={handleAsk}
             className="hidden relative md:flex w-[360px] min-w-0 xl:w-[420px] items-center gap-[9px] h-[40px] rounded-[20px] border border-line bg-surface px-1.5 pl-[14px]"

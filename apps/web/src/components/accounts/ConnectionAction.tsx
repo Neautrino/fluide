@@ -1,6 +1,6 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { errorMessage, sendJson, type ConnectionSummary } from '../../lib/api'
-import { useApp } from '../../lib/app-context'
 import { shortName, type Health } from '../../lib/connection-health'
 import { bankRedirectUrl } from '../../lib/enable-banking'
 import { ConnectBank } from '../ConnectBank'
@@ -12,7 +12,7 @@ import { blocksReconnect, HTTPS_REASON_ID } from './model'
  * otherwise Plaid opens Link in update mode, and Enable Banking starts a new authorization at the same bank, which needs https.
  */
 export function ConnectionAction({ connection: c, health, onSettings }: { connection: ConnectionSummary; health: Health; onSettings: () => void }) {
-  const { invalidate } = useApp()
+  const queryClient = useQueryClient()
   const [busy, setBusy] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const label = health.actions.reconnect
@@ -33,7 +33,7 @@ export function ConnectionAction({ connection: c, health, onSettings }: { connec
     return (
       <ConnectBank
         reconnectId={c.id}
-        onConnected={invalidate}
+        onConnected={() => void queryClient.invalidateQueries()}
         renderTrigger={(t) => (
           <Button size="sm" variant={variant} busy={t.busy} aria-label={t.busy ? undefined : text} onClick={t.onClick}>
             {t.busy ? t.label : text}

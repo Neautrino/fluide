@@ -1,7 +1,7 @@
+import { useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import {
   errorMessage,
-  getJson,
   sendJson,
   type AiCredentialStatus,
   type AiDraft,
@@ -14,7 +14,7 @@ import {
   type AiTestResult,
 } from '../../lib/api'
 import { formatLocalDate, formatTimestamp } from '../../lib/format'
-import { useResource } from '../../lib/useResource'
+import { aiSettingsOptions, queryError } from '../../lib/queries'
 import { Button } from '../ui/Button'
 import { Field, Input } from '../ui/Field'
 import { ErrorState, Loading, Notice } from '../ui/States'
@@ -81,23 +81,23 @@ function usedByOther(cred: AiCredentialStatus | undefined, role: AiRole): boolea
 }
 
 export function AiCard() {
-  const state = useResource((signal) => getJson<AiState>('/api/settings/ai', signal))
+  const state = useQuery(aiSettingsOptions())
   return (
     <section id="assistant" className="scroll-mt-6 @container rounded-lg border border-line bg-surface px-[18px] py-4 shadow-1">
       <CardHeader
         title="Assistant"
         meta="Keys are stored encrypted on your server and never shown again. One key can serve both models."
       />
-      {state.error ? (
+      {state.isError ? (
         <div className="mt-3">
-          <ErrorState title="Couldn't load the assistant settings" message={state.error} onRetry={state.reload} />
+          <ErrorState title="Couldn't load the assistant settings" message={queryError(state)} onRetry={() => void state.refetch()} />
         </div>
       ) : !state.data ? (
         <Loading label="Loading assistant settings" rows={4} />
       ) : (
         <div className="mt-3 grid grid-cols-1 gap-3 @min-[760px]:grid-cols-2">
-          <AiRoleCard role="categorization" state={state.data} reload={state.reload} />
-          <AiRoleCard role="chat" state={state.data} reload={state.reload} />
+          <AiRoleCard role="categorization" state={state.data} reload={() => void state.refetch()} />
+          <AiRoleCard role="chat" state={state.data} reload={() => void state.refetch()} />
         </div>
       )}
     </section>

@@ -1,32 +1,32 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { AddRuleCard } from '../components/rules/AddRuleCard'
 import { Hero } from '../components/rules/Hero'
 import { HowItDecides } from '../components/rules/HowItDecides'
 import { MatchesCard } from '../components/rules/MatchesCard'
-import { matchStats, sortRules, type RuleTab } from '../components/rules/model'
+import { matchStats, sortRules } from '../components/rules/model'
 import { RulesCard } from '../components/rules/RulesCard'
 import { COLUMNS, type Decide } from '../components/rules/shared'
 import { TrustStrip } from '../components/rules/TrustStrip'
 import { Notice } from '../components/ui/States'
-import { errorMessage, getJson, sendJson, type Rule } from '../lib/api'
-import { useApp } from '../lib/app-context'
-import { useCategories } from '../lib/categories'
-import { useResource } from '../lib/useResource'
+import { errorMessage, sendJson } from '../lib/api'
+import { rulesOptions, useCategories } from '../lib/queries'
+
+const route = getRouteApi('/rules')
 
 export function Rules() {
-  const { version, invalidate } = useApp()
+  const { tab } = route.useSearch()
+  const navigate = route.useNavigate()
+  const queryClient = useQueryClient()
   const categories = useCategories()
-  const rules = useResource(
-    (signal) => getJson<{ rules: Rule[] }>('/api/assistant/rules', signal).then((r) => r.rules),
-    version,
-  )
-  const [tab, setTab] = useState<RuleTab>('active')
+  const rules = useQuery(rulesOptions())
   const [acting, setActing] = useState<ReadonlySet<string>>(new Set())
   const [actionError, setActionError] = useState<string | null>(null)
   const refocus = useRef<number | null>(null)
   const posting = useRef(new Set<string>())
 
-  const list = rules.data
+  const list = rules.isError ? undefined : rules.data
   const active = list ? sortRules(list, 'active') : []
   const stats = matchStats(active)
 
@@ -40,7 +40,7 @@ export function Rules() {
     ;(next?.querySelector<HTMLElement>('button') ?? document.getElementById('rules-panel'))?.focus()
   }, [list])
 
-  const settled = !rules.loading
+  const settled = !rules.isFetching
   useEffect(() => {
     if (settled) setActing((s) => new Set([...s].filter((id) => posting.current.has(id))))
   }, [settled])
@@ -57,7 +57,7 @@ export function Rules() {
       setActionError(`“${rule.pattern}”: ${errorMessage(e)}`)
     } finally {
       posting.current.delete(rule.id)
-      invalidate()
+      void queryClient.invalidateQueries()
     }
   }
 
@@ -68,10 +68,17 @@ export function Rules() {
 
       <div className={COLUMNS}>
         <div className="flex min-w-0 flex-col gap-[18px]">{stats.matched > 0 && <Hero stats={stats} />}</div>
-        <AddRuleCard rules={list} catalogue={categories.data} onCreated={invalidate} />
+        <AddRuleCard rules={list} catalogue={categories.data} onCreated={() => void queryClient.invalidateQueries()} />
       </div>
 
-      <RulesCard rules={rules} catalogue={categories.data} tab={tab} onTab={setTab} acting={acting} onDecide={decide} />
+      <RulesCard
+        rules={rules}
+        catalogue={categories.data}
+        tab={tab}
+        onTab={(next) => void navigate({ to: '/rules', search: { tab: next }, resetScroll: false })}
+        acting={acting}
+        onDecide={decide}
+      />
 
       {list && list.length > 0 && (
         <div className={COLUMNS}>

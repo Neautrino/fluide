@@ -1,7 +1,8 @@
+import { useQueryClient } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 import { errorMessage, sendJson } from '../lib/api'
-import { useApp } from '../lib/app-context'
-import { useCategories } from '../lib/categories'
+import { queryError, useCategories } from '../lib/queries'
 import { CategorySelect } from './CategorySelect'
 import { Button } from './ui/Button'
 import { Notice } from './ui/States'
@@ -19,7 +20,8 @@ type Props = {
 }
 
 export function RecategorizeControl({ postingId, vendor, currentCategoryId = null, submitLabel = 'Recategorize', layout = 'inline', onDone }: Props) {
-  const { navigate, invalidate } = useApp()
+  const navigate = useNavigate()
+  const queryClient = useQueryClient()
   const categories = useCategories()
   const id = useId()
   const [choice, setChoice] = useState(currentCategoryId ?? '')
@@ -35,7 +37,7 @@ export function RecategorizeControl({ postingId, vendor, currentCategoryId = nul
     try {
       const res = await sendJson<Result>('POST', `/api/ledger/postings/${postingId}/category`, { categoryId: choice })
       setResult(res)
-      invalidate()
+      void queryClient.invalidateQueries()
       onDone?.(res)
     } catch (e) {
       setError(errorMessage(e))
@@ -72,7 +74,7 @@ export function RecategorizeControl({ postingId, vendor, currentCategoryId = nul
           {busy ? 'Saving…' : submitLabel}
         </Button>
       </div>
-      {categories.error && <Notice tone="error">Categories unavailable: {categories.error}</Notice>}
+      {categories.isError && <Notice tone="error">Categories unavailable: {queryError(categories)}</Notice>}
       {error && <Notice tone="error">{error}</Notice>}
       {result && (
         <Notice tone="success">
@@ -82,7 +84,7 @@ export function RecategorizeControl({ postingId, vendor, currentCategoryId = nul
             <>
               {' '}
               Rule saved —{' '}
-              <button type="button" className="font-medium underline underline-offset-2" onClick={() => navigate('rules')}>
+              <button type="button" className="font-medium underline underline-offset-2" onClick={() => void navigate({ to: '/rules' })}>
                 see Rules
               </button>
               .

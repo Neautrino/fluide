@@ -1,6 +1,6 @@
+import type { UseQueryResult } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import type { AccountBalance } from '../../lib/api'
-import type { View } from '../../lib/app-context'
-import type { Resource } from '../../lib/useResource'
 import { isLive, totalsByCurrency } from '../accounts/model'
 import { Amt } from '../accounts/shared'
 import { countedIn, plural, type Fresh } from './model'
@@ -11,16 +11,16 @@ export function CashOnHand({
   currency,
   currencyKnown,
   fresh,
-  navigate,
 }: {
-  accounts: Resource<AccountBalance[]>
+  accounts: UseQueryResult<AccountBalance[]>
   currency: string | null
   /** False while the cash-flow response that names the currency is still pending. */
   currencyKnown: boolean
   fresh: Fresh | null
-  navigate: (view: View) => void
 }) {
-  const list = accounts.data ?? []
+  const navigate = useNavigate()
+  const balances = accounts.isError ? undefined : accounts.data
+  const list = balances ?? []
   const count = currency ? countedIn(list, currency).filter((b) => b.kind === 'cash').length : 0
   const cash = currency ? (totalsByCurrency(list.filter(isLive)).find((t) => t.currency === currency)?.cash ?? 0) : 0
 
@@ -31,12 +31,12 @@ export function CashOnHand({
       aside={
         <>
           <Freshness fresh={fresh} />
-          <CardLink onClick={() => navigate('accounts')}>{count > 0 ? `${plural(count, 'account')} ›` : 'Accounts ›'}</CardLink>
+          <CardLink onClick={() => void navigate({ to: '/accounts' })}>{count > 0 ? `${plural(count, 'account')} ›` : 'Accounts ›'}</CardLink>
         </>
       }
     >
-      <Pending resource={accounts} what="balances" ready={accounts.data !== undefined && currencyKnown} />
-      {accounts.data &&
+      <Pending resource={accounts} what="balances" ready={balances !== undefined && currencyKnown} />
+      {balances &&
         currencyKnown &&
         (!currency ? (
           <p className="mt-2 text-[13px] text-ink-3">No counted balances.</p>

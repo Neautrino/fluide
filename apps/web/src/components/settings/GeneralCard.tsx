@@ -1,7 +1,7 @@
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { errorMessage, getJson, getVersionInfo, putGeneralSettings, type AccountBalance } from '../../lib/api'
-import { useApp } from '../../lib/app-context'
-import { useResource } from '../../lib/useResource'
+import { errorMessage, putGeneralSettings } from '../../lib/api'
+import { accountBalancesOptions, generalSettingsOptions, queryError, versionInfoOptions } from '../../lib/queries'
 import { isLive } from '../accounts/model'
 import { Segmented } from '../ui/Segmented'
 import { ErrorState, Loading } from '../ui/States'
@@ -15,11 +15,9 @@ type Status = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved' } | { kind
 const UPDATE_COMMAND = 'git pull && docker compose up -d --build'
 
 export function GeneralCard() {
-  const { settings, version, invalidate } = useApp()
-  const accounts = useResource(
-    (signal) => getJson<{ accounts: AccountBalance[] }>('/api/ledger/account-balances', signal).then((r) => r.accounts),
-    version,
-  )
+  const queryClient = useQueryClient()
+  const settings = useQuery(generalSettingsOptions())
+  const accounts = useQuery(accountBalancesOptions())
   const [pending, setPending] = useState<Currency | null>(null)
   const [status, setStatus] = useState<Status>({ kind: 'idle' })
 
@@ -29,20 +27,21 @@ export function GeneralCard() {
     try {
       await putGeneralSettings({ displayCurrency: next })
       setStatus({ kind: 'saved' })
-      invalidate()
+      void queryClient.invalidateQueries()
     } catch (e) {
       setPending(null)
       setStatus({ kind: 'error', message: errorMessage(e) })
     }
   }
 
-  const current = pending ?? settings.data?.displayCurrency
-  const hasAccounts = accounts.data?.some((a) => isLive(a) && a.currency === current)
+  const current = pending ?? (settings.isError ? undefined : settings.data?.displayCurrency)
+  const balances = accounts.isError ? undefined : accounts.data
+  const hasAccounts = balances?.some((a) => isLive(a) && a.currency === current)
 
   return (
     <section id="general" className="scroll-mt-6 rounded-lg border border-line bg-surface px-[18px] py-4 shadow-1">
-      {settings.error ? (
-        <ErrorState title="Couldn't load the general settings" message={settings.error} onRetry={settings.reload} />
+      {settings.isError ? (
+        <ErrorState title="Couldn't load the general settings" message={queryError(settings)} onRetry={() => void settings.refetch()} />
       ) : !settings.data || !current ? (
         <Loading label="Loading settings" rows={2} />
       ) : (
@@ -71,7 +70,7 @@ export function GeneralCard() {
           <p className="mt-2.5 text-[12px] leading-normal text-ink-3">
             Pages show accounts and transactions in this currency only. Fluide never converts between currencies.
           </p>
-          {accounts.data && !hasAccounts && (
+          {balances && !hasAccounts && (
             <p role="status" className="mt-1.5 text-[12px] leading-normal text-ink-2">
               No accounts in {current} yet, so pages will be empty.
             </p>
@@ -89,7 +88,7 @@ export function GeneralCard() {
 }
 
 function VersionRow() {
-  const info = useResource(getVersionInfo)
+  const info = useQuery(versionInfoOptions())
   const [copied, setCopied] = useState(false)
 
   useEffect(() => {
@@ -105,9 +104,9 @@ function VersionRow() {
     )
   }
 
-  const data = info.data
+  const data = info.isError ? undefined : info.data
   const latest = data?.updateAvailable ? data.latest : null
-  const statusText = info.error
+  const statusText = info.isError
     ? 'Could not check for updates'
     : !data
       ? 'Checking for updates…'

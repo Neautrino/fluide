@@ -1,7 +1,8 @@
+import { useNavigate } from '@tanstack/react-router'
 import type { CashFlow } from '../../lib/api'
-import { useApp } from '../../lib/app-context'
 import { allOkText, chipText, othersConnectedText, type Attention } from '../../lib/connection-health'
 import { formatMoney } from '../../lib/format'
+import { useReviewCount } from '../../lib/queries'
 import { Button } from '../ui/Button'
 import { Amt } from './primitives'
 
@@ -21,7 +22,8 @@ function showPossibleTransfers() {
 type Props = { data: CashFlow; attention: Attention[]; connected: number; syncStamp: string | null }
 
 export function TrustLine({ data, attention, connected, syncStamp }: Props) {
-  const { navigate, reviewCount } = useApp()
+  const navigate = useNavigate()
+  const reviewCount = useReviewCount()
   const others = connected - attention.length
   const { count, total } = data.possibleTransfers
 
@@ -49,7 +51,7 @@ export function TrustLine({ data, attention, connected, syncStamp }: Props) {
               <button
                 key={connection.id}
                 type="button"
-                onClick={() => navigate('settings')}
+                onClick={() => void navigate({ to: '/settings' })}
                 className={`inline-flex items-center gap-1.5 rounded-full border px-[9px] py-[3px] text-[11.5px] whitespace-nowrap ${tone.box}`}
               >
                 <span aria-hidden className={`size-1.5 rounded-full ${tone.dot}`} />
@@ -60,12 +62,12 @@ export function TrustLine({ data, attention, connected, syncStamp }: Props) {
         </span>
       )}
       {attention.length > 0 && others > 0 && (
-        <button type="button" onClick={() => navigate('settings')} className="text-[12px] text-ink-3 hover:text-ink">
+        <button type="button" onClick={() => void navigate({ to: '/settings' })} className="text-[12px] text-ink-3 hover:text-ink">
           {othersConnectedText(others)} ›
         </button>
       )}
       {reviewCount !== null && reviewCount > 0 && (
-        <Button variant="primary" size="sm" onClick={() => navigate('review')} className="ml-auto">
+        <Button variant="primary" size="sm" onClick={() => void navigate({ to: '/review' })} className="ml-auto">
           Review {reviewCount}
         </Button>
       )}

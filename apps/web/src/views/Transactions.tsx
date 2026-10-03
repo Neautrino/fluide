@@ -1,3 +1,5 @@
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
+import { getRouteApi } from '@tanstack/react-router'
 import { Fragment, useMemo, useRef, useState, useEffect } from 'react'
 import { SyncNotice } from '../components/SyncNotice'
 import { TransactionDrawer, type DrawerRow } from '../components/TransactionDrawer'
@@ -7,12 +9,14 @@ import { TransactionRow } from '../components/TransactionRow'
 import { Button } from '../components/ui/Button'
 import { Select } from '../components/ui/Field'
 import { Empty, ErrorState, Loading, Notice } from '../components/ui/States'
-import { errorMessage, getJson, sendJson, getCashFlow, type Account, type CategorizeResult, type LedgerRow, type SyncOutcome, type ReviewItem, type CashFlowParams } from '../lib/api'
-import { useApp, useDisplayCurrency } from '../lib/app-context'
+import { errorMessage, sendJson, type Account, type CategorizeResult, type LedgerRow, type SyncOutcome, type CashFlowParams } from '../lib/api'
+import { useDisplayCurrency } from '../lib/app-context'
 import { formatMoneyParts, formatMoney, toNumber } from '../lib/format'
-import { useResource } from '../lib/useResource'
+import { accountsOptions, cashFlowOptions, queryError, reviewQueueOptions, transactionsOptions } from '../lib/queries'
 
 const UNCATEGORIZED = '__uncategorized'
+
+const route = getRouteApi('/currency/transactions')
 
 type Row = DrawerRow & { key: string }
 
@@ -87,62 +91,76 @@ function useIsDesktop() {
   return isDesktop
 }
 
+function ledgerRows(transactions: LedgerRow[], accounts: Account[]): Row[] {
+  const accountsById: Record<string, Account> = {}
+  for (const acct of accounts) accountsById[acct.id] = acct
+  return transactions.map((row) => ({
+    ...row,
+    key: row.posting.id ?? `${row.id}:${row.posting.accountId}`,
+    accountName: row.account?.name ?? accountsById[row.posting.accountId]?.name ?? 'Unknown account',
+    merchant: row.posting.counterpartyRaw || row.description,
+  }))
+}
+
 export function Transactions() {
-  const { version, invalidate, navigate } = useApp()
+  const { q, category } = route.useSearch()
+  const navigate = route.useNavigate()
+  const queryClient = useQueryClient()
   const currency = useDisplayCurrency()
-  const [query, setQuery] = useState('')
-  const [category, setCategory] = useState('')
   const [selectedKey, setSelectedKey] = useState<string | null>(null)
   const [action, setAction] = useState<Action>({ kind: 'idle' })
   const [limit, setLimit] = useState(50)
+  const [query, setQuery] = useState(q)
+  const pushed = useRef(q)
+  useEffect(() => {
+    if (q === pushed.current) return
+    pushed.current = q
+    setQuery(q)
+  }, [q])
 
-  const ledger = useResource(async (signal) => {
-    const [a, t] = await Promise.all([
-      getJson<{ accounts: Account[] }>('/api/ledger/accounts', signal),
-      getJson<{ transactions: LedgerRow[] }>('/api/ledger/transactions', signal),
-    ])
-    const accountsById: Record<string, Account> = {}
-    for (const acct of a.accounts) accountsById[acct.id] = acct
-    const rows: Row[] = []
-    for (const row of t.transactions) {
-      const acct = accountsById[row.posting.accountId]
-      rows.push({
-        ...row,
-        key: row.posting.id ?? `${row.id}:${row.posting.accountId}`,
-        accountName: row.account?.name ?? acct?.name ?? 'Unknown account',
-        merchant: row.posting.counterpartyRaw || row.description,
-      })
+  const setFilter = (next: { q?: string; category?: string }, replace = false) => {
+    setLimit(50)
+    if (next.q !== undefined) {
+      pushed.current = next.q
+      setQuery(next.q)
     }
-    return rows
-  }, version)
+    void navigate({ to: '/transactions', search: (prev) => ({ ...prev, ...next }), replace, resetScroll: false })
+  }
 
-  const reviewQueue = useResource(
-    (signal) => getJson<{ items: ReviewItem[] }>('/api/assistant/review-queue', signal).then((r) => r.items),
-    version
+  const accounts = useQuery(accountsOptions())
+  const transactions = useQuery(transactionsOptions())
+  const ledgerError = queryError(transactions) ?? queryError(accounts)
+  const rows = useMemo(
+    () => (transactions.data && accounts.data && !ledgerError ? ledgerRows(transactions.data, accounts.data) : undefined),
+    [transactions.data, accounts.data, ledgerError],
   )
+
+  const reviewQueue = useQuery(reviewQueueOptions())
+  const waiting = reviewQueue.isError ? undefined : reviewQueue.data
 
   const currentMonthStr = new Date().toISOString().slice(0, 7)
   const cfParams: CashFlowParams = useMemo(() => ({ month: currentMonthStr, compare: 'average', accounts: [], currency }), [currentMonthStr, currency])
-  const cashFlow = useResource((signal) => getCashFlow(cfParams, signal), `${currentMonthStr}|${currency}|${version}`)
+  const cashFlow = useQuery({ ...cashFlowOptions(cfParams), placeholderData: keepPreviousData })
+  const cashFlowData = cashFlow.isError ? undefined : cashFlow.data
 
   const categoryOptions = useMemo(() => {
     const seen: Record<string, string> = {}
-    for (const r of ledger.data ?? []) {
+    for (const r of rows ?? []) {
       if (r.posting.categoryId && r.category?.label) seen[r.posting.categoryId] = r.category.label
     }
     return Object.entries(seen).sort((a, b) => a[1].localeCompare(b[1]))
-  }, [ledger.data])
+  }, [rows])
 
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
-    return (ledger.data ?? []).filter((r) => {
+    return (rows ?? []).filter((r) => {
       if (category === UNCATEGORIZED ? r.posting.categoryId : category && r.posting.categoryId !== category) return false
       if (!q) return true
       return r.merchant.toLowerCase().includes(q) || r.description.toLowerCase().includes(q)
     })
-  }, [ledger.data, query, category])
+  }, [rows, query, category])
 
-  const selected = ledger.data?.find((r) => r.key === selectedKey)
+  const selected = rows?.find((r) => r.key === selectedKey)
 
   const run = async (which: 'sync' | 'categorize') => {
     setAction({ kind: 'busy', which })
@@ -158,14 +176,14 @@ export function Transactions() {
           message: `Checked ${result.checked} · categorized ${result.categorized} (${result.byTier.rule} by rule, ${result.byTier.jev} by Jev) · ${result.queuedForReview} sent to review · ${result.uncategorized} left uncategorized.`,
         })
       }
-      invalidate()
+      void queryClient.invalidateQueries()
     } catch (e) {
       setAction({ kind: 'done', tone: 'error', message: errorMessage(e) })
     }
   }
 
   const busy = action.kind === 'busy' ? action.which : null
-  const uncategorizedCount = (ledger.data ?? []).filter((r) => !r.posting.categoryId).length
+  const uncategorizedCount = (rows ?? []).filter((r) => !r.posting.categoryId).length
   const isDesktop = useIsDesktop()
   const listHeadingRef = useRef<HTMLHeadingElement>(null)
 
@@ -184,9 +202,9 @@ export function Transactions() {
   const dayInfo = useMemo(() => dayTotals(visible), [visible])
 
   const monthFlow = (month: string) => {
-    const currency = cashFlow.data?.currency
+    const currency = cashFlowData?.currency
     if (!currency || !monthInfo.get(month)?.currencies.has(currency)) return null
-    return cashFlow.data?.months.find((m) => m.month === month) ?? null
+    return cashFlowData?.months.find((m) => m.month === month) ?? null
   }
 
   const closeDetail = () => {
@@ -204,14 +222,14 @@ export function Transactions() {
     <div className={`-mx-[28px] -mb-[30px] mt-[20px] min-h-0 flex-1 border-t border-line ${selected && isDesktop ? 'grid grid-cols-[minmax(0,1fr)_372px]' : 'flex flex-col'}`}>
       <div className="flex min-w-0 flex-col gap-[16px] p-[20px_28px_30px]">
         {/* 1. Review strip */}
-        {reviewQueue.data && reviewQueue.data.length > 0 && (
+        {waiting && waiting.length > 0 && (
         <div className="flex flex-wrap items-center gap-3.5 rounded-lg border border-line bg-surface p-[10px_12px_10px_14px] text-[13px] shadow-1" role="status">
           <span className="flex items-center gap-2 whitespace-nowrap font-bold text-ink">
             <span className="size-[10px] rounded-full bg-warning shadow-[0_0_0_3px_var(--warning-wash)]"></span>
-            {reviewQueue.data.length} waiting ·{' '}
+            {waiting.length} waiting ·{' '}
             {(() => {
               const sums: Record<string, number> = {}
-              for (const item of reviewQueue.data) {
+              for (const item of waiting) {
                 if (!item.posting) continue
                 const curr = item.posting.currency
                 sums[curr] = (sums[curr] || 0) + Math.abs(toNumber(item.posting.amount))
@@ -226,31 +244,31 @@ export function Transactions() {
             })()}
           </span>
           <span className="ml-auto flex items-center gap-2">
-            <Button variant="primary" size="sm" onClick={() => navigate('review')}>
-              Review {reviewQueue.data.length}
+            <Button variant="primary" size="sm" onClick={() => void navigate({ to: '/review' })}>
+              Review {waiting.length}
             </Button>
           </span>
         </div>
       )}
 
       {/* 2. Out in <Month> card */}
-      {cashFlow.error ? (
-        <ErrorState title="Couldn't load cash flow" message={cashFlow.error} onRetry={cashFlow.reload} />
-      ) : !cashFlow.data ? (
+      {cashFlow.isError ? (
+        <ErrorState title="Couldn't load cash flow" message={queryError(cashFlow)} onRetry={() => void cashFlow.refetch()} />
+      ) : !cashFlowData ? (
         <Loading label="Loading month summary" rows={3} />
       ) : (
         <div className="@container">
           <section
             className="grid grid-cols-1 overflow-hidden rounded-lg bg-surface-inverse text-ink-inverse @[600px]:grid-cols-[minmax(0,.92fr)_minmax(0,1.08fr)]"
-            aria-label={`${monthLabel.format(new Date(`${cashFlow.data.month}-01T00:00:00Z`))} ledger`}
+            aria-label={`${monthLabel.format(new Date(`${cashFlowData.month}-01T00:00:00Z`))} ledger`}
           >
             <div className="flex flex-col gap-[6px] p-[20px_22px]">
               <div className="flex items-center gap-[8px] text-[12.5px] font-semibold opacity-[.78]">
-                Out in {monthOnlyLabel.format(new Date(`${cashFlow.data.month}-01T00:00:00Z`))} · {cashFlow.data.currency}
+                Out in {monthOnlyLabel.format(new Date(`${cashFlowData.month}-01T00:00:00Z`))} · {cashFlowData.currency}
               </div>
               <div className="mt-[6px] whitespace-nowrap font-display text-[44px] font-[800] leading-none tracking-[-0.03em]">
-                {cashFlow.data.totals.moneyOut > 0 && '\u2212'}
-                <MoneyParts value={cashFlow.data.totals.moneyOut} currency={cashFlow.data.currency} />
+                {cashFlowData.totals.moneyOut > 0 && '\u2212'}
+                <MoneyParts value={cashFlowData.totals.moneyOut} currency={cashFlowData.currency} />
               </div>
             </div>
             <div className="flex min-w-0 flex-row gap-[22px] border-t border-ink-inverse/20 p-[16px_22px] @[600px]:flex-col @[600px]:gap-[10px] @[600px]:border-t-0 @[600px]:border-l @[600px]:p-[18px_22px_16px]">
@@ -259,7 +277,7 @@ export function Transactions() {
                   In
                 </div>
                 <div className="mt-[6px] whitespace-nowrap font-display text-[26px] font-[800] leading-none tracking-[-0.03em]">
-                  <MoneyParts value={cashFlow.data.totals.moneyIn} currency={cashFlow.data.currency} />
+                  <MoneyParts value={cashFlowData.totals.moneyIn} currency={cashFlowData.currency} />
                 </div>
               </div>
               <div className="min-w-0 flex-1">
@@ -267,8 +285,8 @@ export function Transactions() {
                   Kept
                 </div>
                 <div className="mt-[6px] whitespace-nowrap font-display text-[26px] font-[800] leading-none tracking-[-0.03em]">
-                  {cashFlow.data.totals.kept >= 0 ? '+' : '\u2212'}
-                  <MoneyParts value={Math.abs(cashFlow.data.totals.kept)} currency={cashFlow.data.currency} />
+                  {cashFlowData.totals.kept >= 0 ? '+' : '\u2212'}
+                  <MoneyParts value={Math.abs(cashFlowData.totals.kept)} currency={cashFlowData.currency} />
                 </div>
               </div>
             </div>
@@ -280,7 +298,7 @@ export function Transactions() {
       <div className="flex items-end gap-[12px]">
         <div>
           <h2 ref={listHeadingRef} tabIndex={-1} className="font-display text-[17px] font-bold tracking-[-0.01em] text-ink outline-none">Ledger</h2>
-          <p className="mt-[3px] text-[12px] text-ink-3">{ledger.data?.length ?? 0} transactions · all accounts</p>
+          <p className="mt-[3px] text-[12px] text-ink-3">{rows?.length ?? 0} transactions · all accounts</p>
         </div>
         <div className="ml-auto flex gap-[8px]">
           <Button
@@ -332,10 +350,7 @@ export function Transactions() {
             aria-label="Search merchant or description"
             placeholder="Search merchant or description"
             value={query}
-            onChange={(e) => {
-              setQuery(e.target.value)
-              setLimit(50)
-            }}
+            onChange={(e) => setFilter({ q: e.target.value }, true)}
             className="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-3"
           />
         </label>
@@ -344,10 +359,7 @@ export function Transactions() {
           aria-label="Filter by category"
           pill
           value={category}
-          onChange={(e) => {
-            setCategory(e.target.value)
-            setLimit(50)
-          }}
+          onChange={(e) => setFilter({ category: e.target.value })}
           className="w-auto sm:w-[150px]"
         >
           <option value="">All categories</option>
@@ -358,19 +370,26 @@ export function Transactions() {
             </option>
           ))}
         </Select>
-        {ledger.data && (
+        {rows && (
           <span className="ml-auto whitespace-nowrap text-[12px] text-ink-3">
-            <span className="font-display text-[15px] font-[800] text-ink">{visible.length}</span> of {ledger.data.length}
+            <span className="font-display text-[15px] font-[800] text-ink">{visible.length}</span> of {rows.length}
           </span>
         )}
       </div>
 
       <div data-tx-list className="mt-[16px] overflow-hidden rounded-lg border border-line bg-surface shadow-1">
-        {ledger.error ? (
-          <ErrorState title="Couldn't load transactions" message={ledger.error} onRetry={ledger.reload} />
-        ) : !ledger.data ? (
+        {ledgerError ? (
+          <ErrorState
+            title="Couldn't load transactions"
+            message={ledgerError}
+            onRetry={() => {
+              void transactions.refetch()
+              void accounts.refetch()
+            }}
+          />
+        ) : !rows ? (
           <Loading label="Loading transactions" rows={8} />
-        ) : ledger.data.length === 0 ? (
+        ) : rows.length === 0 ? (
           <Empty title="No transactions yet">Connect a bank from the Overview, then sync. Sandbox accounts can take a moment to populate.</Empty>
         ) : visible.length === 0 ? (
           <Empty title="No matching transactions">Try a different search or category.</Empty>
@@ -387,7 +406,7 @@ export function Transactions() {
                   <h3 className="font-display text-[17px] font-bold tracking-[-0.01em] text-ink">{g.label}</h3>
                   {(() => {
                     const flow = monthFlow(g.month)
-                    const currency = cashFlow.data?.currency
+                    const currency = cashFlowData?.currency
                     if (!flow || !currency) {
                       const count = monthInfo.get(g.month)?.count ?? g.rows.length
                       return <span className="ml-auto text-[12px] text-ink-3">{count} row{count !== 1 ? 's' : ''}</span>
@@ -418,7 +437,7 @@ export function Transactions() {
                         row={r}
                         selected={selectedKey === r.key}
                         onClick={() => setSelectedKey(r.key)}
-                        mainCurrency={cashFlow.data?.currency}
+                        mainCurrency={cashFlowData?.currency}
                       />
                     ))}
                   </Fragment>

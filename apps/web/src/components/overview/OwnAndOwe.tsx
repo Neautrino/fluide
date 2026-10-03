@@ -1,9 +1,9 @@
+import type { UseQueryResult } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { Fragment, type ReactNode } from 'react'
 import type { AccountBalance, ConnectionSummary } from '../../lib/api'
-import type { View } from '../../lib/app-context'
 import { shortName } from '../../lib/connection-health'
 import { formatLocalDate, formatMoney } from '../../lib/format'
-import type { Resource } from '../../lib/useResource'
 import { accountHealth, creditUsage, debtNote, isLive, totalsByCurrency } from '../accounts/model'
 import { Amt } from '../accounts/shared'
 import { money } from '../cashflow/shared'
@@ -28,17 +28,17 @@ export function OwnAndOwe({
   currency,
   currencyKnown,
   now,
-  navigate,
 }: {
-  accounts: Resource<AccountBalance[]>
-  connections: Resource<ConnectionSummary[]>
+  accounts: UseQueryResult<AccountBalance[]>
+  connections: UseQueryResult<ConnectionSummary[]>
   currency: string | null
   /** False while the cash-flow response that names the currency is still pending. */
   currencyKnown: boolean
   now: number
-  navigate: (view: View) => void
 }) {
-  const list = accounts.data ?? []
+  const navigate = useNavigate()
+  const balances = accounts.isError ? undefined : accounts.data
+  const list = balances ?? []
   const all = totalsByCurrency(list.filter(isLive))
   const totals = all.find((t) => t.currency === currency)
   const counted = currency ? countedIn(list, currency) : []
@@ -48,9 +48,9 @@ export function OwnAndOwe({
   const held = all.filter((t) => t.currency !== currency)
 
   return (
-    <OverviewCard title="What you own & owe" aside={<CardLink onClick={() => navigate('accounts')}>Accounts ›</CardLink>}>
-      <Pending resource={accounts} what="balances" ready={accounts.data !== undefined && currencyKnown} />
-      {accounts.data &&
+    <OverviewCard title="What you own & owe" aside={<CardLink onClick={() => void navigate({ to: '/accounts' })}>Accounts ›</CardLink>}>
+      <Pending resource={accounts} what="balances" ready={balances !== undefined && currencyKnown} />
+      {balances &&
         currencyKnown &&
         (!currency || !totals ? (
           <p className="mt-2 text-[13px] text-ink-3">{currency ? `No counted balances in ${currency}.` : 'No counted balances.'}</p>

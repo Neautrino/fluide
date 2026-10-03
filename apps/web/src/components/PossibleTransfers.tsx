@@ -1,8 +1,8 @@
+import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { decideTransfer, errorMessage, type PossibleTransfer, type TransferDecision } from '../lib/api'
-import { useApp } from '../lib/app-context'
+import { decideTransfer, errorMessage, type CashFlowParams, type DrillRow, type PossibleTransfer, type TransferDecision } from '../lib/api'
 import { formatLedgerDate, formatMoney } from '../lib/format'
-import { useResource } from '../lib/useResource'
+import { cashFlowTransactionsOptions, queryError } from '../lib/queries'
 import { Button } from './ui/Button'
 import { ErrorState, Loading } from './ui/States'
 import { Money } from './ui/Typography'
@@ -11,16 +11,15 @@ type Props = {
   currency: string
   count: number
   total: number
-  /** Lists the rows behind `count`; refetched when `loadKey` or the app version changes. */
-  load: (signal: AbortSignal) => Promise<PossibleTransfer[]>
-  loadKey: string
+  /** The cash-flow request the rows behind `count` come from. */
+  params: CashFlowParams & { currency: string }
 }
 
 /**
  * Bank-tagged transfers with no matching leg. The tag also covers payments to other people
  * (Zelle, Venmo, ATM cash), so they stay counted until the user says which they are.
  */
-export function PossibleTransfers({ currency, count, total, load, loadKey }: Props) {
+export function PossibleTransfers({ currency, count, total, params }: Props) {
   const [open, setOpen] = useState(false)
   return (
     <div className="pt-2">
@@ -38,14 +37,16 @@ export function PossibleTransfers({ currency, count, total, load, loadKey }: Pro
           {open ? 'Hide' : 'Check'}
         </Button>
       </div>
-      {open && <PossibleTransferList id="possible-transfers" load={load} loadKey={loadKey} />}
+      {open && <PossibleTransferList id="possible-transfers" params={params} />}
     </div>
   )
 }
 
-function PossibleTransferList({ id, load, loadKey }: { id: string; load: Props['load']; loadKey: string }) {
-  const { version, invalidate } = useApp()
-  const list = useResource(load, `${loadKey}:${version}`)
+const drillRows = (r: { rows: DrillRow[] }) => r.rows
+
+function PossibleTransferList({ id, params }: { id: string; params: Props['params'] }) {
+  const queryClient = useQueryClient()
+  const list = useQuery({ ...cashFlowTransactionsOptions(params, 'possible'), select: drillRows, placeholderData: keepPreviousData })
   const [pending, setPending] = useState<ReadonlySet<string>>(new Set())
   // Decided rows hide at once instead of lingering until the refetch lands.
   const [decided, setDecided] = useState<ReadonlySet<string>>(new Set())
@@ -58,7 +59,7 @@ function PossibleTransferList({ id, load, loadKey }: { id: string; load: Props['
     try {
       await decideTransfer(txId, decision)
       setDecided((s) => new Set(s).add(txId))
-      invalidate()
+      void queryClient.invalidateQueries()
     } catch (e) {
       setError(`“${row.description}”: ${errorMessage(e)}`)
     } finally {
@@ -70,7 +71,7 @@ function PossibleTransferList({ id, load, loadKey }: { id: string; load: Props['
     }
   }
 
-  const rows = list.data?.filter((r) => !decided.has(r.transactionId))
+  const rows = list.isError ? undefined : list.data?.filter((r) => !decided.has(r.transactionId))
 
   return (
     <div id={id} className="mt-3 max-w-3xl">
@@ -108,8 +109,8 @@ function PossibleTransferList({ id, load, loadKey }: { id: string; load: Props['
             })}
           </ul>
         )
-      ) : list.error ? (
-        <ErrorState title="Couldn't load possible transfers" message={list.error} onRetry={list.reload} />
+      ) : list.isError ? (
+        <ErrorState title="Couldn't load possible transfers" message={queryError(list)} onRetry={() => void list.refetch()} />
       ) : (
         <Loading label="Loading possible transfers" rows={2} />
       )}

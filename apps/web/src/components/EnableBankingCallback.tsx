@@ -1,5 +1,5 @@
+import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
-import { useApp } from '../lib/app-context'
 import { consumeEnableBankingCallback, type CallbackOutcome } from '../lib/enable-banking'
 import { formatLocalDate } from '../lib/format'
 import { Notice } from './ui/States'
@@ -7,7 +7,7 @@ import { Notice } from './ui/States'
 /** Shows the result of a bank redirect back to Fluide (Enable Banking).
  * Renders nothing on a normal page load. */
 export function EnableBankingCallback() {
-  const { invalidate } = useApp()
+  const queryClient = useQueryClient()
   const [outcome, setOutcome] = useState<CallbackOutcome | 'working' | null>(() =>
     consumeEnableBankingCallback() ? 'working' : null,
   )
@@ -19,12 +19,12 @@ export function EnableBankingCallback() {
     pending.then((result) => {
       if (!active) return
       setOutcome(result)
-      if (result.ok) invalidate()
+      if (result.ok) void queryClient.invalidateQueries()
     })
     return () => {
       active = false
     }
-  }, [invalidate])
+  }, [queryClient])
 
   if (!outcome) return null
 

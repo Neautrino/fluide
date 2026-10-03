@@ -1,6 +1,8 @@
-import type { ReviewItem } from '../../lib/api'
+import type { ConfidenceBand, ReviewItem } from '../../lib/api'
 import { toNumber } from '../../lib/format'
-import type { PostingAccount } from './data'
+import type { PostingAccount } from '../../lib/queries'
+
+export type ReviewFilter = 'all' | ConfidenceBand
 
 export const pct = (n: number) => `${Number((n * 100).toFixed(1))}%`
 

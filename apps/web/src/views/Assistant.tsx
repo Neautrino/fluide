@@ -24,8 +24,8 @@ function toTurns(messages: Message[]): Message[][] {
   return turns
 }
 
-export function Assistant() {
-  const { view, pendingQuestion, clearPendingQuestion } = useApp()
+export function Assistant({ visible }: { visible: boolean }) {
+  const { pendingQuestion, clearPendingQuestion } = useApp()
   const [threadId, setThreadId] = useState<string>(() => crypto.randomUUID())
   const [messages, setMessages] = useState<Message[]>([])
   const [loading, setLoading] = useState(false)
@@ -48,7 +48,6 @@ export function Assistant() {
     }
   }, [])
 
-  const visible = view === 'assistant'
   useEffect(() => {
     if (visible) void refreshThreads()
   }, [visible, refreshThreads])

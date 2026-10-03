@@ -1,6 +1,6 @@
+import type { UseQueryResult } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { Fragment } from 'react'
-import type { View } from '../../lib/app-context'
-import type { Resource } from '../../lib/useResource'
 import { DayHeading } from '../TransactionDay'
 import { groupByDay } from '../groupByDay'
 import { TransactionRow } from '../TransactionRow'
@@ -13,15 +13,14 @@ export function LatestTransactions({
   latest,
   currency,
   fresh,
-  navigate,
 }: {
-  latest: Resource<Latest>
+  latest: UseQueryResult<Latest>
   currency: string | null
   fresh: Fresh | null
-  navigate: (view: View) => void
 }) {
-  const data = latest.data
-  const open = () => navigate('transactions')
+  const navigate = useNavigate()
+  const data = latest.isError ? undefined : latest.data
+  const open = () => void navigate({ to: '/transactions' })
 
   return (
     <OverviewCard

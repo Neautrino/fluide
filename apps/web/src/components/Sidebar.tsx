@@ -1,13 +1,10 @@
+import { Link, useMatchRoute } from '@tanstack/react-router'
 import { useState } from 'react'
-import type { View } from '../lib/app-context'
+import { useReviewCount } from '../lib/queries'
 
-export const NAV: {
-  view: View
-  label: string
-  icon: React.ReactNode
-}[] = [
+export const NAV = [
   {
-    view: 'overview',
+    to: '/',
     label: 'Overview',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -19,7 +16,7 @@ export const NAV: {
     ),
   },
   {
-    view: 'transactions',
+    to: '/transactions',
     label: 'Transactions',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round">
@@ -28,7 +25,7 @@ export const NAV: {
     ),
   },
   {
-    view: 'accounts',
+    to: '/accounts',
     label: 'Accounts',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -37,7 +34,7 @@ export const NAV: {
     ),
   },
   {
-    view: 'cashflow',
+    to: '/cashflow',
     label: 'Cash flow',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4">
@@ -46,7 +43,7 @@ export const NAV: {
     ),
   },
   {
-    view: 'review',
+    to: '/review',
     label: 'Review',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinecap="round" strokeLinejoin="round">
@@ -55,7 +52,7 @@ export const NAV: {
     ),
   },
   {
-    view: 'rules',
+    to: '/rules',
     label: 'Rules',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
@@ -65,7 +62,7 @@ export const NAV: {
     ),
   },
   {
-    view: 'assistant',
+    to: '/assistant',
     label: 'Assistant',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
@@ -74,7 +71,7 @@ export const NAV: {
     ),
   },
   {
-    view: 'settings',
+    to: '/settings',
     label: 'Settings',
     icon: (
       <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.4" strokeLinejoin="round">
@@ -83,13 +80,7 @@ export const NAV: {
       </svg>
     ),
   },
-]
-
-type Props = {
-  view: View
-  onNavigate: (view: View) => void
-  reviewCount: number | null
-}
+] as const
 
 function Wordmark() {
   return (
@@ -99,33 +90,30 @@ function Wordmark() {
   )
 }
 
-function NavList({ view, onNavigate, reviewCount }: Props) {
+function NavList({ reviewCount, onNavigate }: { reviewCount: number | null; onNavigate?: () => void }) {
   return (
     <ul className="flex flex-col gap-[2px]">
-      {NAV.map((item) => {
-        const active = item.view === view
-        return (
-          <li key={item.view}>
-            <button
-              type="button"
-              onClick={() => onNavigate(item.view)}
-              aria-current={active ? 'page' : undefined}
-              className={`flex w-full items-center gap-[10px] rounded-sm border px-[10px] py-[9px] text-left text-[14px] transition-colors ${
-                active ? 'border-line-strong bg-surface font-semibold text-ink' : 'border-transparent font-medium text-ink-2 hover:text-ink'
-              }`}
-            >
-              <span className="h-[17px] w-[17px] flex-none [&>svg]:h-full [&>svg]:w-full">{item.icon}</span>
-              {item.label}
-              {item.view === 'review' && reviewCount !== null && reviewCount > 0 && (
-                <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-surface-inverse px-1.5 text-[11px] font-bold text-ink-inverse">
-                  {reviewCount}
-                  <span className="sr-only"> pending</span>
-                </span>
-              )}
-            </button>
-          </li>
-        )
-      })}
+      {NAV.map((item) => (
+        <li key={item.to}>
+          <Link
+            to={item.to}
+            onClick={onNavigate}
+            activeOptions={{ exact: item.to === '/' }}
+            className="flex w-full items-center gap-[10px] rounded-sm border px-[10px] py-[9px] text-left text-[14px] transition-colors"
+            activeProps={{ className: 'border-line-strong bg-surface font-semibold text-ink' }}
+            inactiveProps={{ className: 'border-transparent font-medium text-ink-2 hover:text-ink' }}
+          >
+            <span className="h-[17px] w-[17px] flex-none [&>svg]:h-full [&>svg]:w-full">{item.icon}</span>
+            {item.label}
+            {item.to === '/review' && reviewCount !== null && reviewCount > 0 && (
+              <span className="ml-auto grid h-5 min-w-5 place-items-center rounded-full bg-surface-inverse px-1.5 text-[11px] font-bold text-ink-inverse">
+                {reviewCount}
+                <span className="sr-only"> pending</span>
+              </span>
+            )}
+          </Link>
+        </li>
+      ))}
     </ul>
   )
 }
@@ -138,16 +126,18 @@ function ReadOnlyNote() {
   )
 }
 
-export function Sidebar(props: Props) {
+export function Sidebar() {
   const [menuOpen, setMenuOpen] = useState(false)
-  const current = NAV.find((n) => n.view === props.view)?.label
+  const reviewCount = useReviewCount()
+  const matchRoute = useMatchRoute()
+  const current = NAV.find((item) => matchRoute({ to: item.to, fuzzy: item.to !== '/' }))?.label ?? 'Menu'
 
   return (
     <>
       <aside className="sticky top-0 hidden h-svh w-[232px] shrink-0 flex-col gap-[26px] border-r border-line bg-surface-2 px-[18px] pb-[22px] pt-[26px] md:flex">
         <Wordmark />
         <nav aria-label="Primary">
-          <NavList {...props} />
+          <NavList reviewCount={reviewCount} />
         </nav>
         <ReadOnlyNote />
       </aside>
@@ -170,13 +160,7 @@ export function Sidebar(props: Props) {
         </div>
         {menuOpen && (
           <nav id="mobile-nav" aria-label="Primary" className="border-t border-line bg-surface-2 px-4 pb-4 pt-3">
-            <NavList
-              {...props}
-              onNavigate={(v) => {
-                setMenuOpen(false)
-                props.onNavigate(v)
-              }}
-            />
+            <NavList reviewCount={reviewCount} onNavigate={() => setMenuOpen(false)} />
             <div className="mt-4">
               <ReadOnlyNote />
             </div>

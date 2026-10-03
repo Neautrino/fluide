@@ -1,7 +1,7 @@
+import type { UseQueryResult } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import type { CashFlow, ReviewItem } from '../../lib/api'
-import type { View } from '../../lib/app-context'
 import { formatMoney } from '../../lib/format'
-import type { Resource } from '../../lib/useResource'
 import { Amt } from '../accounts/shared'
 import { AMOUNT_HIDDEN, useAmountsHidden } from '../cashflow/amounts'
 import { compactMoney, money, shortMonth } from '../cashflow/shared'
@@ -52,7 +52,8 @@ function Donut({ slices, total, currency, partial, month }: { slices: Slice[]; t
   )
 }
 
-function Body({ flow, items, navigate }: { flow: CashFlow; items: ReviewItem[]; navigate: (view: View) => void }) {
+function Body({ flow, items }: { flow: CashFlow; items: ReviewItem[] }) {
+  const navigate = useNavigate()
   const currency = flow.currency
   const month = shortMonth(flow.month)
   const riser = risingCategory(flow)
@@ -80,7 +81,7 @@ function Body({ flow, items, navigate }: { flow: CashFlow; items: ReviewItem[]; 
               </span>
             </>
           )}
-          <button type="button" onClick={() => navigate('cashflow')} className={linkBtn}>
+          <button type="button" onClick={() => void navigate({ to: '/cashflow' })} className={linkBtn}>
             Details ›
           </button>
         </div>
@@ -133,7 +134,7 @@ function Body({ flow, items, navigate }: { flow: CashFlow; items: ReviewItem[]; 
             <span className="flex flex-col items-end">
               {uncategorized && <Amt value={uncategorized.amount} currency={currency} className="font-semibold" />}
               {waiting > 0 && (
-                <button type="button" onClick={() => navigate('review')} className="text-[11px] font-semibold text-ink hover:underline">
+                <button type="button" onClick={() => void navigate({ to: '/review' })} className="text-[11px] font-semibold text-ink hover:underline">
                   Review ›
                 </button>
               )}
@@ -149,22 +150,21 @@ export function WhereItWent({
   flow,
   review,
   fresh,
-  navigate,
 }: {
-  flow: Resource<CashFlow>
-  review: Resource<ReviewItem[]>
+  flow: UseQueryResult<CashFlow>
+  review: UseQueryResult<ReviewItem[]>
   fresh: Fresh | null
-  navigate: (view: View) => void
 }) {
+  const data = flow.isError ? undefined : flow.data
   return (
     <OverviewCard
       title="Where it went"
-      unit={flow.data && shortMonth(flow.data.month)}
+      unit={data && shortMonth(data.month)}
       aside={<Freshness fresh={fresh} />}
-      className={flow.loading && flow.data ? 'opacity-60' : ''}
+      className={flow.isFetching && data ? 'opacity-60' : ''}
     >
-      <Pending resource={flow} what="spending" ready={flow.data !== undefined} />
-      {flow.data && <Body flow={flow.data} items={review.data ?? []} navigate={navigate} />}
+      <Pending resource={flow} what="spending" ready={data !== undefined} />
+      {data && <Body flow={data} items={review.data ?? []} />}
     </OverviewCard>
   )
 }

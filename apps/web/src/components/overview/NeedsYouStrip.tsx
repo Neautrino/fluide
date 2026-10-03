@@ -1,14 +1,14 @@
+import type { UseQueryResult } from '@tanstack/react-query'
+import { useNavigate } from '@tanstack/react-router'
 import { Fragment, type ReactNode } from 'react'
 import type { ConnectionSummary, ReviewItem } from '../../lib/api'
-import type { View } from '../../lib/app-context'
 import { allOkText, chipText, othersConnectedText, summarizeConnections } from '../../lib/connection-health'
 import { formatMoney } from '../../lib/format'
-import type { Resource } from '../../lib/useResource'
-import type { TransferGroup } from '../review/data'
+import type { TransferGroup } from '../../lib/queries'
 import { atStakeByCurrency } from '../review/helpers'
 import { plural } from './model'
 
-const settled = (r: Resource<unknown>) => r.data !== undefined || r.error !== null
+const settled = (r: UseQueryResult<unknown>) => r.data !== undefined || r.isError
 
 function Amounts({ totals }: { totals: { currency: string; total: number }[] }) {
   return (
@@ -30,27 +30,26 @@ export function NeedsYouStrip({
   review,
   transfers,
   now,
-  navigate,
 }: {
-  connections: Resource<ConnectionSummary[]>
-  review: Resource<ReviewItem[]>
-  transfers: Resource<TransferGroup[]>
+  connections: UseQueryResult<ConnectionSummary[]>
+  review: UseQueryResult<ReviewItem[]>
+  transfers: UseQueryResult<TransferGroup[]>
   now: number
-  navigate: (view: View) => void
 }) {
+  const navigate = useNavigate()
   if (![connections, review, transfers].every(settled)) return null
 
-  const summary = connections.data ? summarizeConnections(connections.data, now) : null
+  const summary = !connections.isError && connections.data ? summarizeConnections(connections.data, now) : null
   const attention = summary?.attention ?? []
-  const items = review.data ?? []
-  const groups = transfers.data ?? []
+  const items = review.isError ? [] : (review.data ?? [])
+  const groups = transfers.isError ? [] : (transfers.data ?? [])
   const transferCount = groups.reduce((n, g) => n + g.rows.length, 0)
   const failed = [
-    connections.error ? 'connections' : null,
-    review.error ? 'review queue' : null,
-    transfers.error ? 'possible transfers' : null,
+    connections.isError ? 'connections' : null,
+    review.isError ? 'review queue' : null,
+    transfers.isError ? 'possible transfers' : null,
   ].filter((name) => name !== null)
-  const toSettings = () => navigate('settings')
+  const toSettings = () => void navigate({ to: '/settings' })
   const others = summary ? summary.live.length - attention.length : 0
 
   if (items.length === 0 && transferCount === 0 && attention.length === 0) {
@@ -153,7 +152,7 @@ export function NeedsYouStrip({
       {(items.length > 0 || transferCount > 0) && (
         <button
           type="button"
-          onClick={() => navigate('review')}
+          onClick={() => void navigate({ to: '/review' })}
           className="rounded-full border border-surface bg-surface px-3.5 py-1.5 text-[12.5px] font-semibold whitespace-nowrap text-ink"
         >
           Review

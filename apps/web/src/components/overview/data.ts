@@ -1,4 +1,4 @@
-import { getJson, type LedgerRow } from '../../lib/api'
+import type { LedgerRow } from '../../lib/api'
 
 const SHOWN = 8
 
@@ -6,8 +6,7 @@ export type LatestRow = LedgerRow & { key: string; accountName: string; merchant
 export type Latest = { rows: LatestRow[]; total: number; uncategorized: number }
 
 /** The ledger is newest first; only the top rows are kept, the rest are counted. */
-export async function loadLatest(signal: AbortSignal): Promise<Latest> {
-  const { transactions } = await getJson<{ transactions: LedgerRow[] }>('/api/ledger/transactions', signal)
+export function toLatest(transactions: LedgerRow[]): Latest {
   return {
     rows: transactions.slice(0, SHOWN).map((row) => ({
       ...row,
