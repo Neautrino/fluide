@@ -51,8 +51,7 @@ services:
         condition: service_completed_successfully
 
   migrate:
-    image: fluide:local
-    pull_policy: never
+    image: ghcr.io/neautrino/fluide:${FLUIDE_VERSION:-latest}
     restart: 'no'
     user: '999:999'
     read_only: true
@@ -74,8 +73,9 @@ services:
         condition: service_healthy
 
   app:
+    # the released image; `docker compose up -d --build` builds it from this checkout instead
+    image: ghcr.io/neautrino/fluide:${FLUIDE_VERSION:-latest}
     build: .
-    image: fluide:local
     restart: unless-stopped
     user: '1000:1000'
     read_only: true
