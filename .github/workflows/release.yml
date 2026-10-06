@@ -1,0 +1,91 @@
+name: Release
+
+# Push a tag vX.Y.Z matching package.json's version: this builds and pushes the image, then opens a
+# draft GitHub release. Publishing the draft is what the in-app update check (and users) see, so the
+# image always exists before anyone is told to update. Run it by hand for a dry run: both
+# architectures are built, nothing is pushed or released.
+on:
+  push:
+    tags: ['v*.*.*']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      packages: write
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Check the tag matches package.json
+        if: github.event_name == 'push'
+        run: |
+          version="$(jq -r .version package.json)"
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "::error::tag $GITHUB_REF_NAME does not match package.json version $version (expected v$version)"
+            exit 1
+          fi
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v3
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to ghcr.io
+        if: github.event_name == 'push'
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      # vX.Y.Z -> X.Y.Z and X.Y; `latest` is added for non-prerelease versions only
+      - name: Image tags and labels
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ghcr.io/neautrino/fluide
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+
+      - name: Build and push
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/amd64,linux/arm64
+          push: ${{ github.event_name == 'push' }}
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      # The release's own docker-compose.yml, pinned to this version: a user who downloads it pulls exactly
+      # this image (`latest` moves as soon as the image is pushed, before the draft is published). It has
+      # no `build:` either, since there is no source next to a downloaded compose file.
+      - name: Open a draft release with its compose file
+        if: github.event_name == 'push'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version="${GITHUB_REF_NAME#v}"
+          compose="$RUNNER_TEMP/docker-compose.yml"
+          sed -e "s/\${FLUIDE_VERSION:-latest}/\${FLUIDE_VERSION:-$version}/" \
+              -e '/^    # the released image;/d' -e '/^    build: \.$/d' docker-compose.yml > "$compose"
+          if [ "$(grep -c "FLUIDE_VERSION:-$version}" "$compose")" != 2 ] || grep -q 'build:' "$compose"; then
+            echo "::error::could not pin docker-compose.yml to $version"
+            exit 1
+          fi
+          gh release view "$GITHUB_REF_NAME" >/dev/null 2>&1 ||
+            gh release create "$GITHUB_REF_NAME" --draft --verify-tag --generate-notes --title "Fluide $GITHUB_REF_NAME"
+          gh release upload "$GITHUB_REF_NAME" "$compose" --clobber
