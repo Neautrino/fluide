@@ -208,7 +208,8 @@ bun test                             # in apps/web, packages/connectors, package
 bun scripts/check-headers.ts         # source-of-truth file headers (repo root)
 ```
 
-See `AGENTS.md` for the change protocol and repository rules.
+See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to contribute, and `AGENTS.md` for the
+change protocol and repository rules.
 
 ## Releasing
 
