@@ -12,6 +12,7 @@ Paths (repo-relative):
 - One solid black (`--surface-inverse`) card per page. On Overview that is the Needs-you strip.
 - Hatch = not final. Dotted/dashed line = typical. Red only for broken (Chase). Sign shown by −/+ and words. Tabular figures, en-IN grouping, small paise that NEVER wrap onto a separate line. All money has class `amt`. Icons are inline SVG.
 - Header ask box: soft `--line` border (DS 01), pill.
+- Brand mark: Harmonic Wave Coin (ADR 046). A circular coin containing 5 parallel mathematical sinusoidal wave lines across the lower half (y=50 to 84). Linear-style rhythm and negative spacing, clipped flush to the inner circle boundary. Sized at 24×24px, 10px gap before the fluide_ wordmark in the sidebar.
 
 ## Overview layout (top to bottom)
 1. Header: eyebrow "Good morning, Subhendu · 1 day left in September", title "Overview"; ask box + '/' hint; 4 round buttons (sync, eye, half-circle theme, avatar S). No bell. Under it, 3 prompt chips (Why is Shopping up 38% this month? · Show the 4 items waiting for review · Biggest merchants this month). A chip opens a right drawer with the answer card.

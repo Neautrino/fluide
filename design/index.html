@@ -22,8 +22,9 @@ svg text{font-family:var(--font-ui)}
 /* ---------- page chrome ---------- */
 .wrap{max-width:1360px;margin:0 auto;padding:0 40px 120px}
 .topbar{display:flex;align-items:center;justify-content:space-between;padding:22px 0;border-bottom:1px solid var(--line-strong)}
-.brand{font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.02em}
-.brand i{font-style:normal;color:var(--accent)}
+.brand{display:flex;align-items:center;gap:10px;font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.02em}
+.brand svg.mark{width:24px;height:24px;flex-shrink:0}
+.brand i{font-style:normal;color:var(--accent);margin-left:-.12em}
 .toc{display:flex;gap:6px;flex-wrap:wrap}
 .toc a{color:var(--ink-2);text-decoration:none;font-size:12.5px;font-weight:600;padding:6px 12px;border:1px solid var(--line);border-radius:999px;background:var(--surface)}
 .toc a:hover{border-color:var(--line-strong);color:var(--ink)}
@@ -329,7 +330,7 @@ html[data-theme="dark"] .tile .tn{opacity:1}
 
 <div class="wrap">
   <header class="topbar">
-    <div class="brand">fluide<i>_</i>studio</div>
+    <div class="brand"><svg class="mark" viewBox="0 0 100 100" fill="none"><defs><clipPath id="tbclip"><circle cx="50" cy="50" r="39.5"/></clipPath></defs><circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="6"/><g clip-path="url(#tbclip)"><path d="M 5 50 L 25 46.5 L 50 50 L 75 53.5 L 95 50" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 58.5 L 25 55 L 50 58.5 L 75 62 L 95 58.5" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 67 L 25 63.5 L 50 67 L 75 70.5 L 95 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 75.5 L 25 72 L 50 75.5 L 75 79 L 95 75.5" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 84 L 25 80.5 L 50 84 L 75 87.5 L 95 84" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg>fluide<i>_</i>studio</div>
     <nav class="toc">
       <a href="#s1">01 Idea</a><a href="#s2">02 Colour</a><a href="#s3">03 Type</a><a href="#s4">04 Shape</a><a href="#s5">05 Charts</a><a href="#s6">06 Components</a><a href="#s7">07 Overview</a><a href="#s8">08 App pages</a>
     </nav>
@@ -353,6 +354,16 @@ html[data-theme="dark"] .tile .tn{opacity:1}
       <div class="principle"><div class="pn">1</div><h4>Ink is the chart</h4><p>Every chart has one lead series in <b>chart-1</b> (black by day, the light ink by night — never green, so spending never reads as "good"). Everything else is muted. One highlight per chart, named in a pill.</p></div>
       <div class="principle"><div class="pn">2</div><h4>Hatched means not final</h4><p>Unreviewed spend, possible transfers and expected bills are drawn hatched or dashed, never solid. Solid ink is only for money that has actually settled and been categorised.</p></div>
       <div class="principle"><div class="pn">3</div><h4>Every number says when</h4><p>Each headline figure carries its freshness stamp and its currency. ₹, € and $ sit side by side, never added together. Red appears only when something is broken — never for ordinary spending.</p></div>
+    </div>
+    <div class="brand-spec card" style="margin-top:24px;padding:24px;display:flex;align-items:center;gap:24px;border:1px solid var(--line-strong);border-radius:var(--radius-lg);background:var(--surface)">
+      <div style="width:48px;height:48px;flex-shrink:0;color:var(--ink)">
+        <svg viewBox="0 0 100 100" fill="none"><defs><clipPath id="bmclip"><circle cx="50" cy="50" r="39.5"/></clipPath></defs><circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="6"/><g clip-path="url(#bmclip)"><path d="M 5 50 L 25 46.5 L 50 50 L 75 53.5 L 95 50" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 58.5 L 25 55 L 50 58.5 L 75 62 L 95 58.5" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 67 L 25 63.5 L 50 67 L 75 70.5 L 95 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 75.5 L 25 72 L 50 75.5 L 75 79 L 95 75.5" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 84 L 25 80.5 L 50 84 L 75 87.5 L 95 84" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg>
+      </div>
+      <div>
+        <div class="label">Brand mark (ADR 046)</div>
+        <div style="font-family:var(--font-display);font-weight:800;font-size:22px;letter-spacing:-.02em;margin:4px 0">Harmonic Wave Coin · 5 Lines</div>
+        <p style="margin:0;font-size:13px;color:var(--ink-2);line-height:1.45">A circular coin silhouette with 5 parallel mathematical sinusoidal wave lines across the lower half (y=50 to 84). Linear-style rhythm and negative spacing, clipped flush to the inner circle boundary. Pairs with <span class="mono">fluide_</span> at 24×24px.</p>
+      </div>
     </div>
   </section>
 
@@ -606,8 +617,7 @@ html[data-theme="dark"] .tile .tn{opacity:1}
     <p class="spec-note" style="margin:-16px 0 20px">Earlier composition. The agreed Overview is <a href="pages/overview.html" style="color:var(--ink)">pages/overview.html</a>.</p>
     <div class="app">
       <aside class="side">
-        <div class="brand">fluide<i>_</i></div>
-        <a class="on" href="#s7"><svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7" rx="1.5"/><rect x="13" y="4" width="7" height="7" rx="1.5"/><rect x="4" y="13" width="7" height="7" rx="1.5"/><rect x="13" y="13" width="7" height="7" rx="1.5"/></svg>Overview</a>
+        <div class="brand"><svg class="mark" viewBox="0 0 100 100" fill="none"><defs><clipPath id="sbclip"><circle cx="50" cy="50" r="39.5"/></clipPath></defs><circle cx="50" cy="50" r="42" stroke="currentColor" stroke-width="6"/><g clip-path="url(#sbclip)"><path d="M 5 50 L 25 46.5 L 50 50 L 75 53.5 L 95 50" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 58.5 L 25 55 L 50 58.5 L 75 62 L 95 58.5" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 67 L 25 63.5 L 50 67 L 75 70.5 L 95 67" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 75.5 L 25 72 L 50 75.5 L 75 79 L 95 75.5" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/><path d="M 5 84 L 25 80.5 L 50 84 L 75 87.5 L 95 84" stroke="currentColor" stroke-width="3.6" stroke-linecap="round" stroke-linejoin="round"/></g></svg>fluide<i>_</i></div>
         <a href="#s7"><svg viewBox="0 0 24 24"><path d="M4 7h16M4 12h16M4 17h10"/></svg>Transactions</a>
         <a href="#s7"><svg viewBox="0 0 24 24"><rect x="3.5" y="6" width="17" height="12" rx="2"/><path d="M3.5 10h17"/></svg>Accounts</a>
         <a href="#s7"><svg viewBox="0 0 24 24"><path d="M5 19V11M10 19V6M15 19v-5M20 19V9"/></svg>Spending</a>

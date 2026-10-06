@@ -1,1 +1,15 @@
-<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32"><rect width="32" height="32" rx="6" fill="#1d5a42"/><path fill="#f6f3ec" d="M10 7h13v3.2h-9v5h7.5v3.2H14V25h-4z"/></svg>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" fill="none">
+  <defs>
+    <clipPath id="f-fav-clip">
+      <circle cx="50" cy="50" r="39.5" />
+    </clipPath>
+  </defs>
+  <circle cx="50" cy="50" r="42" stroke="#0b0b0c" stroke-width="6" />
+  <g clip-path="url(#f-fav-clip)">
+    <path d="M 5 50.0 L 25 46.5 L 50 50.0 L 75 53.5 L 95 50.0" stroke="#0b0b0c" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 5 58.5 L 25 55.0 L 50 58.5 L 75 62.0 L 95 58.5" stroke="#0b0b0c" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 5 67.0 L 25 63.5 L 50 67.0 L 75 70.5 L 95 67.0" stroke="#0b0b0c" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 5 75.5 L 25 72.0 L 50 75.5 L 75 79.0 L 95 75.5" stroke="#0b0b0c" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
+    <path d="M 5 84.0 L 25 80.5 L 50 84.0 L 75 87.5 L 95 84.0" stroke="#0b0b0c" stroke-width="4.2" stroke-linecap="round" stroke-linejoin="round" />
+  </g>
+</svg>
