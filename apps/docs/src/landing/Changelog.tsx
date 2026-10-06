@@ -1,4 +1,5 @@
 import { Reveal, useRevealScope } from '../motion/reveal'
+import { HashLink } from '../site/HashLink'
 import { SectionTag } from '../site/SectionTag'
 import { DISPLAY, GITHUB, pill } from '../site/ds'
 import './Changelog.css'
@@ -83,11 +84,9 @@ export function Changelog() {
             <h3 className={`${H3} text-xl leading-[1.3]`}>
               Stay up to date. <span className="block text-ink-3">Settings tells you when a new version is out.</span>
             </h3>
-            <div className="flex items-center gap-2.5 max-[560px]:flex-wrap">
-              <code className="inline-flex h-11 items-center rounded-md border border-line-strong bg-white px-4 font-mono text-[13.5px] font-medium whitespace-nowrap text-ink max-[560px]:max-w-full max-[560px]:overflow-x-auto">
-                git pull &amp;&amp; docker compose up -d --build
-              </code>
-            </div>
+            <HashLink to="/docs" hash="update" className={pill('outline', 'lg')}>
+              How to update
+            </HashLink>
           </div>
         </Reveal>
       </div>

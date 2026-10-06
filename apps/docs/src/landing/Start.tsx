@@ -5,13 +5,16 @@ import { DISPLAY, GITHUB, pill } from '../site/ds'
 import './Start.css'
 
 /** What the terminal shows (the README's commands). */
-const TYPED = `$ git clone \\
-  https://github.com/Neautrino/fluide.git
-$ cd fluide && docker compose up -d --build
+const TYPED = `$ mkdir fluide && cd fluide
+$ curl -fsSLO https://github.com/Neautrino/\\
+fluide/releases/latest/download/\\
+docker-compose.yml
+$ docker compose up -d
 # then open http://localhost:8080`
 
 /** What Copy puts on the clipboard: the three install commands, not the last 'open' line. */
-const COPY = 'git clone https://github.com/Neautrino/fluide.git\ncd fluide\ndocker compose up -d --build'
+const COPY =
+  'mkdir fluide && cd fluide\ncurl -fsSLO https://github.com/Neautrino/fluide/releases/latest/download/docker-compose.yml\ndocker compose up -d'
 
 /** Text beside a line-drawn terminal standing on a baseline, over the hero's light. */
 export function Start() {
@@ -30,13 +33,13 @@ export function Start() {
               id="start-t"
               className={`${DISPLAY} max-w-[8.5em] text-[clamp(36px,4.2vw,64px)] leading-[0.98] text-ink`}
             >
-              Clone it and connect one bank.
+              Download one file and connect a bank.
             </h2>
           </Reveal>
           <Reveal kind="line">
             <p className="mt-[18px] max-w-[30em] text-[17px] leading-[1.55] text-ink-2">
-              <code className={CODE}>git clone</code> the repo, <code className={CODE}>docker compose up</code>, then
-              add your Plaid keys in Settings.
+              Download <code className={CODE}>docker-compose.yml</code>, run <code className={CODE}>docker compose up</code>,
+              then add your Plaid keys in Settings.
             </p>
           </Reveal>
           <Reveal kind="link">

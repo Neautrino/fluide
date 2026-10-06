@@ -18,11 +18,19 @@ European banks (via Enable Banking) are not available yet.
 ## Install and run
 
 ```sh
-git clone https://github.com/Neautrino/fluide.git
-cd fluide
-cp .env.example .env   # optional: set PLAID_ENV
-docker compose up -d --build
+mkdir fluide && cd fluide
+curl -fsSLO https://github.com/Neautrino/fluide/releases/latest/download/docker-compose.yml
+docker compose up -d
 ```
+
+That one file is the whole install: it pulls the released image
+(`ghcr.io/neautrino/fluide`) and Postgres, and keeps your data in Docker volumes named
+`fluide_*`. To use Plaid's test banks, run `echo PLAID_ENV=sandbox > .env` before
+`docker compose up -d`; other optional settings are listed in
+[`.env.example`](.env.example).
+
+To build from source instead: `git clone https://github.com/Neautrino/fluide.git`,
+`cd fluide`, then `docker compose up -d --build`.
 
 Open http://localhost:8080, then:
 
@@ -53,10 +61,14 @@ You never create or type these secrets yourself.
 ### Update
 
 ```sh
-git pull && docker compose up -d --build
+curl -fsSLO https://github.com/Neautrino/fluide/releases/latest/download/docker-compose.yml
+docker compose pull && docker compose up -d
 ```
 
-Migrations for the new version run automatically before the app starts.
+Run it in the folder that holds `docker-compose.yml`. Each release's compose file names
+that release's image, so the two always match. Migrations for the new version run
+automatically before the app starts. If you built from source, update with
+`git pull && docker compose up -d --build` instead.
 
 When a newer release is published, Settings → General shows "Update available"
 with a link to the release notes and this command to copy. Fluide never
@@ -197,6 +209,20 @@ bun scripts/check-headers.ts         # source-of-truth file headers (repo root)
 ```
 
 See `AGENTS.md` for the change protocol and repository rules.
+
+## Releasing
+
+1. Set the new version in the root `package.json` and add an entry, dated that day,
+   to the site's changelog (`apps/docs/src/landing/Changelog.tsx`). Commit and push.
+2. `git tag vX.Y.Z && git push origin vX.Y.Z` (the tag must equal `package.json`'s version).
+3. The Release workflow (`.github/workflows/release.yml`) builds the image for
+   amd64 and arm64, pushes `ghcr.io/neautrino/fluide:X.Y.Z`, `X.Y` and `latest`, and
+   opens a draft GitHub release with `docker-compose.yml` attached, pinned to `X.Y.Z`.
+4. Edit the draft's notes and publish it. Only then do the in-app update check, the
+   `releases/latest/download/docker-compose.yml` link and users see the new version.
+
+The image package on GitHub must be public, once, after the first release
+(Package settings → Change visibility).
 
 ## License
 

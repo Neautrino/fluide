@@ -190,12 +190,19 @@ export function Docs() {
           <Section id="install" title="Install">
             <Cmd
               lines={[
-                ['git clone https://github.com/Neautrino/fluide.git'],
-                ['cd fluide'],
-                ['cp .env.example .env', 'optional: set PLAID_ENV'],
-                ['docker compose up -d --build'],
+                ['mkdir fluide && cd fluide'],
+                ['curl -fsSLO https://github.com/Neautrino/fluide/releases/latest/download/docker-compose.yml'],
+                ['docker compose up -d'],
               ]}
             />
+            <P>
+              That one file is the whole install: it downloads Fluide and its database, and keeps your data in Docker volumes. To use
+              Plaid's test banks, run <C>echo PLAID_ENV=sandbox &gt; .env</C> before <C>docker compose up -d</C>.
+            </P>
+            <P>
+              To build from source instead: <C>git clone https://github.com/Neautrino/fluide.git</C>, <C>cd fluide</C>, then{' '}
+              <C>docker compose up -d --build</C>.
+            </P>
             <P>
               Open <C>http://localhost:8080</C>, then:
             </P>
@@ -237,8 +244,16 @@ export function Docs() {
           </Section>
 
           <Section id="update" title="Update">
-            <Cmd lines={[['git pull && docker compose up -d --build']]} />
-            <P>The database is brought up to date for the new version before the app starts.</P>
+            <Cmd
+              lines={[
+                ['curl -fsSLO https://github.com/Neautrino/fluide/releases/latest/download/docker-compose.yml'],
+                ['docker compose pull && docker compose up -d'],
+              ]}
+            />
+            <P>
+              Run it in the folder that holds <C>docker-compose.yml</C>. Each release's file names that release's version, so the two always
+              match. The database is brought up to date for the new version before the app starts.
+            </P>
             <P>
               When a newer release is out, <B>Settings → General</B> shows "Update available" with a link to the release notes and this
               command to copy. Fluide never updates itself.
