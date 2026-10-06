@@ -6,17 +6,28 @@ import { AMOUNT_HIDDEN, useAmountsHidden } from '../cashflow/amounts'
 import { compactMoney, money, shortMonth } from '../cashflow/shared'
 import { atStakeByCurrency } from '../review/helpers'
 import { Empty } from '../ui/States'
-import { itemsInMonth, legendRows, risingCategory, slicesOf, type Fresh, type Slice } from './model'
+import { itemsInMonth, legendRows, risingCategory, sliceColors, slicesOf, type Fresh, type Slice, type SliceColor } from './model'
 import { Freshness, OverviewCard } from './shared'
 
 const R = 58
 const C = 2 * Math.PI * R
 const GAP = 2
 
+const SWATCH: Record<SliceColor, string> = {
+  'chart-1': 'bg-chart-1',
+  'chart-2': 'bg-chart-2',
+  'chart-3': 'bg-chart-3',
+  'chart-4': 'bg-chart-4',
+  'chart-5': 'bg-chart-5',
+  'chart-6': 'bg-chart-6',
+  'chart-muted': 'bg-chart-muted',
+}
+
 /** The hole is 94 wide, so the center reads e.g. "$8.1K" (three significant digits); the exact figure is in the Out tile, the legend and the label. */
 export function Donut({ slices, total, currency, partial, month }: { slices: Slice[]; total: number; currency: string; partial: boolean; month: string }) {
   const hidden = useAmountsHidden()
   const sum = slices.reduce((s, x) => s + x.amount, 0)
+  const colors = sliceColors(slices)
   const label = hidden
     ? AMOUNT_HIDDEN
     : `Out in ${month} ${money(total, currency)}: ${slices.map((s) => `${s.label} ${money(s.amount, currency)}`).join(', ')}`
@@ -33,7 +44,7 @@ export function Donut({ slices, total, currency, partial, month }: { slices: Sli
               cx="80"
               cy="80"
               r={R}
-              stroke={s.riser ? 'var(--chart-1)' : 'var(--chart-muted)'}
+              stroke={`var(--${colors.get(s) ?? 'chart-muted'})`}
               strokeDasharray={`${dash} ${C - dash}`}
               strokeDashoffset={-(before / sum) * C}
             />
@@ -69,6 +80,7 @@ export function WhereItWentBody({
   if (slices.length === 0) return <Empty title="Nothing spent yet this month" />
 
   const { rows, uncategorized } = legendRows(slices)
+  const colors = sliceColors(slices)
   const waitingItems = itemsInMonth(items, flow.month).filter((i) => i.posting?.currency === currency)
   const stake = atStakeByCurrency(waitingItems).find((a) => a.currency === currency)
   const waiting = waitingItems.length
@@ -112,7 +124,7 @@ export function WhereItWentBody({
           const s = row.slice
           return (
             <li key={`${i}:${s.label}`} className={`${line} ${s.riser ? 'font-bold' : ''}`}>
-              <i className={`size-2.5 self-center rounded-[2px] ${s.riser ? 'bg-chart-1' : 'bg-chart-muted'}`} />
+              <i className={`size-2.5 self-center rounded-[2px] ${SWATCH[colors.get(s) ?? 'chart-muted']}`} />
               <span>
                 {s.label}
                 {s.riser && riser && (

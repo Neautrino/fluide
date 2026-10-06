@@ -99,3 +99,16 @@ export function legendRows(slices: Slice[]): { rows: LegendRow[]; uncategorized:
     uncategorized,
   }
 }
+
+export type SliceColor = 'chart-1' | 'chart-2' | 'chart-3' | 'chart-4' | 'chart-5' | 'chart-6' | 'chart-muted'
+
+const SLICE_PALETTE = ['chart-2', 'chart-3', 'chart-4', 'chart-5', 'chart-6'] as const
+
+/** Black for the riser; the chart palette, biggest first, for the other categories the legend names; grey for folded and uncategorized money. */
+export function sliceColors(slices: Slice[]): Map<Slice, SliceColor> {
+  const named = new Set(legendRows(slices).rows.flatMap((r) => (r.kind === 'slice' ? [r.slice] : [])))
+  let next = 0
+  return new Map(
+    slices.map((s): [Slice, SliceColor] => [s, s.riser ? 'chart-1' : named.has(s) ? (SLICE_PALETTE[next++] ?? 'chart-muted') : 'chart-muted']),
+  )
+}
