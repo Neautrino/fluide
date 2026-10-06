@@ -1,7 +1,7 @@
-/* Generated from the apps/web check fixtures (/tmp/webcheck/fixtures, the landing's sample world, today =
-   29 Sep 2026). Wire shapes, exactly as the API returns them after apps/web's query unwrapping. Values are
-   unchanged; only the transaction list is trimmed to the newest 50 rows (the Transactions view's first
-   page), with the full count and the Latest card's summary computed over all 538 rows. */
+/* The site's sample world (today = 29 Sep 2026) in the wire shapes apps/web receives from the API.
+   Hand-maintained: the types come from @repo/ui/types, so tsc flags any shape drift. `transactions` holds
+   the newest 50 rows (the Transactions view's first page); `transactionCount` and `uncategorizedCount`
+   cover the whole 538-row ledger. */
 import type { AccountBalance, Category, CashFlow, ConnectionSummary, ChatThreadSummary, GateSettings, LedgerRow, PostingAccount, ReviewItem, TransferGroup } from '@repo/ui/types'
 
 export const accountBalances: AccountBalance[] = [
