@@ -17,22 +17,22 @@
 .fl-map { max-width: min(780px, calc((100vh - 430px) * 2.5)); }
 @media (max-width: 999.98px) { .fl-map { max-width: none; } }
 
-.fl-chips button[aria-pressed="true"] { color: #ececea; border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+.fl-chips button[aria-pressed="true"] { color: var(--ink); border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
 .fl-k::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
 
 .fl-map svg { display: block; width: 100%; height: auto; overflow: visible; }
 .fl-map .n { transition: opacity .3s; }
 .fl-map .n.dim { opacity: .45; }
-.fl-map .n rect { fill: #141416; stroke: #3f3f46; stroke-width: 1; }
+.fl-map .n rect { fill: var(--canvas); stroke: var(--line); stroke-width: 1; }
 .fl-map .n.hatch rect { fill: url(#flh); }
-.fl-map .n .t { fill: #ececea; font: 600 16px var(--font-sans); }
-.fl-map .n .s { fill: #8a8d93; font: 500 12px var(--font-mono); letter-spacing: .02em; }
-.fl-map .box { fill: none; stroke: #5a5a62; stroke-width: 1.2; stroke-dasharray: 6 6; }
-.fl-map .box-l { fill: #8a8d93; font: 600 12px var(--font-mono); letter-spacing: .12em; }
-.fl-map .p { fill: none; stroke: #4a4a52; stroke-width: 1.5; stroke-linecap: round; transition: stroke .3s, opacity .3s; }
+.fl-map .n .t { fill: var(--ink); font: 600 16px var(--font-sans); }
+.fl-map .n .s { fill: var(--ink-3); font: 500 12px var(--font-mono); letter-spacing: .02em; }
+.fl-map .box { fill: none; stroke: var(--chart-muted); stroke-width: 1.2; stroke-dasharray: 6 6; }
+.fl-map .box-l { fill: var(--ink-3); font: 600 12px var(--font-mono); letter-spacing: .12em; }
+.fl-map .p { fill: none; stroke: var(--chart-muted); stroke-width: 1.5; stroke-linecap: round; transition: stroke .3s, opacity .3s; }
 .fl-map .p.ext { stroke-dasharray: 4 5; }
 .fl-map .p.dim { opacity: .28; }
-.fl-map .lbl { fill: #8a8d93; font: 500 12px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.fl-map .lbl { fill: var(--ink-3); font: 500 12px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
 .fl-map .dot { pointer-events: none; }
 /* before the build timeline takes over (hydration), the map is already in its first, empty frame */
 html.rv-on .fl-map[data-pending] [data-part] { opacity: 0; }

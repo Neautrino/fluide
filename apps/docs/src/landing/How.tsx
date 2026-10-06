@@ -9,7 +9,7 @@ type Flow = 'sync' | 'sort' | 'ask'
 type State = 'all' | Flow
 
 const PIN_QUERY = '(min-width: 1000px) and (prefers-reduced-motion: no-preference)'
-const COL: Record<Flow | 'grey', string> = { sync: '#efc3ae', sort: '#c8cbed', ask: '#a8d5b8', grey: '#92969e' }
+const COL: Record<Flow | 'grey', string> = { sync: 'var(--tile-1)', sort: 'var(--tile-2)', ask: '#a8d5b8', grey: 'var(--ink-3)' }
 const BUILD_PART = 1.6 /* seconds per part; four parts, about 6.5s in all */
 const PIN = '+=250%'
 /* pin progress → state, and where each label scrolls to */
@@ -82,8 +82,8 @@ function FlowMap({ active, built }: { active: State; built: boolean }) {
     <svg viewBox="0 0 1100 440">
       <defs>
         <pattern id="flh" width="6" height="6" patternUnits="userSpaceOnUse" patternTransform="rotate(45)">
-          <rect width="6" height="6" fill="#141416" />
-          <rect width="1.2" height="6" fill="#3a3a40" />
+          <rect width="6" height="6" style={{ fill: 'var(--canvas)' }} />
+          <rect width="1.2" height="6" style={{ fill: 'var(--line)' }} />
         </pattern>
       </defs>
       <g data-part="1">
@@ -292,10 +292,8 @@ export function How() {
             c.setAttribute('r', '3.5')
             c.setAttribute('class', 'dot')
             /* the active flow's colour, or in the intro the colour of the line's first flow */
-            c.setAttribute(
-              'fill',
-              L.active !== 'all' ? COL[L.active] : COL[(line.el.dataset.flows ?? '').split(' ')[0] as Flow] || COL.grey,
-            )
+            c.style.fill =
+              L.active !== 'all' ? COL[L.active] : COL[(line.el.dataset.flows ?? '').split(' ')[0] as Flow] || COL.grey
             layer.appendChild(c)
             line.dots.push({ c, s: 0 })
             line.next = 900 + Math.random() * 500
@@ -334,10 +332,10 @@ export function How() {
       id: 'all',
       body: (
         <>
-          <p className="fl-lead font-sans text-[20px] leading-[1.4] font-medium tracking-[-0.01em] text-[#ececea]">
+          <p className="fl-lead font-sans text-[20px] leading-[1.4] font-medium tracking-[-0.01em] text-ink">
             Three things happen on this path, and you start each one.
           </p>
-          <p className="fl-hint mt-3.5 font-mono text-[12px] leading-[normal] font-medium tracking-[0.04em] text-[#8a8d93]">
+          <p className="fl-hint mt-3.5 font-mono text-[12px] leading-[normal] font-medium tracking-[0.04em] text-ink-3">
             Scroll to follow each one.
           </p>
         </>
@@ -376,15 +374,15 @@ export function How() {
   ]
 
   return (
-    <section {...reveal} id="how" aria-labelledby="how-t" className="fl mt-8 bg-[#0b0b0c] text-[#ececea]">
+    <section {...reveal} id="how" aria-labelledby="how-t" className="fl mt-8 bg-surface-inverse">
       <div ref={pinRef} className="fl-pin">
-        <div className="fl-in mx-auto max-w-[1240px] px-8 py-24 max-[1000px]:px-5 max-[1000px]:py-[72px]">
+        <div data-theme="dark" className="fl-in mx-auto max-w-[1240px] px-8 py-24 text-ink max-[1000px]:px-5 max-[1000px]:py-[72px]">
           <div>
             <Reveal kind="link">
               <SectionTag tone="dark">How it works</SectionTag>
             </Reveal>
             <Reveal kind="words">
-              <h2 id="how-t" className={`${DISPLAY} mt-5 max-w-[22em] text-[clamp(28px,3vw,44px)] leading-none text-[#ececea]`}>
+              <h2 id="how-t" className={`${DISPLAY} mt-5 max-w-[22em] text-[clamp(28px,3vw,44px)] leading-none text-ink`}>
                 One read path, from your bank to your answer.
               </h2>
             </Reveal>
@@ -400,7 +398,7 @@ export function How() {
                     aria-pressed={active === id}
                     onClick={() => go(id)}
                     style={{ '--c': COL[id] } as CSSProperties}
-                    className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border border-[#3a3a3e] pr-3.5 pl-[11px] font-sans text-[13px] leading-[normal] font-bold text-[#b9bcc2] transition-[border-color,color,background-color] duration-250 hover:border-[#5a5a62] hover:text-[#ececea] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-[#ececea]"
+                    className="inline-flex h-8 cursor-pointer items-center gap-2 rounded-full border border-line pr-3.5 pl-[11px] font-sans text-[13px] leading-[normal] font-bold text-ink-2 transition-[border-color,color,background-color] duration-250 hover:border-ink-3 hover:text-ink focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ink"
                   >
                     <i className="size-2 rounded-full bg-(--c)" />
                     {label}
@@ -431,8 +429,8 @@ export function How() {
           </div>
           {/* banks Plaid connects to (US only). Not customers, not partners. */}
           <Reveal kind="block">
-            <div className="mt-[clamp(24px,4vh,44px)] border-t border-[#26262a] pt-[clamp(18px,3vh,28px)]">
-              <p className="text-center font-sans text-[14px] leading-[normal] font-medium text-[#b9bcc2]">
+            <div className="mt-[clamp(24px,4vh,44px)] border-t border-line pt-[clamp(18px,3vh,28px)]">
+              <p className="text-center font-sans text-[14px] leading-[normal] font-medium text-ink-2">
                 Connects through Plaid to
               </p>
               <div className="bk-row relative mt-[clamp(14px,2.4vh,22px)] overflow-hidden">
@@ -458,7 +456,7 @@ function Steps({ flow, title, children }: { flow: Flow; title: string; children:
       >
         {title}
       </span>
-      <ol className="mt-3.5 flex list-decimal flex-col gap-2.5 pl-[18px] text-[15px] leading-[1.5] text-[#b9bcc2]">
+      <ol className="mt-3.5 flex list-decimal flex-col gap-2.5 pl-[18px] text-[15px] leading-[1.5] text-ink-2">
         {children}
       </ol>
     </>

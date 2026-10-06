@@ -7,8 +7,9 @@
 @source "./";
 
 /* Fluide Studio — shared primary tokens (DS01).
-   Light (:root) is sampled from ref #8 (ofsp_ce). Dark (html[data-theme="dark"]) is the same system with the
-   exposure flipped: neutral charcoal paper, one light ink, the light tile hues calmed, the same radii. */
+   Light (:root) is sampled from ref #8 (ofsp_ce). Dark ([data-theme="dark"], on <html> or on any element that
+   should render dark inside a light page) is the same system with the exposure flipped: neutral charcoal
+   paper, one light ink, the light tile hues calmed, the same radii. */
 :root {
   color-scheme: light;
   /* surfaces */
@@ -68,7 +69,7 @@
   --hatch-stripe: var(--hatch);
 }
 
-html[data-theme="dark"] {
+[data-theme="dark"] {
   color-scheme: dark;
   /* neutral charcoal, no hue cast. One light ink: ink = line-strong = chart-1 = hatch = surface-inverse,
      the mirror of light where all five are #0b0b0c */

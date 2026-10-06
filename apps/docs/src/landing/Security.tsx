@@ -96,27 +96,27 @@ export function Security() {
       {...reveal}
       id="security"
       aria-labelledby="sec-t"
-      className="bg-[#0b0b0c] px-6 pt-28 pb-30 text-[#ececea] max-[760px]:px-5 max-[760px]:pt-20 max-[760px]:pb-22"
+      className="bg-surface-inverse px-6 pt-28 pb-30 max-[760px]:px-5 max-[760px]:pt-20 max-[760px]:pb-22"
     >
-      <div className="mx-auto max-w-[1180px]">
+      <div data-theme="dark" className="mx-auto max-w-[1180px] text-ink">
         <Reveal kind="link">
           <SectionTag tone="dark">Security</SectionTag>
         </Reveal>
         <Reveal kind="words">
           <h2
             id="sec-t"
-            className={`${DISPLAY} mt-[22px] max-w-[20em] text-[clamp(30px,3.3vw,50px)] leading-none text-balance text-[#ececea]`}
+            className={`${DISPLAY} mt-[22px] max-w-[20em] text-[clamp(30px,3.3vw,50px)] leading-none text-balance text-ink`}
           >
-            Reachable from one computer. <span className="font-bold text-[#92969e]">Yours.</span>
+            Reachable from one computer. <span className="font-bold text-ink-3">Yours.</span>
           </h2>
         </Reveal>
         <Reveal kind="line">
-          <p className="mt-4 max-w-[36em] text-[18px] leading-[1.5] text-[#babdc3]">
+          <p className="mt-4 max-w-[36em] text-[18px] leading-[1.5] text-ink-2">
             Fluide opens one door, on the computer it runs on. Your ledger has no door at all.
           </p>
         </Reveal>
         <Reveal kind="block">
-          <figure className="mt-12 overflow-hidden rounded-lg border border-[#26262b] bg-[#111113]">
+          <figure className="mt-12 overflow-hidden rounded-lg border border-line bg-canvas">
             <div className="px-9 pt-7 pb-[18px] max-[760px]:px-3.5 max-[760px]:pt-[18px] max-[760px]:pb-2.5">
               <svg
                 ref={wide}
@@ -198,32 +198,32 @@ export function Security() {
                 <text x="38" y="531">on this computer's disk</text>
               </svg>
             </div>
-            <figcaption className="border-t border-[#26262b] px-6 py-3.5 text-[13.5px] text-[#8a8d93]">
+            <figcaption className="border-t border-line px-6 py-3.5 text-[13.5px] text-ink-3">
               How a running install is laid out. Plaid and your AI model are only reached when you sync, ask or
               sort; nothing reaches in.
             </figcaption>
           </figure>
         </Reveal>
         <Reveal kind="each">
-          <div className="mt-10 grid grid-cols-4 border-t border-[#2a2a2f] max-[760px]:grid-cols-1">
+          <div className="mt-10 grid grid-cols-4 border-t border-line max-[760px]:grid-cols-1">
             {FACTS.map((f, i) => (
               <div
                 key={f.title}
                 className={`pt-[22px] pr-[22px] pb-1.5 max-[760px]:pt-[18px] max-[760px]:pr-0 max-[760px]:pb-1 ${
                   i === 0
                     ? ''
-                    : 'border-l border-[#2a2a2f] pl-[22px] max-[760px]:border-t max-[760px]:border-l-0 max-[760px]:pl-0'
+                    : 'border-l border-line pl-[22px] max-[760px]:border-t max-[760px]:border-l-0 max-[760px]:pl-0'
                 }`}
               >
-                <i className="sx-ic mb-4 grid size-10 place-items-center rounded-md border border-[#2a2a2f] bg-[rgba(236,236,234,0.04)]">
+                <i className="sx-ic mb-4 grid size-10 place-items-center rounded-md border border-line bg-ink/4">
                   <svg viewBox="0 0 16 16" aria-hidden="true">
                     {f.icon}
                   </svg>
                 </i>
-                <b className="block font-display text-[15px] leading-[normal] font-extrabold tracking-[-0.015em] text-[#ececea] [font-stretch:125%]">
+                <b className="block font-display text-[15px] leading-[normal] font-extrabold tracking-[-0.015em] text-ink [font-stretch:125%]">
                   {f.title}
                 </b>
-                <p className="mt-2.5 text-[14px] leading-[1.5] text-[#b9bcc2]">{f.body}</p>
+                <p className="mt-2.5 text-[14px] leading-[1.5] text-ink-2">{f.body}</p>
               </div>
             ))}
           </div>

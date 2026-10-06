@@ -94,27 +94,28 @@ function Cmd({ lines }: { lines: [command: string, comment?: string][] }) {
   }
 
   return (
-    <div className="relative mt-4 rounded-lg bg-surface-inverse px-[18px] pt-11 pb-4 text-[#e6e6e3]">
+    <div className="relative mt-4 rounded-lg bg-surface-inverse px-[18px] pt-11 pb-4">
       <button
         type="button"
+        data-theme="dark"
         aria-label="Copy commands"
         onClick={copy}
-        className={`absolute top-2.5 right-2.5 h-[26px] rounded-md border bg-[#18181b] px-2.5 font-sans text-xs font-semibold focus-visible:outline-white ${
-          copied ? 'border-[#4f7a5f] text-[#a8d5b8]' : 'border-[#34343a] text-[#c9cbd0] hover:border-[#5a5a62] hover:text-white'
+        className={`absolute top-2.5 right-2.5 h-[26px] rounded-md border bg-canvas px-2.5 font-sans text-xs font-semibold focus-visible:outline-ink ${
+          copied ? 'border-positive text-positive' : 'border-line text-ink-2 hover:border-ink-3 hover:text-ink'
         }`}
       >
         {copied ? 'Copied' : 'Copy'}
       </button>
-      <pre ref={pre} className="m-0 overflow-x-auto font-mono text-[13.5px] leading-[1.75] font-medium whitespace-pre [scrollbar-width:thin]">
+      <pre ref={pre} data-theme="dark" className="m-0 overflow-x-auto font-mono text-[13.5px] leading-[1.75] font-medium whitespace-pre text-ink [scrollbar-width:thin]">
         {lines.map(([command, comment], i) => (
           <Fragment key={i}>
             {i > 0 && '\n'}
-            <span className="text-[#6e7178] select-none">$ </span>
+            <span className="text-ink-3 select-none">$ </span>
             {command}
             {comment && (
               <>
                 {'   '}
-                <span className="text-[#8a8d93]"># {comment}</span>
+                <span className="text-ink-3"># {comment}</span>
               </>
             )}
           </Fragment>
