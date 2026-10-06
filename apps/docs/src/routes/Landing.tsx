@@ -1,11 +1,11 @@
-import { Ask } from '../sections/Ask'
-import { Changelog } from '../sections/Changelog'
-import { Hero } from '../sections/Hero'
-import { How } from '../sections/How'
-import { Platform } from '../sections/Platform'
-import { Security } from '../sections/Security'
-import { Start } from '../sections/Start'
-import { Views } from '../sections/Views'
+import { Ask } from '../landing/Ask'
+import { Changelog } from '../landing/Changelog'
+import { Hero } from '../landing/Hero'
+import { How } from '../landing/How'
+import { Platform } from '../landing/Platform'
+import { Security } from '../landing/Security'
+import { Start } from '../landing/Start'
+import { Views } from '../landing/Views'
 
 /** The landing (r4/ds/index.html): the sections in page order. The counter numbers their SectionTags. */
 export function Landing() {

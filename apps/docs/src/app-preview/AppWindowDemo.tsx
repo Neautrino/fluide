@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore, type CSSProperties, type HTMLAttributes, type ReactNode } from 'react'
+import { useEffect, useLayoutEffect, useMemo, useRef, useState, type CSSProperties } from 'react'
 import { createPortal } from 'react-dom'
 import {
   AppSidebar,
@@ -17,7 +17,8 @@ import {
   SyncIcon,
   ThemeIcon,
 } from '@repo/ui/shell'
-import { NOW, reviewQueue } from '../sample'
+import { noop } from '../lib/noop'
+import { NOW, reviewQueue } from './sample'
 import { VIEW_COMPONENT, VIEW_ROUTE, VIEWS, type View } from './AppViews'
 import './AppWindowDemo.css'
 
@@ -52,26 +53,6 @@ body { font-size: 14px; }
 #adw-root > div > div { border: 0; border-radius: 0; box-shadow: none; max-width: none; }
 #adw-root main { -webkit-mask-image: linear-gradient(#000 calc(100vh - 40px), transparent 100vh); mask-image: linear-gradient(#000 calc(100vh - 40px), transparent 100vh); }
 `
-
-const subscribeNever = () => () => {}
-
-/** True after hydration, false on the server and during the hydration render. */
-export function useHydrated() {
-  return useSyncExternalStore(
-    subscribeNever,
-    () => true,
-    () => false,
-  )
-}
-
-/**
- * Renders `<div {...props}>` and mounts `children` in it only after hydration, so locale- and clock-dependent
- * app UI never runs during prerender. Size the box yourself (width/height/aspect-ratio) so nothing moves when
- * the children arrive.
- */
-export function ClientOnly({ children, fallback = null, ...props }: HTMLAttributes<HTMLDivElement> & { children: ReactNode; fallback?: ReactNode }) {
-  return <div {...props}>{useHydrated() ? children : fallback}</div>
-}
 
 /** Handle on a mounted window, for callers that measure or animate its insides (the hero). */
 export type AppWindowApi = {
@@ -329,7 +310,7 @@ function AppScreen({
       <HeaderView topLine={topLine} title={current.label}>
         {/* hidden, not unmounted, on the Assistant (the app drops it there): the hero docks into this node */}
         <div data-slot="headerAsk" hidden={view === 'assistant'}>
-          <HeaderAskBox value={askText} onChange={() => {}} onSubmit={() => {}} />
+          <HeaderAskBox value={askText} onChange={noop} onSubmit={noop} />
         </div>
         <div className="flex flex-none gap-2">
           <HeaderButton title="Sync connections" label="Sync">

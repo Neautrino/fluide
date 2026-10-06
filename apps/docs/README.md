@@ -11,6 +11,21 @@ bun run preview   # serve dist/
 bun run lint
 ```
 
+## Layout
+
+```
+src/
+  entry-client.tsx, entry-server.tsx   browser entry (hydrate) and build-time render entry
+  router.tsx, pages.ts                 routes and each route's <title>/description
+  routes/        one component per page: Landing, Manifesto, Docs, and Root (nav + footer around them)
+  landing/       the landing's sections, each with its own CSS where Tailwind can't express it
+  site/          site chrome shared by every page: SiteNav, SiteFooter, HashLink, SectionTag, ds.ts
+  app-preview/   the real app rendered on sample data: AppWindowDemo (framed window), AppViews (the six
+                 views), sample/ (fixtures and the props derived from them)
+  motion/        Lenis + GSAP setup and the section entrances
+  lib/           hydration helpers (useHydrated, ClientOnly) and noop
+```
+
 ## How the prerender works
 
 `vite build` runs `builder.buildApp` from `vite.config.ts`:

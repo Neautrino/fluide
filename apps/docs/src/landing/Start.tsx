@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from 'react'
 import { Reveal, useRevealScope } from '../motion/reveal'
-import { HashLink } from '../components/HashLink'
-import { DISPLAY, GITHUB, pill } from '../components/ds'
+import { HashLink } from '../site/HashLink'
+import { DISPLAY, GITHUB, pill } from '../site/ds'
 import './Start.css'
 
 /* r4/ds/index.html #start (r4/ds/start.css option A2 `gs ga lit`, start.js): text | a line-drawn terminal

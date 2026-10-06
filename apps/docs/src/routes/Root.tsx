@@ -1,7 +1,7 @@
 import { Outlet, useLocation } from '@tanstack/react-router'
 import { useEffect } from 'react'
-import { SiteFooter } from '../components/SiteFooter'
-import { SiteNav } from '../components/SiteNav'
+import { SiteFooter } from '../site/SiteFooter'
+import { SiteNav } from '../site/SiteNav'
 import { MotionProvider } from '../motion/MotionProvider'
 import { PAGES } from '../pages'
 

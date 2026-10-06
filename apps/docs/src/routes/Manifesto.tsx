@@ -1,8 +1,8 @@
 import { LogoMark } from '@repo/ui/brand'
 import { Link } from '@tanstack/react-router'
 import type { ReactNode } from 'react'
-import { DISPLAY, pill } from '../components/ds'
-import { SectionTag } from '../components/SectionTag'
+import { DISPLAY, pill } from '../site/ds'
+import { SectionTag } from '../site/SectionTag'
 
 /* The rules Fluide is built on (r4/manifesto/), copy verbatim, in the DS01 skin of the landing. */
 

@@ -14,6 +14,7 @@ import { chipText, shortName, summarizeConnections } from '@repo/ui/connection-h
 import { countedIn, freshness, oldestOf, toLatest, type CashOnHandCard, type Latest, type NeedsYouStripView, type OwnAndOweCard } from '@repo/ui/overview'
 import { atStakeByCurrency, tilesFor, type QueueCard } from '@repo/ui/review'
 import type { AccountBalance, ConfidenceBand, PostingAccount, ReviewItem } from '@repo/ui/types'
+import { noop } from '../../lib/noop'
 import {
   accountBalances,
   cashflow,
@@ -99,8 +100,6 @@ for (const i of reviewQueue) {
   const k = i.posting?.counterpartyRaw?.toLowerCase()
   if (k) byVendor.set(k, (byVendor.get(k) ?? 0) + 1)
 }
-
-const noop = () => {}
 
 /** Every prop QueueCard takes for one queue item, handlers as no-ops. */
 export function queueCardProps(item: ReviewItem): ComponentProps<typeof QueueCard> {

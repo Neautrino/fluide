@@ -1,6 +1,6 @@
 import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
-import { DISPLAY } from '../components/ds'
-import { SectionTag } from '../components/SectionTag'
+import { DISPLAY } from '../site/ds'
+import { SectionTag } from '../site/SectionTag'
 
 /* The self-hosting guide (r4/docs/), copy verbatim, in the DS01 skin of the landing. Commands are
    exact, since they have to work when pasted. Contents on the left follow the section on screen. */

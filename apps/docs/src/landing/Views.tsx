@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState, type KeyboardEvent } from 'react'
-import { AppWindowDemo, type View } from '../components/AppWindowDemo'
-import { SectionTag } from '../components/SectionTag'
-import { DISPLAY } from '../components/ds'
+import { AppWindowDemo, type View } from '../app-preview/AppWindowDemo'
+import { SectionTag } from '../site/SectionTag'
+import { DISPLAY } from '../site/ds'
 import { Reveal, useRevealScope } from '../motion/reveal'
 import './Views.css'
 

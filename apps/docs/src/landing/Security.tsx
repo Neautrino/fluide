@@ -1,6 +1,6 @@
 import { useRef, type ReactNode } from 'react'
-import { SectionTag } from '../components/SectionTag'
-import { DISPLAY } from '../components/ds'
+import { SectionTag } from '../site/SectionTag'
+import { DISPLAY } from '../site/ds'
 import { gsap, useGSAP } from '../motion/gsap'
 import { Reveal, useRevealScope } from '../motion/reveal'
 import './Security.css'

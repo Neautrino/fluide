@@ -43,6 +43,7 @@ import {
   WaitingStrip,
 } from '@repo/ui/transactions'
 import type { LedgerRow } from '@repo/ui/types'
+import { noop } from '../lib/noop'
 import {
   accountBalances,
   assistantTrustProps,
@@ -68,7 +69,7 @@ import {
   transactions,
   transfers,
   uncategorizedCount,
-} from '../sample'
+} from './sample'
 
 /* The six app views the landing shows, composed from @repo/ui exactly as apps/web's views compose them
    (apps/web/src/views/*.tsx), fed from ../sample instead of queries, in their first state (no filter, no
@@ -87,8 +88,6 @@ export const VIEW_ROUTE: Record<View, string> = {
   review: '/review',
   assistant: '/assistant',
 }
-
-const noop = () => {}
 
 export function OverviewDemo() {
   return (

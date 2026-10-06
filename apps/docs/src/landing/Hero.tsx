@@ -2,13 +2,15 @@ import { LatestTransactionsCard, OwnAndOweCard, SpendByMonthCard, WhereItWentCar
 import { QueueCard } from '@repo/ui/review'
 import { HEADER_SUBTITLE, HeaderAskBox, NAV, NAV_LINK, NAV_LINK_ACTIVE, NAV_LINK_INACTIVE } from '@repo/ui/shell'
 import { useCallback, useEffect, useRef, useState, type CSSProperties, type ReactNode } from 'react'
-import { AssistantDemo } from '../components/AppViews'
-import { APP_HEIGHT, AppWindowDemo, ClientOnly, useHydrated, type AppWindowApi } from '../components/AppWindowDemo'
-import { DISPLAY, GITHUB, pill } from '../components/ds'
-import { HashLink } from '../components/HashLink'
+import { AssistantDemo } from '../app-preview/AppViews'
+import { APP_HEIGHT, AppWindowDemo, type AppWindowApi } from '../app-preview/AppWindowDemo'
+import { ClientOnly, useHydrated } from '../lib/hydration'
+import { noop } from '../lib/noop'
+import { DISPLAY, GITHUB, pill } from '../site/ds'
+import { HashLink } from '../site/HashLink'
 import { gsap, MOTION_QUERY, ScrollTrigger, useGSAP } from '../motion/gsap'
 import { useMotion } from '../motion/MotionProvider'
-import { cashflow, CURRENCY, fresh, latest, NOW, ownAndOweProps, reviewCardProps, reviewQueue } from '../sample'
+import { cashflow, CURRENCY, fresh, latest, NOW, ownAndOweProps, reviewCardProps, reviewQueue } from '../app-preview/sample'
 import './Hero.css'
 
 /* The hero (#top of r4/ds/index.html): the copy over the app's own light and — on wide screens that allow
@@ -31,7 +33,6 @@ const DW = 1280
 const EDGE = 16
 const GAP = 24
 const ASK = { y: 0.785, s: 1.18, depth: 28 }
-const noop = () => {}
 /* stable arrays: a fresh literal on every render would re-render the whole app in the window */
 const BOTH_VIEWS = ['overview', 'assistant'] as const
 const OVERVIEW_ONLY = ['overview'] as const

@@ -1,6 +1,6 @@
 import { Reveal, useRevealScope } from '../motion/reveal'
-import { SectionTag } from '../components/SectionTag'
-import { DISPLAY, GITHUB, pill } from '../components/ds'
+import { SectionTag } from '../site/SectionTag'
+import { DISPLAY, GITHUB, pill } from '../site/ds'
 import './Changelog.css'
 
 /* r4/ds/index.html #changelog (r4/updates option A, skinned by ds.css): entries from the app's commit
