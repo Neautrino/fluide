@@ -4,12 +4,14 @@ ARG BUN_VERSION=1.3.14
 FROM oven/bun:${BUN_VERSION} AS manifests
 WORKDIR /app
 COPY package.json bun.lock ./
+COPY apps/docs/package.json apps/docs/
 COPY apps/server/package.json apps/server/
 COPY apps/web/package.json apps/web/
 COPY packages/connectors/package.json packages/connectors/
 COPY packages/eslint-config/package.json packages/eslint-config/
 COPY packages/ledger/package.json packages/ledger/
 COPY packages/typescript-config/package.json packages/typescript-config/
+COPY packages/ui/package.json packages/ui/
 
 FROM manifests AS deps
 RUN bun install --frozen-lockfile
