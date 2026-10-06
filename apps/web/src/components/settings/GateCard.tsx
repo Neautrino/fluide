@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
 import { useRef, useState } from 'react'
 import { errorMessage, sendJson, type GateSettings, type ReviewItem } from '../../lib/api'
@@ -52,15 +52,15 @@ export function GateCard() {
       ) : !settings.data ? (
         <Loading label="Loading settings" rows={4} />
       ) : (
-        <GateForm initial={settings.data} />
+        <GateForm saved={settings.data} />
       )}
     </section>
   )
 }
 
-function GateForm({ initial }: { initial: GateSettings }) {
-  const [saved, setSaved] = useState<GateSettings>(initial)
-  const [draft, setDraft] = useState<Draft>(() => toDraft(initial))
+function GateForm({ saved }: { saved: GateSettings }) {
+  const queryClient = useQueryClient()
+  const [draft, setDraft] = useState<Draft>(() => toDraft(saved))
   const [touched, setTouched] = useState(false)
   const [busy, setBusy] = useState(false)
   const [serverError, setServerError] = useState<string | null>(null)
@@ -96,7 +96,8 @@ function GateForm({ initial }: { initial: GateSettings }) {
         lowConfidence: Number(draft.lowConfidence),
         amountRangeTolerance: Number(draft.amountRangeTolerance),
       })
-      setSaved(settings)
+      queryClient.setQueryData(gateOptions().queryKey, settings)
+      void queryClient.invalidateQueries()
       setDraft(toDraft(settings))
       setTouched(false)
       setJustSaved(true)

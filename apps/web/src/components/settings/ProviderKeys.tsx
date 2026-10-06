@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage, sendJson, type ConnectionSummary } from '../../lib/api'
 import { ENABLE_BANKING_AVAILABLE } from '../../lib/enable-banking'
@@ -63,6 +63,7 @@ export function ProviderKeys({ connections }: { connections: ConnectionSummary[]
   )
 }
 
+  const queryClient = useQueryClient()
 function ProviderBlock({ provider, banks }: { provider: Provider; banks: string }) {
   const { id, title, description, fields, disabled = false } = provider
   const status = useQuery(providerCredentialsOptions(id))
@@ -114,7 +115,7 @@ function ProviderBlock({ provider, banks }: { provider: Provider; banks: string 
       setDraft(emptyDraft())
       setReplacing(false)
       setJustSaved(true)
-      void status.refetch()
+      void queryClient.invalidateQueries()
     } catch (e) {
       setServerError(errorMessage(e))
     } finally {

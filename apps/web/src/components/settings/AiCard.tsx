@@ -1,4 +1,4 @@
-import { useQuery } from '@tanstack/react-query'
+import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import {
   errorMessage,
@@ -80,6 +80,7 @@ function usedByOther(cred: AiCredentialStatus | undefined, role: AiRole): boolea
   return cred?.usedBy.includes(OTHER_ROLE[role]) ?? false
 }
 
+  const queryClient = useQueryClient()
 export function AiCard() {
   const state = useQuery(aiSettingsOptions())
   return (
@@ -96,8 +97,8 @@ export function AiCard() {
         <Loading label="Loading assistant settings" rows={4} />
       ) : (
         <div className="mt-3 grid grid-cols-1 gap-3 @min-[760px]:grid-cols-2">
-          <AiRoleCard role="categorization" state={state.data} reload={() => void state.refetch()} />
-          <AiRoleCard role="chat" state={state.data} reload={() => void state.refetch()} />
+          <AiRoleCard role="categorization" state={state.data} reload={() => void queryClient.invalidateQueries()} />
+          <AiRoleCard role="chat" state={state.data} reload={() => void queryClient.invalidateQueries()} />
         </div>
       )}
     </section>
