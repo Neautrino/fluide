@@ -200,4 +200,12 @@ See `AGENTS.md` for the change protocol and repository rules.
 
 ## License
 
-License: to be decided.
+Copyright (C) 2026 Subhendu Singh
+
+Fluide is free software: you can redistribute it and/or modify it under the terms of the
+GNU Affero General Public License, version 3 (`AGPL-3.0-only`), as published by the Free Software
+Foundation. It is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; see
+[LICENSE](LICENSE) for the full text.
+
+If you run a modified version for other people over a network, the AGPL (section 13) requires you to
+offer those users the source code of your version.

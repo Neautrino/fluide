@@ -111,8 +111,14 @@ export function SiteFooter() {
           </Reveal>
         </div>
         <Reveal kind="block">
-          <div className="mt-[52px] border-t border-line pt-5 text-[12.5px]">
-            Bank names and logos belong to their owners. Fluide isn't affiliated with them.
+          <div className="mt-[52px] flex flex-wrap justify-between gap-x-6 gap-y-2.5 border-t border-line pt-5 text-[12.5px]">
+            <span>
+              © 2026 Subhendu Singh ·{' '}
+              <a className={LINK} href={`${GITHUB}/blob/main/LICENSE`}>
+                AGPL-3.0 license
+              </a>
+            </span>
+            <span>Bank names and logos belong to their owners. Fluide isn't affiliated with them.</span>
           </div>
         </Reveal>
       </div>

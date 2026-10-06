@@ -1,5 +1,6 @@
 {
   "name": "server",
+  "license": "AGPL-3.0-only",
   "type": "module",
   "scripts": {
     "dev": "PLAID_ENV=sandbox bun run --hot src/index.ts",
