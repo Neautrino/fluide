@@ -11,7 +11,8 @@ type Currency = (typeof CURRENCIES)[number]
 
 type Status = { kind: 'idle' } | { kind: 'saving' } | { kind: 'saved' } | { kind: 'error'; message: string }
 
-const UPDATE_COMMAND = 'git pull && docker compose up -d --build'
+const UPDATE_COMMAND =
+  'curl -fsSLO https://github.com/Neautrino/fluide/releases/latest/download/docker-compose.yml && docker compose pull && docker compose up -d'
 
 export function GeneralCard() {
   const queryClient = useQueryClient()
@@ -140,7 +141,7 @@ function VersionRow() {
       </div>
       {latest && (
         <div className="mt-2.5 flex flex-wrap items-center gap-3">
-          <code className="truncate rounded-sm border border-line bg-surface-2 px-[9px] py-1.5 font-mono text-[12px] font-medium text-ink">
+          <code title={UPDATE_COMMAND} className="truncate rounded-sm border border-line bg-surface-2 px-[9px] py-1.5 font-mono text-[12px] font-medium text-ink">
             {UPDATE_COMMAND}
           </code>
           <TextButton onClick={copy}>{copied ? 'Copied' : 'Copy'}</TextButton>
