@@ -32,14 +32,16 @@ COPY --from=prod-deps /app/node_modules node_modules
 COPY --from=prod-deps /app/apps/server/node_modules apps/server/node_modules
 COPY --from=prod-deps /app/packages/ledger/node_modules packages/ledger/node_modules
 COPY --from=prod-deps /app/packages/connectors/node_modules packages/connectors/node_modules
-COPY package.json ./
-COPY apps/server/package.json apps/server/tsconfig.json apps/server/
-COPY apps/server/src apps/server/src
-COPY packages/ledger/package.json packages/ledger/tsconfig.json packages/ledger/
-COPY packages/ledger/src packages/ledger/src
-COPY packages/ledger/migrations packages/ledger/migrations
-COPY packages/connectors/package.json packages/connectors/tsconfig.json packages/connectors/
-COPY packages/connectors/src packages/connectors/src
+# --chmod: files from the checkout keep their mode, and an owner-only file would be root:600 here,
+# unreadable by the non-root users app (1000) and migrate (999) run as
+COPY --chmod=a+rX package.json ./
+COPY --chmod=a+rX apps/server/package.json apps/server/tsconfig.json apps/server/
+COPY --chmod=a+rX apps/server/src apps/server/src
+COPY --chmod=a+rX packages/ledger/package.json packages/ledger/tsconfig.json packages/ledger/
+COPY --chmod=a+rX packages/ledger/src packages/ledger/src
+COPY --chmod=a+rX packages/ledger/migrations packages/ledger/migrations
+COPY --chmod=a+rX packages/connectors/package.json packages/connectors/tsconfig.json packages/connectors/
+COPY --chmod=a+rX packages/connectors/src packages/connectors/src
 COPY --from=build /app/apps/web/dist apps/web/dist
 # uid/gid 1000 (image's `bun` user); docker-compose.yml secrets-init chowns app secrets to this uid
 USER bun
