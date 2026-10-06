@@ -3,8 +3,7 @@ import { SectionTag } from '../site/SectionTag'
 import { DISPLAY, GITHUB, pill } from '../site/ds'
 import './Changelog.css'
 
-/* r4/ds/index.html #changelog (r4/updates option A, skinned by ds.css): entries from the app's commit
-   history, dated as committed. */
+/** Entries from the app's commit history, dated as committed. */
 const ENTRIES = [
   {
     date: '2026-10-03',

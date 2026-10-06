@@ -5,11 +5,6 @@ import { gsap, useGSAP } from '../motion/gsap'
 import { Reveal, useRevealScope } from '../motion/reveal'
 import './Security.css'
 
-/* r4/security option B on the dark band: a drawing of a running install (what stops at the edge, what
-   goes out) and four facts. Behaviour from r4/security/security.js: once the wide drawing is 30% in
-   view, a request drops toward the edge and stops there, then a dot runs out to Plaid / the AI model;
-   loops while in view, pauses out of it. Reduced motion: the drawing stays still. */
-
 const FACTS: { icon: ReactNode; title: string; body: string }[] = [
   {
     icon: (
@@ -56,6 +51,9 @@ const FACTS: { icon: ReactNode; title: string; body: string }[] = [
   },
 ]
 
+/** A drawing of a running install (what stops at the edge, what goes out) and four facts. Once the wide
+    drawing is 30% in view, a request drops to the edge and stops, then a dot runs out to Plaid / the AI
+    model; loops while in view. Reduced motion: the drawing stays still. */
 export function Security() {
   const reveal = useRevealScope<HTMLElement>()
   const wide = useRef<SVGSVGElement>(null)

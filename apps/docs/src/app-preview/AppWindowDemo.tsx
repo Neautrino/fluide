@@ -24,28 +24,17 @@ import './AppWindowDemo.css'
 
 export { VIEWS, type View } from './AppViews'
 
-/* The real Fluide app window (AppWindow + AppSidebar + HeaderView + one of six views, all from @repo/ui) on
-   the landing's sample data, inside r3's browser frame (winbar: dots, localhost URL, read-only tag, Sample
-   data chip). The app renders into a same-origin iframe DESIGN_WIDTH wide, so Tailwind's viewport
-   breakpoints resolve against the window, not the visitor's screen; the frame is then scaled to fit its
-   column (or, with `narrow`, shown as r3's zoomed, sideways-scrolling preview at ≤1100px).
-   Client-only: the prerendered HTML holds the frame, the bar and an empty iframe of fixed size; the app is
-   portalled in after hydration, so dates follow the visitor's locale with no hydration mismatch and no
-   layout shift. The window is a picture: the iframe is inert (no pointer, no focus, hidden from assistive
-   tech) and the box carries a text label instead. Docs: local://app-window.md. */
+/* The app renders in a same-origin iframe DESIGN_WIDTH wide, so Tailwind's breakpoints follow the window, not
+   the visitor's screen. It mounts after hydration, so dates use the visitor's locale without a mismatch. */
 
 export const DESIGN_WIDTH = 1280
-/** Height of the app area (the iframe), below the bar. */
 export const APP_HEIGHT = 680
 const BAR_HEIGHT = 38
 const BORDER = 1
-/** The window: the app plus its 1px border on each side. */
 export const FRAME_WIDTH = DESIGN_WIDTH + 2 * BORDER
 
 const SRC_DOC = '<!doctype html><html lang="en"><head><meta charset="utf-8"></head><body><div id="adw-root"></div></body></html>'
 
-/* Inside the iframe: the window's canvas padding and card chrome belong to our frame, the body is the
-   app's 14px (the site's index.css sets 15px), and the cut at the bottom fades like r3's crop. */
 const FRAME_CSS = `
 html, body { margin: 0; overflow: hidden; background: var(--surface); }
 body { font-size: 14px; }
@@ -54,40 +43,30 @@ body { font-size: 14px; }
 #adw-root main { -webkit-mask-image: linear-gradient(#000 calc(100vh - 40px), transparent 100vh); mask-image: linear-gradient(#000 calc(100vh - 40px), transparent 100vh); }
 `
 
-/** Handle on a mounted window, for callers that measure or animate its insides (the hero). */
 export type AppWindowApi = {
-  /** The outer box (sizer); `frame` is the scaled element inside it, `win` the bordered window. */
   root: HTMLDivElement
   frame: HTMLDivElement
   win: HTMLDivElement
   iframe: HTMLIFrameElement
-  /** The iframe's document; query the app with `doc.querySelector('[data-slot="cashOnHand"]')` etc. */
   doc: Document
-  /** The app's `<main>` (data-hx="main"). */
   main: HTMLElement
   /** Rect of an element inside the iframe in page (top-level viewport) coordinates, every scale applied. */
   rect: (el: Element) => DOMRect
-  /** Current on-screen scale of the app: page px per app px. */
   scale: () => number
 }
 
 type Props = {
-  /** The view on show (title, sidebar entry, header). */
   view: View
   /** Views kept mounted; defaults to `[view]`. Inactive ones are `hidden` unless `keepVisible`. */
   views?: readonly View[]
   keepVisible?: boolean
   /** `fit`: scale to the box's width (box height follows). `none`: natural size, the caller transforms it. */
   scale?: 'fit' | 'none'
-  /** At ≤1100px, r3's framed preview instead: zoom .62 (.46 at ≤620px), scroll sideways. */
   narrow?: boolean
   appHeight?: number
-  /** Text in the header's ask box (the hero types into it). */
   askText?: string
-  /** Sidebar entries that are views call this; Rules and Settings do nothing. */
   onNavigate?: (view: View) => void
   onReady?: (api: AppWindowApi) => void
-  /** Text alternative for the picture. */
   label?: string
   className?: string
   style?: CSSProperties
@@ -115,7 +94,7 @@ export function AppWindowDemo({
   const [shown, setShown] = useState(false)
   const totalHeight = BAR_HEIGHT + appHeight + 2 * BORDER
 
-  /* fit: scale = box width / design width, set before the frame is shown */
+  /* scale = box width / design width, set before paint so the frame never shows unscaled */
   useLayoutEffect(() => {
     const root = rootRef.current
     if (scale !== 'fit' || !root) return
@@ -129,7 +108,6 @@ export function AppWindowDemo({
     return () => ro.disconnect()
   }, [scale])
 
-  /* the iframe: clone the page's stylesheets in once, then portal the app into it */
   useEffect(() => {
     const iframe = iframeRef.current
     if (!iframe) return
@@ -167,7 +145,6 @@ export function AppWindowDemo({
     }
   }, [])
 
-  /* inert hooks for callers: data-hx on <main>, data-slot on the header's title block */
   useLayoutEffect(() => {
     if (!mount || !shown) return
     const doc = mount.ownerDocument
@@ -199,8 +176,7 @@ export function AppWindowDemo({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [mount, shown])
 
-  /* same element across mount/shown re-renders, so React doesn't re-render the whole app inside the frame
-     (~54ms) when the styles land; pass a stable `views` array (module constant) to keep this cheap */
+  /* stable element: re-rendering the app inside the frame costs ~54ms; callers pass a module-constant `views` */
   const screen = useMemo(
     () => <AppScreen view={view} views={views ?? [view]} keepVisible={keepVisible} askText={askText} onNavigate={onNavigate} />,
     [view, views, keepVisible, askText, onNavigate],
@@ -263,7 +239,7 @@ export function AppWindowDemo({
 
 const ROUTE_VIEW = Object.fromEntries(VIEWS.map((v) => [VIEW_ROUTE[v], v])) as Record<string, View>
 
-/** The app as apps/web's Shell renders it (Shell.tsx, Header.tsx, Sidebar.tsx), at the sample world's clock. */
+/** Mirrors apps/web's Shell.tsx, Header.tsx and Sidebar.tsx; change them together. */
 function AppScreen({
   view,
   views,

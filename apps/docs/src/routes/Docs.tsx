@@ -2,8 +2,7 @@ import { Fragment, useEffect, useRef, useState, type ReactNode } from 'react'
 import { DISPLAY } from '../site/ds'
 import { SectionTag } from '../site/SectionTag'
 
-/* The self-hosting guide (r4/docs/), copy verbatim, in the DS01 skin of the landing. Commands are
-   exact, since they have to work when pasted. Contents on the left follow the section on screen. */
+/* The self-hosting guide. Commands are exact, since they have to work when pasted. */
 
 const TOC = [
   ['requirements', 'Requirements'],
@@ -74,7 +73,7 @@ function Section({ id, title, children }: { id: string; title: string; children:
   )
 }
 
-/** A command block. Copy copies the commands without the "$ " prompts or the "# …" comments (r4/docs/docs.js). */
+/** A command block. Copy copies the commands without the "$ " prompts or the "# …" comments. */
 function Cmd({ lines }: { lines: [command: string, comment?: string][] }) {
   const pre = useRef<HTMLPreElement>(null)
   const [copied, setCopied] = useState(false)

@@ -15,9 +15,8 @@ const MotionContext = createContext<Motion>(OFF)
 export const useMotion = () => useContext(MotionContext)
 
 /**
- * Site-wide smooth scrolling, ported from r3/shared/fl-core.js (FL.motion.init) with the Lenis tuning
- * r4/hero/hero.js shipped. Set up only while the motion gate matches (crossing it at runtime sets up or
- * tears down), and torn down on unmount.
+ * Site-wide smooth scrolling (Lenis), live only while the motion gate matches: crossing it at runtime sets
+ * it up or tears it down.
  */
 export function MotionProvider({ children }: { children: ReactNode }) {
   const [state, setState] = useState<Motion>(OFF)

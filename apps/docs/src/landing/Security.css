@@ -1,4 +1,4 @@
-/* The boundary schematic's strokes and labels (r4/security/security.css option B, sb--dark colours). */
+/* the boundary drawing's strokes and labels, on the dark band */
 .sb-svg .ln { stroke: #ececea; stroke-width: 1.6; fill: none; }
 .sb-svg .hair { stroke: #3f3f46; stroke-width: 1; fill: none; }
 .sb-svg .dash { stroke: #6e7178; stroke-width: 1.2; stroke-dasharray: 4 5; fill: none; }

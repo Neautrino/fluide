@@ -1,5 +1,5 @@
-/* AppWindowDemo (see AppWindowDemo.tsx). The box is sized before the app mounts: `fit` by aspect-ratio, the
-   frame inside scaled by --adw-s (set from the box width); `none` at natural size. */
+/* The box is sized before the app mounts: `fit` by aspect-ratio, the frame inside scaled by --adw-s (set
+   from the box width); `none` at natural size. */
 .adw {
   position: relative;
 }
@@ -27,7 +27,7 @@
   opacity: 1;
 }
 
-/* r3's framed preview below 1100px: a bordered box that scrolls sideways over the zoomed window */
+/* below 1100px: a bordered box that scrolls sideways over the zoomed window */
 @media (max-width: 1100px) {
   .adw[data-narrow] {
     --adw-z: 0.62;

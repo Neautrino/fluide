@@ -6,21 +6,12 @@ import { gsap, useGSAP } from '../motion/gsap'
 import { Reveal, useRevealScope } from '../motion/reveal'
 import './Ask.css'
 
-/* r4 Ask (r4/ask/ask.js + ask.css + ds.css): the app's Assistant page with six questions around it,
-   each answered by one of the Assistant's six read-only queries, every period one the queries accept.
-   The label is the plain name of that query, never its code name.
-   Wide screens: three questions in each side margin, touching the window's frame only; each floats
-   gently on its own rhythm (paused off-screen, still under reduced motion). The questions and the whole
-   app window can be dragged anywhere and stay where they are dropped (a reload puts everything back).
-   Narrow screens: the questions as a grid above the window. */
-
 const WIDE = '(min-width: 1100.02px)'
-/* r4 sized its app (`.ak-win .app { height: 700px }`) to show the whole sample answer, query line
-   included. The real Assistant page at the 1280px design width ends at 721px; 768 leaves it clear of
-   the 40px bottom fade, and keeps the window as tall on the page as r4's (≈540px at 1440). */
+/* The Assistant page ends at 721px at the 1280px design width; 768 keeps the whole sample answer
+   clear of the window's 40px bottom fade. */
 const APP_HEIGHT = 768
 
-/* [query, question, wide-layout position] */
+/* [plain name of the query that answers it (never its code name), question, wide-layout position] */
 const QUESTIONS: [string, string, string][] = [
   ['spending by category', 'What did I spend the most on this month?', 'min-[1100.02px]:left-0 min-[1100.02px]:top-[9%]'],
   ['one category', 'How much did I spend on groceries this month?', 'min-[1100.02px]:left-[10px] min-[1100.02px]:top-[38%]'],
@@ -33,9 +24,8 @@ const QUESTIONS: [string, string, string][] = [
 type Lift = { grow: number; tilt: number }
 type Hooks = { start?: () => void; end?: () => void }
 
-/* One drag behaviour for the questions and the whole app window: follow the pointer, lean into the
-   motion, stay where dropped. `lift` is the element that tilts and grows; `o` sets how far (the big
-   window leans and grows much less than a small question). Returns the cleanup. */
+/** Follow the pointer, lean into the motion, stay where dropped. `lift` is the element that tilts
+    and grows, by `o` (the window much less than a question). Returns the cleanup. */
 function draggable(el: HTMLElement, lift: HTMLElement, o: Lift, reduced: boolean, hooks: Hooks) {
   let drag: { id: number; x0: number; y0: number; bx: number; by: number; lx: number; lt: number } | null = null
   const down = (e: PointerEvent) => {
@@ -84,6 +74,9 @@ function draggable(el: HTMLElement, lift: HTMLElement, o: Lift, reduced: boolean
   }
 }
 
+/** Six questions around the app's Assistant page, each answered by one of its read-only queries.
+    Wide screens: the questions float in the side margins; they and the window drag and stay where
+    dropped (a reload resets). Narrow screens: a grid above the window. */
 export function Ask() {
   const reveal = useRevealScope<HTMLElement>()
   const stage = useRef<HTMLDivElement>(null)
@@ -229,7 +222,7 @@ export function Ask() {
             ref={win}
             className="relative mx-auto w-full max-[1100.02px]:px-3 min-[1100.02px]:z-1 min-[1100.02px]:cursor-grab min-[1100.02px]:touch-none min-[1100.02px]:select-none min-[1100.02px]:data-held:cursor-grabbing"
           >
-            {/* the app's Assistant page, scaled into the column; below 1100px r3's sideways-scrolling preview */}
+            {/* below 1100px, `narrow` shows a zoomed preview that scrolls sideways */}
             <AppWindowDemo
               view="assistant"
               narrow

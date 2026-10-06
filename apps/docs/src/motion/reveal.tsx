@@ -1,21 +1,18 @@
 import { Children, cloneElement, isValidElement, useEffect, useRef, type ReactElement, type ReactNode } from 'react'
 
-/* Section entrances, ported from r4/ds/reveal.js (measured from steep.app): headline words rise 1.15em
-   while fading in, 0.5s strong ease-out, 70ms apart; the sub-line follows from 40px; links and buttons
-   from 15px; blocks from 28px; `each` gives every child its own 28px step, 90ms apart. Plays once per
-   scope as it comes into view. Moves with the `translate` property, never `transform`, so it can't
-   fight GSAP. The hidden state is CSS (index.css), keyed on html.rv-on, which index.html's inline
-   script sets before first paint unless motion is reduced: prerendered HTML never flashes, and under
-   reduced motion nothing is hidden. */
+/* Section entrances: headline words rise and fade in 70ms apart, then each other step slides up in document
+   order (`each` staggers its children 90ms apart). Plays once per scope as it comes into view. Moves with
+   the `translate` property, never `transform`, so it can't fight GSAP. The hidden state is CSS (index.css),
+   keyed on html.rv-on, which index.html's inline script sets before first paint unless motion is reduced:
+   prerendered HTML never flashes, and under reduced motion nothing is hidden. */
 
 export type RevealKind = 'words' | 'line' | 'link' | 'block' | 'each'
 
 const WORD_MS = 70
 
 /**
- * Makes an element a reveal scope (r4: each landing section and the footer). Spread the result on it:
- * `const reveal = useRevealScope<HTMLElement>(); <section {...reveal} id="…">`. Its <Reveal> descendants
- * get their delays here, in document order, and enter together once 15% of it is above the fold line.
+ * Makes an element a reveal scope: `const reveal = useRevealScope<HTMLElement>(); <section {...reveal}>`.
+ * Its <Reveal> descendants get their delays in document order and enter together once 15% of it is above the fold.
  */
 export function useRevealScope<T extends HTMLElement>(enabled = true) {
   const ref = useRef<T>(null)
@@ -31,7 +28,6 @@ export function useRevealScope<T extends HTMLElement>(enabled = true) {
         /* 70ms per word, but a long headline never takes more than 0.7s to start its last word */
         const gap = words.length > 1 ? Math.min(WORD_MS, 700 / (words.length - 1)) : 0
         words.forEach((w, i) => w.style.setProperty('--d', `${Math.round(t + i * gap)}ms`))
-        /* what follows starts 60ms after the last word */
         t += Math.round((words.length - 1) * gap) + 60
       } else if (kind === 'each') {
         for (const child of el.children) {

@@ -6,7 +6,7 @@
   initial-value: transparent;
 }
 
-/* Labels inside the principle-card drawings (r4/hero/platform.css .pf-art text). */
+/* labels inside the principle-card drawings */
 .pf-art .t { fill: currentColor; stroke: none; font: 500 12.5px var(--font-sans); }
 .pf-art .n { font-family: var(--font-mono); }
 .pf-art .b { font-weight: 700; }

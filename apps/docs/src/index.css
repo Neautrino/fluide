@@ -20,10 +20,10 @@
   scroll-behavior: auto !important;
 }
 
-/* Section entrances (src/motion/reveal.tsx; timing from r4/ds/ds.css). html.rv-on is set before first
-   paint unless motion is reduced; only reveal scopes ([data-rv-scope]) hide anything. The entrance
-   transition applies only until the scope is [data-rv-done]: it replaces an element's own `transition`,
-   so keeping it afterwards would make card switches and hover fades snap. */
+/* Section entrances (src/motion/reveal.tsx). html.rv-on is set before first paint unless motion is reduced;
+   only reveal scopes ([data-rv-scope]) hide anything. The entrance transition applies only until the scope is
+   [data-rv-done]: it replaces an element's own `transition`, so keeping it would make card switches and
+   hover fades snap. */
 [data-rv="line"] {
   --y: 40px;
 }

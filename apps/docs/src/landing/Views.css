@@ -1,5 +1,5 @@
-/* #views tab list (r4/hero/product.css + r4/ds/ds.css). The active tab expands with its sentence and a
-   progress line that fills for --pd-dur, then the next view shows (Views.tsx). */
+/* The active tab expands with its sentence and a progress line that fills for --pd-dur; when the line
+   ends, Views.tsx shows the next view. */
 .pd-tab {
   position: relative;
   display: block;
@@ -96,7 +96,7 @@
     padding: 10px 0;
   }
   .pd-tab > b {
-    /* ds.css's 18px outranks product.css's narrow 16px there, so only the wrapping changes */
+    /* titles keep their 18px here; only the wrapping changes */
     white-space: nowrap;
   }
   .pd-d {

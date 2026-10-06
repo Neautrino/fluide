@@ -5,13 +5,6 @@ import { DISPLAY } from '../site/ds'
 import { Reveal, useRevealScope } from '../motion/reveal'
 import './Views.css'
 
-/* r4 product section: one app window cycling through the real views (now the real @repo/ui views, see
-   AppWindowDemo). Behaviour from r4/hero/product.js: the active tab's progress line runs for --pd-dur (8s);
-   when it ends the next view shows. Clicking a tab or the arrow/Home/End keys jump to a view and restart the
-   line. The window fades out, swaps after 180ms and fades back in. Paused while the section is less than
-   30% on screen, while the pointer is on the window, and (added for keyboard users) while keyboard focus is
-   in the tab list. Reduced motion: the line is hidden, so nothing advances on its own, and the fade is instant. */
-
 const TABS: { view: View; title: string; text: string }[] = [
   { view: 'overview', title: 'Overview', text: 'Cash on hand, what you own and owe, spend by month and where it went, on one page.' },
   {
@@ -31,6 +24,9 @@ const TABS: { view: View; title: string; text: string }[] = [
 
 const SWAP_MS = 180
 
+/** One app window cycling through the views: the active tab's progress line runs for --pd-dur, then the
+    next view shows. Paused while under 30% on screen, while the pointer is on the window and while keyboard
+    focus is in the tab list. Reduced motion hides the line, so nothing advances on its own. */
 export function Views() {
   const reveal = useRevealScope<HTMLElement>()
   const tabRefs = useRef<(HTMLButtonElement | null)[]>([])
@@ -108,7 +104,7 @@ export function Views() {
               aria-label="App views"
               aria-orientation="vertical"
               onFocus={(e) => {
-                /* keyboard focus only: a clicked tab keeps cycling, as in r4 */
+                /* keyboard focus only: a clicked tab keeps cycling */
                 if (e.target.matches(':focus-visible')) setFocused(true)
               }}
               onBlur={(e) => {

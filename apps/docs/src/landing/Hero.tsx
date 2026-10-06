@@ -13,20 +13,6 @@ import { useMotion } from '../motion/MotionProvider'
 import { cashflow, CURRENCY, fresh, latest, NOW, ownAndOweProps, reviewCardProps, reviewQueue } from '../app-preview/sample'
 import './Hero.css'
 
-/* The hero (#top of r4/ds/index.html): the copy over the app's own light and — on wide screens that allow
-   motion — the pinned, scrubbed sequence of r4/hero/hero.js over the real app:
-     1 real Overview cards and the header ask box float around the headline
-     2 the headline lifts away, the window rises, the cards fly into their Overview slots
-       (the Review card is not on Overview: it folds into the Needs-you strip)
-     3 the ask box zooms over a frosted Overview and the cursor types the question
-     4 the Assistant opens and its answer + chart come in
-   The floating cards are the same @repo/ui components, with the same props, that the window's Overview
-   shows (components/AppViews.tsx); Hero.css trims each copy down to its headline content, as
-   r4/hero/hero.css trimmed the replicas. The window is AppWindowDemo, which renders the app in a
-   same-origin frame at its design width, so every position the sequence flies to is measured inside that
-   frame and mapped into the page.
-   Narrow screens and reduced motion get the static layout: the copy, the window, then the Assistant. */
-
 const QUESTION = 'Why is Shopping up 38% this month?'
 /** The window's design width (AppWindowDemo.DESIGN_WIDTH); the hero scales it to fit. */
 const DW = 1280
@@ -48,8 +34,8 @@ type Float = {
   fold?: boolean
   /** fixed float width; otherwise the slot's own width */
   w?: number
-  /** width to render at before anything is measured: what the slot is at the app's 1280 design width, so
-      the card is laid out once, at the size it keeps (an unconstrained card lays out at max-content first) */
+  /** width before anything is measured: the slot's width at the 1280 design width, so the card lays out once,
+      at the size it keeps (unconstrained, it would lay out at max-content first) */
   w0: number
   /** largest scale for this card: Where it went stays at app size, the rest sit smaller around it */
   max: number
@@ -59,9 +45,9 @@ type Float = {
   card: ReactNode
 }
 
-/* Each card fills a free region around the copy (measured per refresh), never leaving the viewport.
-   region: tl/tr above the headline · bl/br below the lede beside the CTAs and ask box · mr right of the
-   text. Array order matters: mr is placed in the gap left between tr and br. */
+/* The same @repo/ui cards and props the window's Overview shows (app-preview/AppViews.tsx); Hero.css trims the
+   copies. Each fills a free region around the copy, measured per refresh: tl/tr above the headline, bl/br beside
+   the CTAs and ask box, mr right of the text. Order matters: mr fills the gap left between tr and br. */
 const FLOATS: Float[] = [
   {
     key: 'whereItWent',
@@ -172,6 +158,9 @@ type Layout = {
 /** The entrance plays once per page load; a remount (StrictMode, crossing the gate) must not replay it. */
 let introPlayed = false
 
+/** The landing hero. With room and motion allowed, scroll scrubs a sequence over the real app: the floating cards
+    fly into their Overview slots, the ask box types a question, the Assistant answers. Otherwise it stacks the
+    copy, the window and the Assistant. */
 export function Hero() {
   const { motion } = useMotion()
   const hydrated = useHydrated()
@@ -183,9 +172,8 @@ export function Hero() {
     apiRef.current = api
     startRef.current?.()
   }, [])
-  /* The app frame is sized before the app is portalled into it, so the Overview is laid out once, at the
-     height it keeps: the window fills the viewport in the motion layout. Later refreshes set it directly
-     (measure()), which is why this is read once and never updated. */
+  /* The app frame is sized before the app is portalled in, so the Overview lays out once, at the height it keeps.
+     Later refreshes set the height directly in measure(), so this state is set once and never updated. */
   const [appHeight, setAppHeight] = useState(APP_HEIGHT)
 
   useEffect(() => {
@@ -217,7 +205,6 @@ export function Hero() {
           const input = askEl.querySelector('input')!
           const cursor = askEl.querySelector<SVGElement>('.hx-cursor')!
           const root = document.documentElement
-          /* the site nav is fixed over every layout and stays on screen the whole time */
           const nav = document.querySelector('header')
           const { doc, iframe, win } = api
           const slotOf = (name: string) => doc.querySelector<HTMLElement>(`[data-slot="${name}"]`)!
@@ -428,9 +415,8 @@ export function Hero() {
           const tl = gsap.timeline({
             defaults: { ease: 'none' },
             scrollTrigger: {
-              /* The stage is sticky (Hero.css), so the trigger only scrubs: `bottom bottom` is the end of the
-               hero's 440vh of run — the +=440% of pin r4/hero/hero.js scrolled through — and the 1.2s scrub
-               catch-up makes each beat ease in rather than snap. */
+              /* The stage is sticky (Hero.css), so the trigger only scrubs: `bottom bottom` ends the hero's 440vh
+                 of run, and the 1.2s scrub catch-up eases each beat in rather than snapping. */
               trigger: section,
               start: 'top top',
               end: 'bottom bottom',
@@ -442,7 +428,6 @@ export function Hero() {
             },
           })
 
-          /* background light drifts the whole way */
           tl.to('.hx-b1', { x: () => G().W * 0.1, y: () => G().H * 0.14, duration: 9.6 }, 0)
             .to('.hx-b2', { x: () => -G().W * 0.12, y: () => -G().H * 0.12, duration: 9.6 }, 0)
             .to('.hx-b3', { x: () => G().W * 0.08, y: () => -G().H * 0.2, duration: 9.6 }, 0)
@@ -578,9 +563,8 @@ export function Hero() {
             .to(overview, { autoAlpha: 0, y: -12, duration: 0.5 }, 6.3)
             .fromTo(chat, { autoAlpha: 0, y: 14 }, { autoAlpha: 1, y: 0, duration: 0.5 }, 6.55)
           /* The view switch, reversible inside a scrubbed timeline: a 1ms tween whose value reads as on/off
-           whichever way the scroll runs. It writes the header's title block and the sidebar's current entry
-           straight into the app's DOM (as r4/hero/hero.js did): re-rendering the window from React here
-           would rebuild every card in it, mid-scrub. */
+           whichever way the scroll runs. It writes the header title and the sidebar's current entry straight
+           into the app's DOM: re-rendering the window from React would rebuild every card in it, mid-scrub. */
           const hello = slotOf('hello')
           const helloLine = hello.querySelector('small')!
           const helloTitle = hello.querySelector('h1')!
@@ -626,8 +610,7 @@ export function Hero() {
             6.5,
           )
 
-          /* the answer, part by part: the question bubble, the mark, the text, the chips, the chart and its
-           bars, then the source line (@repo/ui SampleAnswer's own shape) */
+          /* the answer as @repo/ui SampleAnswer renders it: bubble, mark, text, chips, chart and bars, source line */
           const answer = chat.querySelector<HTMLElement>('section[aria-label="Ask about your money"] > div:last-child')!
           const bubble = answer.children[0]
           const reply = answer.children[1]
@@ -685,11 +668,9 @@ export function Hero() {
 
           void document.fonts?.ready.then(() => ScrollTrigger.refresh())
 
-          /* The entrance (Hero.css .hx-intro) starts once the page has stopped re-measuring: after the fonts
-           and the load event, and 150ms after the last ScrollTrigger refresh — each refresh re-pins the
-           hero, which moves it in the DOM, and a DOM move restarts every CSS animation inside it. After
-           1.8s it is done and .hx-shown leaves everything still, so a later refresh can't replay it.
-           Capped at 2.5s. Every floating card is mounted and placed before this runs. */
+          /* The entrance (Hero.css .hx-intro) starts once the page has stopped re-measuring: after the fonts, the
+           load event and 150ms after the last ScrollTrigger refresh, capped at 2.5s, so the cards rise where they
+           stay. After 1.8s .hx-shown replaces it and keeps everything visible and still. */
           let quiet: ReturnType<typeof setTimeout> | undefined
           let cap: ReturnType<typeof setTimeout> | undefined
           let done: ReturnType<typeof setTimeout> | undefined
@@ -824,7 +805,6 @@ export function Hero() {
             />
           </ClientOnly>
           <div className="hx-veil" aria-hidden="true" />
-          {/* static layout: the Assistant sits under the window, as it does in r4/hero/hero.js */}
           {!motion && (
             <ClientOnly className="hx-chat">
               <AssistantDemo />

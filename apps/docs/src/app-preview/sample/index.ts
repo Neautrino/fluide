@@ -1,11 +1,10 @@
-/* The landing's sample world (today = Tue 29 Sep 2026, 14:00 UTC), as the props the real @repo/ui components
-   take. Derived from ./fixtures.ts the same way apps/web derives them from its queries (views/Overview.tsx,
-   components/overview/*, views/Review.tsx, components/assistant/TrustLine.tsx), so every view agrees with the
-   others. The fixtures carry the landing's figures (Checking ••4821 $8,412.37, Savings ••0917 $24,150.00,
-   Sapphire ••3390 $1,284.55, Sept out $3,918.64 / in $6,240.00, the four review items). One adjustment: the
-   waiting $203.75 Amazon purchase counts under Shopping (not its bank tag), and Shopping's typical is $421.50,
-   so September Shopping reads $581.90, +38% — the riser the donut highlights and the hero question asks about.
-   @repo/ui's SampleAnswer hard-codes its own Shopping figures ($548.20 vs $397.00, +38%). */
+/* The landing's sample data (now = Tue 29 Sep 2026, 14:00 UTC) as the props the real @repo/ui components
+   take, derived from ./fixtures.ts the way apps/web derives them from its queries, so every view agrees.
+   Landing copy quotes these figures; change both together: Checking ••4821 $8,412.37, Savings ••0917
+   $24,150.00, Sapphire ••3390 $1,284.55, Sept out $3,918.64 / in $6,240.00, the four review items, and
+   September Shopping at $581.90, +38% on its $421.50 typical (the waiting $203.75 Amazon purchase counts as
+   Shopping), the riser the donut highlights and the hero asks about. @repo/ui's SampleAnswer hard-codes its
+   own Shopping figures ($548.20 vs $397.00, +38%); they don't follow these. */
 import type { ComponentProps } from 'react'
 import { creditUsage, isLive, totalsByCurrency } from '@repo/ui/accounts'
 import type { TrustFlag } from '@repo/ui/assistant'
@@ -89,7 +88,6 @@ export const needsYouProps = {
   failed: [],
 } satisfies Partial<ComponentProps<typeof NeedsYouStripView>>
 
-/* ---- Review */
 export const postingAccounts = new Map<string, PostingAccount>(postingAccountList)
 export const stake = atStakeByCurrency(reviewQueue)
 export const reviewTiles = tilesFor(reviewQueue, postingAccounts)

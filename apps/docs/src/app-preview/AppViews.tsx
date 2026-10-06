@@ -71,10 +71,9 @@ import {
   uncategorizedCount,
 } from './sample'
 
-/* The six app views the landing shows, composed from @repo/ui exactly as apps/web's views compose them
-   (apps/web/src/views/*.tsx), fed from ../sample instead of queries, in their first state (no filter, no
-   drawer, no conversation). Navigation and actions are no-ops: the window is a picture. The window crops
-   each view, so Cash flow stops after its In/out + Month-by-month row. */
+/* The six views the landing shows. They compose @repo/ui exactly as apps/web/src/views/*.tsx do; keep them in
+   step when those views change. Fed from ./sample in their first state (no filter, drawer or conversation);
+   actions are no-ops, since the window is a picture that crops each view. */
 
 export const VIEWS = ['overview', 'transactions', 'accounts', 'cashflow', 'review', 'assistant'] as const
 export type View = (typeof VIEWS)[number]

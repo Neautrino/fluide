@@ -7,13 +7,6 @@ import { gsap, useGSAP } from '../motion/gsap'
 import { Reveal, useRevealScope } from '../motion/reveal'
 import './Platform.css'
 
-/* r4 platform: a statement over three principle cards. Behaviour from r4/hero/platform.js: one card is
-   active at a time (the first by default; hover or focus to switch, swipe on narrow screens, where the
-   card most in view is the active one). The active card grows to 1.1 from the bottom, takes its tile
-   colour and shows its sentence; the others shrink to .9 and dim. Each drawing has a small paused GSAP
-   timeline that rests in its finished state and replays when its card becomes active, once the row has
-   been on screen. Reduced motion: the drawings stay still. */
-
 type Tone = 'sage' | 'peach' | 'peri'
 
 const CARDS: { tone: Tone; title: string; art: ReactNode; body: string }[] = [
@@ -135,7 +128,7 @@ const CARDS: { tone: Tone; title: string; art: ReactNode; body: string }[] = [
   },
 ]
 
-/* the active card's tile (r4/ds/ds.css .pf-card[data-tone].is-on) */
+/* the active card's tile colour */
 const TONE: Record<Tone, string> = {
   sage: 'data-on:[--pf-card:var(--color-tile-3)]',
   peach: 'data-on:[--pf-card:var(--color-tile-1)]',
@@ -183,6 +176,9 @@ function cardTimeline(card: HTMLElement) {
   return tl
 }
 
+/** A statement over three principle cards. One card is active at a time: the first by default, then hover
+    or focus, or on narrow screens the card most in view. The active card grows, takes its tile colour and
+    shows its sentence; its drawing replays once the row has been on screen (still under reduced motion). */
 export function Platform() {
   const reveal = useRevealScope<HTMLElement>()
   const row = useRef<HTMLDivElement>(null)
@@ -204,9 +200,8 @@ export function Platform() {
       select.current = (i) => {
         if (i === current) return
         current = i
-        /* committed in the event, as the original toggles its class, so the CSS transitions start this frame */
+        /* committed synchronously in the event so the CSS transitions start this frame */
         flushSync(() => setActive(i))
-        /* the card that becomes active replays its drawing */
         if (seen && !reduced) tls[i].restart()
       }
 

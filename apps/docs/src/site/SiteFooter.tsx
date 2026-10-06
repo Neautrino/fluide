@@ -32,10 +32,7 @@ function Column({ title, children }: { title: string; children: ReactNode }) {
   )
 }
 
-/**
- * The dark site footer (option 2 of r4/cta/cta.css .f2--dark, DS01 skin of r4/ds/ds.css). On the landing
- * its first column links to the sections on the page and it enters like the sections do.
- */
+/** On the landing the first column links to the page's sections, and the footer enters like they do. */
 export function SiteFooter() {
   const home = useLocation({ select: (l) => l.pathname === '/' })
   const reveal = useRevealScope<HTMLElement>(home)

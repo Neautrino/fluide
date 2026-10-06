@@ -7,10 +7,7 @@ import { HashLink } from './HashLink'
 const NAV_LINK =
   'text-ink-2 transition-colors duration-200 hover:text-ink aria-[current=page]:text-ink aria-[current=page]:underline aria-[current=page]:decoration-[1.5px] aria-[current=page]:underline-offset-[6px]'
 
-/**
- * The site nav, fixed on every page (r4/hero/hero.css .hx-nav in the DS01 skin of r4/ds/ds.css): clear at
- * the very top, a canvas bar with an ink rule once the page has scrolled (r4/hero/nav.js).
- */
+/** Fixed on every page: clear at the very top, a canvas bar with a rule once the page has scrolled. */
 export function SiteNav() {
   const home = useLocation({ select: (l) => l.pathname === '/' })
   const [solid, setSolid] = useState(false)

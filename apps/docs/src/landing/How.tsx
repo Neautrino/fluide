@@ -5,14 +5,6 @@ import { gsap, ScrollTrigger, useGSAP } from '../motion/gsap'
 import { Reveal, useRevealScope } from '../motion/reveal'
 import './How.css'
 
-/* How it works (r4/flow/flow.js, option A). The map is an inline SVG.
-   - Arrival: when the map is 30% in view it draws itself slowly, part by part, once.
-   - Wide screens with motion: the section pins for 250% of the viewport. Scroll progress picks the state
-     (intro → Sync → Sort → Ask); the left text swaps in place and the map lights that flow with dots.
-     The Sync/Sort/Ask labels scroll to their state. Reaching a flow before the build ends speeds it ×4.
-   - Narrow screens or reduced motion: no pin; every state is listed under the map, the labels just
-     highlight a flow. Reduced motion: the map is drawn at once and has no dots. */
-
 type Flow = 'sync' | 'sort' | 'ask'
 type State = 'all' | Flow
 
@@ -162,6 +154,10 @@ function BankSet({ copy }: { copy?: boolean }) {
   )
 }
 
+/** The map draws itself part by part once 30% in view (at once under reduced motion). Wide screens with
+    motion: the section pins for 250% of the viewport and scroll picks the state (intro → Sync → Sort → Ask),
+    lighting that flow with dots; reaching a flow mid-build speeds the build ×4. Otherwise every state is
+    listed under the map and the labels just highlight a flow. */
 export function How() {
   const reveal = useRevealScope<HTMLElement>()
   const mapRef = useRef<HTMLDivElement>(null)
@@ -181,7 +177,7 @@ export function How() {
     setActiveState(s)
   }
 
-  /* ---- slow build on arrival; pin on wide screens with motion allowed */
+  /* slow build on arrival; pin on wide screens with motion allowed */
   useGSAP(
     () => {
       const svg = mapRef.current!.querySelector('svg')!
@@ -257,7 +253,7 @@ export function How() {
     { scope: reveal.ref },
   )
 
-  /* ---- dots: run along drawn lines of the active flow, one rAF loop, paused off-screen */
+  /* dots run along drawn lines of the active flow: one rAF loop, paused off-screen */
   useEffect(() => {
     if (matchMedia('(prefers-reduced-motion: reduce)').matches) return
     const svg = mapRef.current!.querySelector('svg')!

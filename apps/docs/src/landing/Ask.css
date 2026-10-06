@@ -1,7 +1,6 @@
-/* Ask section (r4/ask/ask.css): the questions arrive once, 70ms apart, when the stage comes into view
-   (Ask.tsx sets [data-ak-in] on the section). Hidden only under html.rv-on, so under reduced motion
-   (or without JS) they are simply there. Uses the `translate` property, never `transform`, so it can't
-   fight the GSAP transforms used for dragging. */
+/* The questions arrive once, 70ms apart, when Ask.tsx sets [data-ak-in]. Hidden only under html.rv-on,
+   so without JS or under reduced motion they are simply there. `translate`, not `transform`, so it
+   can't fight the GSAP transforms used for dragging. */
 html.rv-on .ak-chip {
   opacity: 0;
   translate: 0 14px;
@@ -15,8 +14,8 @@ html.rv-on [data-ak-in] .ak-chip {
   translate: none;
 }
 
-/* wide screens, where the questions can be dragged: a held question lifts; hovering one darkens its
-   edge (after the held rule, as in r4, so it wins while both apply) */
+/* wide screens, where the questions drag: a held question lifts; hover darkens its edge (after the
+   held rule so it wins while both apply) */
 @media (min-width: 1100.02px) {
   .ak-chip[data-held] .ak-card {
     border-color: var(--line-strong);

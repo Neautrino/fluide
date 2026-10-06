@@ -1,11 +1,8 @@
-/* Hero (#top): r4/hero/hero.css under the DS01 skin of r4/ds/ds.css.
-   Only what Tailwind can't say: the pinned motion layout, the entrance keyframes and their gate, the
-   emphasis on the headline, and the trims that turn a real @repo/ui card into its floating copy.
-   The nav lives in components/SiteNav.tsx; `.hx-h1`, `.hx-pill`, `.hx-lede`, `.hx-ctas` are Tailwind
-   in Hero.tsx and appear here only as animation targets. */
+/* Only what Tailwind can't say: the motion layout, the entrance and its gate, the headline emphasis and the card
+   trims. .hx-h1, .hx-pill, .hx-lede and .hx-ctas are styled in Hero.tsx and appear here only as animation targets. */
 
-/* ---------- background: the app's tile hues as soft light over the canvas; no grain (ds.css).
-   It sits inside the hero (absolute, not fixed), so every later section keeps its own background. ---------- */
+/* the app's tile hues as soft light over the canvas; absolute inside the hero, not fixed, so every later section
+   keeps its own background */
 .hx-hero {
   position: relative;
   isolation: isolate;
@@ -24,7 +21,6 @@
   border-radius: 50%;
   will-change: transform;
 }
-/* tokens.css tile-2 lavender, tile-1 peach, tile-4 rose, tile-3 cool grey — the four r4 blobs, recoloured */
 .hx-b1 {
   left: -14vw;
   top: -12vh;
@@ -58,9 +54,8 @@
   background: radial-gradient(closest-side, var(--tile-3), transparent);
 }
 
-/* ---------- shell ---------- */
-/* without the motion layout the hero flows from the top, so it starts below the fixed nav (the stage
-   carries it, so the hero's light — which lives in the stage — covers that strip too) */
+/* without the motion layout the hero flows from the top, so the stage starts below the fixed nav (padding, so the
+   hero's light, which lives in the stage, covers that strip too) */
 html:not(.is-motion) .hx-stage {
   position: relative;
   padding-top: 72px;
@@ -75,7 +70,7 @@ html:not(.is-motion) .hx-stage {
   padding: 72px 24px 64px;
   word-spacing: 0.05em;
 }
-/* the emphasised phrase sits on an app tile: tile-3 grey (the Cards tile), ink text, 1px ink outline */
+/* the emphasised phrase sits on an app tile (tile-3, the Cards tile) */
 .hx-h1 em {
   font-style: normal;
   background: var(--tile-3);
@@ -97,8 +92,8 @@ html:not(.is-motion) .hx-stage {
   width: min(1280px, 100% - 32px);
   margin: 0 auto 72px;
 }
-/* the box AppWindowDemo mounts into: the frame's size, reserved before the app arrives
-   (1280 × 720 natural, r3's zoomed preview below 1100px — AppWindowDemo.css `narrow`) */
+/* the box AppWindowDemo mounts into, sized before the app arrives: 1280 × 720, or the zoomed preview below
+   1100px (AppWindowDemo `narrow`) */
 .hx-winbox {
   aspect-ratio: 1280 / 720;
 }
@@ -113,7 +108,6 @@ html:not(.is-motion) .hx-stage {
     height: calc(720px * 0.46);
   }
 }
-/* the Assistant under the window, as r4/hero/hero.js put it in the static layout */
 .hx-chat {
   margin-top: 20px;
 }
@@ -128,11 +122,9 @@ html:not(.is-motion) .hx-stage {
   }
 }
 
-/* ---------- motion layout (>=1180px, motion allowed) ----------
-   The stage sticks to the top for the whole scrubbed sequence instead of being pinned by ScrollTrigger:
-   a pin wraps the hero in a spacer, and moving the hero in the DOM reloads the app's <iframe> (and would
-   restart every CSS animation inside it). The run is the +=440% of r4/hero/hero.js: 100vh of stage plus
-   440vh of scroll, so the sequence takes exactly as much scroll as the pinned original. */
+/* Motion layout (>=1180px, motion allowed). The stage is sticky instead of pinned by ScrollTrigger: a pin wraps
+   the hero in a spacer, and moving the hero in the DOM reloads the app's <iframe> and restarts every CSS animation
+   inside it. 540vh = 100vh of stage + 440vh of scroll that drives the sequence. */
 .is-motion .hx-hero {
   height: 540vh;
 }
@@ -227,13 +219,9 @@ html:not(.is-motion) .hx-stage {
   stroke-linejoin: round;
 }
 
-/* ---------- the entrance ----------
-   It runs only while html has .hx-intro, which Hero.tsx adds once the floating cards have mounted and
-   ScrollTrigger has stopped re-measuring: every refresh re-pins the hero, moving it in the DOM, and a
-   DOM move restarts every CSS animation inside it (in r4 that happened 4 times in the first 0.6s, so the
-   headline showed, vanished and replayed). Until then the parts wait hidden; afterwards .hx-shown leaves
-   them still, so a later refresh (window resize) can't replay the entrance. The 3s keyframe is only a
-   safety net in case the script never runs. */
+/* The entrance runs only while html has .hx-intro, which Hero.tsx adds once the floating cards have mounted and
+   ScrollTrigger has stopped re-measuring. Until then the parts wait hidden; afterwards .hx-shown keeps them
+   visible and still. The 3s keyframe is a safety net in case the script never runs. */
 .is-motion:not(.hx-intro):not(.hx-shown) .hx-copy > *,
 .is-motion:not(.hx-intro):not(.hx-shown) .hx-px,
 .is-motion:not(.hx-intro):not(.hx-shown) .hx-ask .hx-frag {
@@ -245,10 +233,9 @@ html:not(.is-motion) .hx-stage {
     opacity: 1;
   }
 }
-/* opacity + a small lift, both run on the compositor, so the cards keep moving while scripts work.
-   (A blur can't be composited: all six cards would be repainted blurred on the main thread every frame
-   and freeze whenever a script ran.) Safe on .hx-px and on the ask box's .hx-frag: the timeline animates
-   their parents (.hx-float, .hx-ask), never these. */
+/* opacity and a small lift run on the compositor, so the cards keep moving while scripts work; a blur would
+   repaint all six cards on the main thread every frame. Safe on .hx-px and the ask box's .hx-frag: the timeline
+   animates their parents (.hx-float, .hx-ask), never these. */
 @keyframes hx-rise {
   from {
     opacity: 0;
@@ -284,10 +271,8 @@ html:not(.is-motion) .hx-stage {
   }
 }
 
-/* ---------- floating copies of the real cards ----------
-   Each keeps the card's headline content and drops footnotes, links and second-tier lines, exactly as
-   r4/hero/hero.css trimmed the replicas (`.hx-float [data-frag=…]`); the full card is what lands in the
-   window. The @repo/ui markup has no class hooks, so these go by structure. */
+/* The floating copies keep each card's headline content and drop footnotes, links and second-tier lines; the full
+   card is what lands in the window. The @repo/ui markup has no class hooks, so these go by structure. */
 /* Where it went: the Details link and the "Not yet categorized" box (the freshness chip is a prop) */
 .hx-float[data-frag='whereItWent'] button,
 .hx-float[data-frag='whereItWent'] ul > li:last-child,

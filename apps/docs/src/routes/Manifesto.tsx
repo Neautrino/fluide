@@ -4,8 +4,6 @@ import type { ReactNode } from 'react'
 import { DISPLAY, pill } from '../site/ds'
 import { SectionTag } from '../site/SectionTag'
 
-/* The rules Fluide is built on (r4/manifesto/), copy verbatim, in the DS01 skin of the landing. */
-
 const RULES: { title: string; body: ReactNode; limits?: true }[] = [
   {
     title: 'Read-only, forever.',

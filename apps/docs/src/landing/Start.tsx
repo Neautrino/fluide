@@ -4,9 +4,6 @@ import { HashLink } from '../site/HashLink'
 import { DISPLAY, GITHUB, pill } from '../site/ds'
 import './Start.css'
 
-/* r4/ds/index.html #start (r4/ds/start.css option A2 `gs ga lit`, start.js): text | a line-drawn terminal
-   standing on a baseline, over the hero's light. The terminal types its commands once it's half in view. */
-
 /** What the terminal shows (the README's commands). */
 const TYPED = `$ git clone \\
   https://github.com/Neautrino/fluide.git
@@ -16,6 +13,7 @@ $ cd fluide && docker compose up -d --build
 /** What Copy puts on the clipboard: the three install commands, not the last 'open' line. */
 const COPY = 'git clone https://github.com/Neautrino/fluide.git\ncd fluide\ndocker compose up -d --build'
 
+/** Text beside a line-drawn terminal standing on a baseline, over the hero's light. */
 export function Start() {
   const reveal = useRevealScope<HTMLElement>()
   return (
@@ -82,7 +80,7 @@ export function Start() {
 const CODE = 'font-mono text-[0.9em] leading-[normal] font-medium text-ink'
 const FOCUS = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-accent'
 
-/** Copy button in the title bar: copies the install commands, says 'Copied' for 1.5s (start.js). */
+/** Copy button in the title bar: copies the install commands, says 'Copied' for 1.5s. */
 function StartCopy() {
   const [ok, setOk] = useState(false)
   const timer = useRef<number>(undefined)

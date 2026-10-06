@@ -1,5 +1,5 @@
-/* Get started (r4/ds/start.css A2): the hero's light behind the whole section, the terminal's baseline
-   with its two detached end ticks, and the typing terminal's caret. */
+/* The hero's light behind the whole section, the terminal's baseline with its two detached end ticks,
+   and the typing terminal's caret. */
 .ga-lit::before {
   content: '';
   position: absolute;

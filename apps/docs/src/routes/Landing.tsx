@@ -7,7 +7,7 @@ import { Security } from '../landing/Security'
 import { Start } from '../landing/Start'
 import { Views } from '../landing/Views'
 
-/** The landing (r4/ds/index.html): the sections in page order. The counter numbers their SectionTags. */
+/** The sections in page order; the counter numbers their SectionTags. */
 export function Landing() {
   return (
     <main className="[counter-reset:dsec]">

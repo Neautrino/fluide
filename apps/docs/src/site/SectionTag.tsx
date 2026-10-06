@@ -7,7 +7,7 @@ type Props = HTMLAttributes<HTMLSpanElement> & {
   numbered?: boolean
 }
 
-/** The DS01 section tag: a mono pill, numbered 01, 02 … down the landing (r4/ds/ds.css .pf-tag). */
+/** The DS01 section tag: a mono pill, numbered 01, 02 … down the landing. */
 export function SectionTag({ tone = 'light', numbered = true, className = '', ...rest }: Props) {
   const look = tone === 'dark' ? 'border-[#ececea] text-[#ececea]' : 'border-line-strong bg-surface text-ink'
   const number = numbered

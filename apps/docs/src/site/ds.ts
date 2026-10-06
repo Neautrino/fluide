@@ -1,9 +1,9 @@
-/* DS01 class sets shared by the site's pages and sections (r4/ds/ds.css). */
+/* DS01 class sets shared by the site's pages. */
 
 /** Display face for headlines: Archivo 800 at 125% width, tight tracking. */
 export const DISPLAY = 'font-display font-extrabold [font-stretch:125%] tracking-[-0.035em]'
 
-/** The site's pill links: `solid` is DS01 .btn.primary (ink fill), `outline` is .btn (white, 1px ink). */
+/** The site's pill links: `solid` is ink-filled, `outline` white with a border. */
 export function pill(variant: 'solid' | 'outline', size: 'md' | 'lg' = 'md') {
   const look =
     variant === 'solid'
