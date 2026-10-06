@@ -1,3 +1,11 @@
+/* The card colour is a registered <color>, so it transitions as one value: the card and the boxes inside
+   its drawing (fill: var(--pf-card)) fade together instead of the boxes flipping first. */
+@property --pf-card {
+  syntax: '<color>';
+  inherits: true;
+  initial-value: transparent;
+}
+
 /* Labels inside the principle-card drawings (r4/hero/platform.css .pf-art text). */
 .pf-art .t { fill: currentColor; stroke: none; font: 500 12.5px var(--font-sans); }
 .pf-art .n { font-family: var(--font-mono); }

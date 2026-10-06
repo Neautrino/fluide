@@ -146,7 +146,7 @@ const CARD =
   'group relative flex aspect-[4/5] min-w-0 flex-1 cursor-default flex-col rounded-lg border border-line-strong bg-(--pf-card) p-8 text-(--pf-ink) outline-none ' +
   '[--pf-card:var(--color-surface)] [--pf-ink:var(--color-ink)] data-on:z-1 data-on:[--pf-ink:var(--color-tile-ink)] ' +
   'origin-bottom min-[760px]:[transform:scale(.9)] min-[760px]:data-on:[transform:scale(1.1)] ' +
-  '[transition:transform_.45s_cubic-bezier(.2,.7,.2,1),background-color_.45s,color_.45s] motion-reduce:transition-none ' +
+  '[transition:transform_.45s_cubic-bezier(.2,.7,.2,1),--pf-card_.45s,color_.45s] motion-reduce:transition-none ' +
   'focus-visible:shadow-[0_0_0_2px_#fff,0_0_0_4px_#4d53c2] ' +
   'max-[760px]:min-h-[420px] max-[760px]:flex-[0_0_82%] max-[760px]:snap-center max-[760px]:aspect-auto max-[760px]:p-[26px]'
 

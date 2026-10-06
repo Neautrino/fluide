@@ -43,19 +43,28 @@ export function useRevealScope<T extends HTMLElement>(enabled = true) {
         t += 110
       }
     }
+    /* once the last step has played (its delay + the 0.65s transition, rounded up), the scope is marked done
+       and index.css stops applying the entrance transition, so every element gets its own transitions back
+       (card scale/colour, hover fades); while the entrance runs, its transition replaces theirs */
+    const doneAfter = t + 700
+    let done = 0
     const io = new IntersectionObserver(
       (entries) => {
         for (const e of entries) {
           if (!e.isIntersecting) continue
           /* an attribute, not a class: React rewrites className on re-render, never an attribute it doesn't own */
           scope.setAttribute('data-rv-in', '')
+          done = window.setTimeout(() => scope.setAttribute('data-rv-done', ''), doneAfter)
           io.disconnect()
         }
       },
       { rootMargin: '0px 0px -15% 0px', threshold: 0 },
     )
     io.observe(scope)
-    return () => io.disconnect()
+    return () => {
+      io.disconnect()
+      window.clearTimeout(done)
+    }
   }, [enabled])
 
   return { ref, 'data-rv-scope': enabled ? '' : undefined }

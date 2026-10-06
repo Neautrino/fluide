@@ -21,7 +21,9 @@
 }
 
 /* Section entrances (src/motion/reveal.tsx; timing from r4/ds/ds.css). html.rv-on is set before first
-   paint unless motion is reduced; only reveal scopes ([data-rv-scope]) hide anything. */
+   paint unless motion is reduced; only reveal scopes ([data-rv-scope]) hide anything. The entrance
+   transition applies only until the scope is [data-rv-done]: it replaces an element's own `transition`,
+   so keeping it afterwards would make card switches and hover fades snap. */
 [data-rv="line"] {
   --y: 40px;
 }
@@ -32,14 +34,18 @@ html.rv-on [data-rv-scope] .rv-w {
   display: inline-block;
   opacity: 0;
   translate: 0 1.15em;
+}
+html.rv-on [data-rv-scope] :is([data-rv="line"], [data-rv="link"], [data-rv="block"], [data-rv="each"] > *) {
+  opacity: 0;
+  translate: 0 var(--y, 28px);
+}
+html.rv-on [data-rv-scope]:not([data-rv-done]) .rv-w {
   transition:
     opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
     translate 0.55s cubic-bezier(0.16, 1, 0.3, 1);
   transition-delay: var(--d, 0ms);
 }
-html.rv-on [data-rv-scope] :is([data-rv="line"], [data-rv="link"], [data-rv="block"], [data-rv="each"] > *) {
-  opacity: 0;
-  translate: 0 var(--y, 28px);
+html.rv-on [data-rv-scope]:not([data-rv-done]) :is([data-rv="line"], [data-rv="link"], [data-rv="block"], [data-rv="each"] > *) {
   transition:
     opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
     translate 0.65s cubic-bezier(0.16, 1, 0.3, 1);
