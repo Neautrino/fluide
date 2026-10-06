@@ -1,0 +1,67 @@
+/* Get started (r4/ds/start.css A2): the hero's light behind the whole section, the terminal's baseline
+   with its two detached end ticks, and the typing terminal's caret. */
+.ga-lit::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  background:
+    radial-gradient(40% 70% at 18% 30%, var(--tile-2), transparent 72%),
+    radial-gradient(42% 74% at 82% 42%, var(--tile-1), transparent 72%),
+    radial-gradient(44% 60% at 55% 105%, var(--tile-4), transparent 72%),
+    var(--canvas);
+}
+
+.ga-ground::before,
+.ga-ground::after {
+  content: '';
+  position: absolute;
+  top: -1px;
+  width: 14px;
+  border-top: 1.5px solid var(--line-strong);
+}
+.ga-ground::before {
+  left: -28px;
+}
+.ga-ground::after {
+  right: -28px;
+}
+@media (max-width: 560px) {
+  .ga-ground::before,
+  .ga-ground::after {
+    display: none;
+  }
+}
+
+/* Typing runs only where entrances run (html.rv-on: motion not reduced). There the full text stays in the
+   DOM for assistive tech but is drawn by the typed copy; elsewhere the full text simply shows. */
+html:not(.rv-on) .ga-typed,
+html:not(.rv-on) .ga-caret {
+  display: none;
+}
+html.rv-on .ga-full {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip-path: inset(50%);
+  white-space: nowrap;
+}
+.ga-caret {
+  display: inline-block;
+  width: 9px;
+  height: 1.05em;
+  vertical-align: -2px;
+  background: var(--ink);
+  animation: ga-blink 1s steps(1) infinite;
+}
+@keyframes ga-blink {
+  50% {
+    opacity: 0;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .ga-caret {
+    animation: none;
+  }
+}

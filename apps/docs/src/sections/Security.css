@@ -1,0 +1,17 @@
+/* The boundary schematic's strokes and labels (r4/security/security.css option B, sb--dark colours). */
+.sb-svg .ln { stroke: #ececea; stroke-width: 1.6; fill: none; }
+.sb-svg .hair { stroke: #3f3f46; stroke-width: 1; fill: none; }
+.sb-svg .dash { stroke: #6e7178; stroke-width: 1.2; stroke-dasharray: 4 5; fill: none; }
+.sb-svg .box { fill: #141416; stroke: #ececea; stroke-width: 1.6; }
+.sb-svg .area { fill: #18181b; stroke: #2e2e33; stroke-width: 1; }
+.sb-svg .kept { fill: none; stroke: #5a5a62; stroke-width: 1.2; stroke-dasharray: 4 4; }
+.sb-svg .out { stroke: #a9aef0; stroke-width: 1.6; fill: none; }
+.sb-svg text { font: 500 13px var(--font-mono); fill: #8a8d93; }
+.sb-svg text.on { fill: #ececea; }
+.sb-svg text.bl { fill: #a9aef0; }
+.sb-svg text.tb { font: 700 17px var(--font-sans); fill: #ececea; }
+.sb-svg .dot { fill: #ececea; }
+.sb-svg .dot.blue { fill: #a9aef0; }
+.sb-svg .stop { stroke: #e5675c; stroke-width: 2; fill: none; opacity: 0; }
+
+.sx-ic svg { display: block; width: 20px; height: 20px; fill: none; stroke: #ececea; stroke-width: 1.4; stroke-linecap: round; stroke-linejoin: round; }

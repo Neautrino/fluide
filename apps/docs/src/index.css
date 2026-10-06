@@ -1,0 +1,51 @@
+@import "tailwindcss";
+@import "@repo/ui/styles.css";
+@import "lenis/dist/lenis.css";
+
+/* Site-level additions only; tokens, theme, base and fonts come from @repo/ui. */
+
+@layer base {
+  /* anchored sections stop below the fixed nav (SiteNav) */
+  html {
+    scroll-padding-top: 84px;
+  }
+
+  body {
+    font-size: 15px;
+    overflow-x: clip;
+  }
+}
+
+.lenis.lenis-smooth {
+  scroll-behavior: auto !important;
+}
+
+/* Section entrances (src/motion/reveal.tsx; timing from r4/ds/ds.css). html.rv-on is set before first
+   paint unless motion is reduced; only reveal scopes ([data-rv-scope]) hide anything. */
+[data-rv="line"] {
+  --y: 40px;
+}
+[data-rv="link"] {
+  --y: 15px;
+}
+html.rv-on [data-rv-scope] .rv-w {
+  display: inline-block;
+  opacity: 0;
+  translate: 0 1.15em;
+  transition:
+    opacity 0.5s cubic-bezier(0.16, 1, 0.3, 1),
+    translate 0.55s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--d, 0ms);
+}
+html.rv-on [data-rv-scope] :is([data-rv="line"], [data-rv="link"], [data-rv="block"], [data-rv="each"] > *) {
+  opacity: 0;
+  translate: 0 var(--y, 28px);
+  transition:
+    opacity 0.6s cubic-bezier(0.16, 1, 0.3, 1),
+    translate 0.65s cubic-bezier(0.16, 1, 0.3, 1);
+  transition-delay: var(--d, 0ms);
+}
+html.rv-on [data-rv-in] :is(.rv-w, [data-rv="line"], [data-rv="link"], [data-rv="block"], [data-rv="each"] > *) {
+  opacity: 1;
+  translate: none;
+}

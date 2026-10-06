@@ -1,0 +1,114 @@
+/* #views tab list (r4/hero/product.css + r4/ds/ds.css). The active tab expands with its sentence and a
+   progress line that fills for --pd-dur, then the next view shows (Views.tsx). */
+.pd-tab {
+  position: relative;
+  display: block;
+  width: 100%;
+  padding: 16px 0 15px;
+  border-top: 1px solid var(--line-strong);
+  text-align: left;
+  color: var(--ink-3);
+  cursor: pointer;
+}
+.pd-tab:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 4px;
+  border-radius: 4px;
+}
+.pd-tab > b {
+  display: block;
+  font-family: var(--font-display);
+  font-stretch: 125%;
+  font-weight: 800;
+  font-size: 18px;
+  line-height: 1.2;
+  letter-spacing: -0.02em;
+  transition: color 0.2s;
+}
+.pd-tab:hover > b {
+  color: var(--ink-2);
+}
+.pd-tab[aria-selected="true"] > b {
+  color: var(--ink);
+}
+.pd-d {
+  display: block;
+  max-height: 0;
+  overflow: hidden;
+  opacity: 0;
+  font-size: 14.5px;
+  line-height: 1.5;
+  color: var(--ink-2);
+  transition:
+    max-height 0.4s ease,
+    opacity 0.3s ease,
+    margin-top 0.4s ease;
+}
+.pd-tab[aria-selected="true"] .pd-d {
+  max-height: 7em;
+  opacity: 1;
+  margin-top: 8px;
+}
+.pd-bar {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: -1px;
+  height: 2px;
+  display: block;
+}
+.pd-bar > i {
+  display: block;
+  width: 0;
+  height: 100%;
+  background: var(--accent);
+}
+.pd-tab[aria-selected="true"] .pd-bar > i {
+  animation: pd-prog var(--pd-dur, 8s) linear forwards;
+}
+[data-paused] .pd-tab[aria-selected="true"] .pd-bar > i {
+  animation-play-state: paused;
+}
+@keyframes pd-prog {
+  to {
+    width: 100%;
+  }
+}
+
+.pd-win {
+  transition: opacity 0.2s ease;
+}
+.pd-win[data-swap] {
+  opacity: 0;
+}
+
+@media (max-width: 1000px) {
+  .pd-tabs {
+    scrollbar-width: none;
+  }
+  .pd-tabs::-webkit-scrollbar {
+    display: none;
+  }
+  .pd-tab {
+    flex: none;
+    width: auto;
+    border-top: 0;
+    padding: 10px 0;
+  }
+  .pd-tab > b {
+    /* ds.css's 18px outranks product.css's narrow 16px there, so only the wrapping changes */
+    white-space: nowrap;
+  }
+  .pd-d {
+    display: none;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .pd-bar {
+    display: none;
+  }
+  .pd-win,
+  .pd-d {
+    transition: none;
+  }
+}

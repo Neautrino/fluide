@@ -1,0 +1,6 @@
+/* the ruler under the changelog columns: a tick every 14px, a long tick at each column edge */
+.ua-ruler {
+  background:
+    repeating-linear-gradient(90deg, var(--line) 0 1px, transparent 1px 14px) bottom / 100% 40px no-repeat,
+    repeating-linear-gradient(90deg, var(--line-strong) 0 1px, transparent 1px 25%) bottom / 100% 56px no-repeat;
+}

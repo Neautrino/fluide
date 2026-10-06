@@ -1,0 +1,61 @@
+/* AppWindowDemo (see AppWindowDemo.tsx). The box is sized before the app mounts: `fit` by aspect-ratio, the
+   frame inside scaled by --adw-s (set from the box width); `none` at natural size. */
+.adw {
+  position: relative;
+}
+.adw[data-scale="fit"] {
+  width: 100%;
+}
+.adw[data-scale="fit"] > .adw-frame {
+  position: absolute;
+  top: 0;
+  left: 0;
+  transform-origin: 0 0;
+  transform: scale(var(--adw-s, 1));
+  visibility: hidden;
+}
+.adw[data-scale="fit"][data-scaled] > .adw-frame {
+  visibility: visible;
+}
+
+/* the app fades in once its styles and fonts are in */
+.adw-app {
+  opacity: 0;
+  transition: opacity 0.25s ease;
+}
+.adw-app[data-shown] {
+  opacity: 1;
+}
+
+/* r3's framed preview below 1100px: a bordered box that scrolls sideways over the zoomed window */
+@media (max-width: 1100px) {
+  .adw[data-narrow] {
+    --adw-z: 0.62;
+    aspect-ratio: auto !important;
+    height: calc(var(--adw-h) * var(--adw-z));
+    overflow: auto hidden;
+    border: 1px solid var(--line);
+    border-radius: var(--radius-lg);
+    background: var(--surface);
+    box-shadow: var(--shadow-1);
+  }
+  .adw[data-narrow] > .adw-frame {
+    transform: scale(var(--adw-z));
+    visibility: visible;
+  }
+  .adw[data-narrow] .adw-win {
+    border: 0;
+    border-radius: 0;
+    box-shadow: none;
+  }
+}
+@media (max-width: 620px) {
+  .adw[data-narrow] {
+    --adw-z: 0.46;
+  }
+}
+@media (prefers-reduced-motion: reduce) {
+  .adw-app {
+    transition: none;
+  }
+}

@@ -1,0 +1,58 @@
+/* How it works (r4/flow/flow.css + r4/banks/banks.css, DS01 overrides from r4/ds/ds.css).
+   The pinned layout keys on the same media query How.tsx pins under, so the prerendered page is laid
+   out like the pinned first frame; otherwise every state is listed under the map. */
+
+@media (min-width: 1000px) and (prefers-reduced-motion: no-preference) {
+  .fl-pin { height: 100vh; display: flex; align-items: center; }
+  .fl-in { width: 100%; padding-top: 32px; padding-bottom: 32px; }
+  .fl-states { min-height: 250px; }
+  .fl-state { position: absolute; inset: 0 0 auto 0; opacity: 0; transform: translateY(10px); transition: opacity .35s ease, transform .35s ease; pointer-events: none; }
+  .fl-state.on { opacity: 1; transform: none; pointer-events: auto; }
+}
+@media not ((min-width: 1000px) and (prefers-reduced-motion: no-preference)) {
+  .fl-state + .fl-state { margin-top: 28px; }
+  .fl-hint { display: none; }
+}
+
+/* the map never grows past what one screen can hold next to the header and the logo strip */
+.fl-map { max-width: min(780px, calc((100vh - 430px) * 2.5)); }
+@media (max-width: 999.98px) { .fl-map { max-width: none; } }
+
+.fl-chips button[aria-pressed="true"] { color: #ececea; border-color: var(--c); background: color-mix(in srgb, var(--c) 14%, transparent); }
+.fl-k::before { content: ''; width: 10px; height: 10px; border-radius: 50%; background: var(--c); }
+
+/* the map */
+.fl-map svg { display: block; width: 100%; height: auto; overflow: visible; }
+.fl-map .n { transition: opacity .3s; }
+.fl-map .n.dim { opacity: .45; }
+.fl-map .n rect { fill: #141416; stroke: #3f3f46; stroke-width: 1; }
+.fl-map .n.hatch rect { fill: url(#flh); }
+.fl-map .n .t { fill: #ececea; font: 600 16px var(--font-sans); }
+.fl-map .n .s { fill: #8a8d93; font: 500 12px var(--font-mono); letter-spacing: .02em; }
+.fl-map .box { fill: none; stroke: #5a5a62; stroke-width: 1.2; stroke-dasharray: 6 6; }
+.fl-map .box-l { fill: #8a8d93; font: 600 12px var(--font-mono); letter-spacing: .12em; }
+.fl-map .p { fill: none; stroke: #4a4a52; stroke-width: 1.5; stroke-linecap: round; transition: stroke .3s, opacity .3s; }
+.fl-map .p.ext { stroke-dasharray: 4 5; }
+.fl-map .p.dim { opacity: .28; }
+/* r3's mono micro-label (.lbl in r3/shared/base.css) under the map's own font */
+.fl-map .lbl { fill: #8a8d93; font: 500 12px var(--font-mono); letter-spacing: .1em; text-transform: uppercase; }
+.fl-map .dot { pointer-events: none; }
+/* before the build timeline takes over (hydration), the map is already in its first, empty frame */
+html.rv-on .fl-map[data-pending] [data-part] { opacity: 0; }
+
+/* bank strip: a slow logo marquee; the track moves by half its width (two identical sets) */
+.bk-row { -webkit-mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent); }
+.bk-track { animation: bk-run 52s linear infinite; }
+.bk-row:hover .bk-track { animation-play-state: paused; }
+.bk-set img { height: var(--h, 26px); }
+@keyframes bk-run { to { transform: translateX(-50%); } }
+@media (max-width: 760px) {
+  .bk-set img { height: calc(var(--h, 26px) * .82); }
+}
+/* reduced motion: no scrolling; the first set wraps into rows instead */
+@media (prefers-reduced-motion: reduce) {
+  .bk-row { -webkit-mask-image: none; mask-image: none; }
+  .bk-track { animation: none; width: auto; justify-content: center; }
+  .bk-set { flex-wrap: wrap; justify-content: center; height: auto; row-gap: 22px; padding-right: 0; }
+  .bk-set[aria-hidden] { display: none; }
+}

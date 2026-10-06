@@ -1,0 +1,310 @@
+/* Hero (#top): r4/hero/hero.css under the DS01 skin of r4/ds/ds.css.
+   Only what Tailwind can't say: the pinned motion layout, the entrance keyframes and their gate, the
+   emphasis on the headline, and the trims that turn a real @repo/ui card into its floating copy.
+   The nav lives in components/SiteNav.tsx; `.hx-h1`, `.hx-pill`, `.hx-lede`, `.hx-ctas` are Tailwind
+   in Hero.tsx and appear here only as animation targets. */
+
+/* ---------- background: the app's tile hues as soft light over the canvas; no grain (ds.css).
+   It sits inside the hero (absolute, not fixed), so every later section keeps its own background. ---------- */
+.hx-hero {
+  position: relative;
+  isolation: isolate;
+}
+.hx-bg {
+  position: absolute;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+  background: linear-gradient(180deg, var(--canvas) 0%, var(--surface) 80%);
+}
+.hx-blob {
+  position: absolute;
+  display: block;
+  border-radius: 50%;
+  will-change: transform;
+}
+/* tokens.css tile-2 lavender, tile-1 peach, tile-4 rose, tile-3 cool grey — the four r4 blobs, recoloured */
+.hx-b1 {
+  left: -14vw;
+  top: -12vh;
+  width: 64vw;
+  height: 70vh;
+  background: radial-gradient(closest-side, var(--tile-2), transparent);
+}
+.hx-b2 {
+  left: 42vw;
+  top: 18vh;
+  width: 52vw;
+  height: 74vh;
+  background: radial-gradient(closest-side, var(--tile-1), transparent);
+}
+.hx-b3 {
+  left: 20vw;
+  top: 34vh;
+  width: 46vw;
+  height: 56vh;
+  background: radial-gradient(
+    closest-side,
+    color-mix(in srgb, var(--tile-4) 90%, transparent),
+    transparent
+  );
+}
+.hx-b4 {
+  left: 30vw;
+  top: 74vh;
+  width: 62vw;
+  height: 52vh;
+  background: radial-gradient(closest-side, var(--tile-3), transparent);
+}
+
+/* ---------- shell ---------- */
+/* without the motion layout the hero flows from the top, so it starts below the fixed nav (the stage
+   carries it, so the hero's light — which lives in the stage — covers that strip too) */
+html:not(.is-motion) .hx-stage {
+  position: relative;
+  padding-top: 72px;
+}
+.hx-copy {
+  position: relative;
+  z-index: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  padding: 72px 24px 64px;
+  word-spacing: 0.05em;
+}
+/* the emphasised phrase sits on an app tile: tile-3 grey (the Cards tile), ink text, 1px ink outline */
+.hx-h1 em {
+  font-style: normal;
+  background: var(--tile-3);
+  color: var(--tile-ink);
+  box-shadow: inset 0 0 0 1px var(--line-strong);
+  padding: 0 0.14em 0.04em;
+  border-radius: var(--radius-md);
+  -webkit-box-decoration-break: clone;
+  box-decoration-break: clone;
+}
+.hx-h1 .ln {
+  display: block;
+  white-space: nowrap;
+}
+
+.hx-win {
+  position: relative;
+  z-index: 2;
+  width: min(1280px, 100% - 32px);
+  margin: 0 auto 72px;
+}
+/* the box AppWindowDemo mounts into: the frame's size, reserved before the app arrives
+   (1280 × 720 natural, r3's zoomed preview below 1100px — AppWindowDemo.css `narrow`) */
+.hx-winbox {
+  aspect-ratio: 1280 / 720;
+}
+@media (max-width: 1100px) {
+  .hx-winbox {
+    aspect-ratio: auto;
+    height: calc(720px * 0.62);
+  }
+}
+@media (max-width: 620px) {
+  .hx-winbox {
+    height: calc(720px * 0.46);
+  }
+}
+/* the Assistant under the window, as r4/hero/hero.js put it in the static layout */
+.hx-chat {
+  margin-top: 20px;
+}
+
+@media (max-width: 760px) {
+  .hx-copy {
+    padding: 48px 20px;
+  }
+  .hx-h1 .ln {
+    display: inline;
+    white-space: normal;
+  }
+}
+
+/* ---------- motion layout (>=1180px, motion allowed) ----------
+   The stage sticks to the top for the whole scrubbed sequence instead of being pinned by ScrollTrigger:
+   a pin wraps the hero in a spacer, and moving the hero in the DOM reloads the app's <iframe> (and would
+   restart every CSS animation inside it). The run is the +=440% of r4/hero/hero.js: 100vh of stage plus
+   440vh of scroll, so the sequence takes exactly as much scroll as the pinned original. */
+.is-motion .hx-hero {
+  height: 540vh;
+}
+.is-motion .hx-stage {
+  position: sticky;
+  top: 0;
+  height: 100vh;
+  overflow: hidden;
+}
+.is-motion .hx-copy {
+  position: absolute;
+  inset: 0;
+  justify-content: center;
+  padding: 36px 24px 0;
+  pointer-events: none;
+}
+.is-motion .hx-copy > * {
+  pointer-events: auto;
+}
+/* the window is laid out at its design width and placed/scaled by the hero's timeline */
+.is-motion .hx-win {
+  position: absolute;
+  left: 0;
+  top: 0;
+  width: 1280px;
+  margin: 0;
+  transform-origin: 0 0;
+  opacity: 0;
+}
+/* frosted layer over the Overview while the question is typed; only its opacity animates */
+.hx-veil {
+  display: none;
+}
+.is-motion .hx-veil {
+  display: block;
+  position: absolute;
+  z-index: 3;
+  visibility: hidden;
+  pointer-events: none;
+  background: rgba(255, 255, 255, 0.45);
+  -webkit-backdrop-filter: blur(8px);
+  backdrop-filter: blur(8px);
+}
+
+.is-motion .hx-float {
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 5;
+  transform-origin: 0 0;
+  --sh: 1;
+}
+/* the shadow sits on the card itself, so it bobs and parallaxes with it instead of staying behind as a ghost box */
+.is-motion .hx-float .hx-frag > :first-child,
+.is-motion .hx-ask .hx-frag form {
+  box-shadow:
+    0 22px 44px -18px rgba(48, 36, 80, calc(0.3 * var(--sh))),
+    0 6px 14px -6px rgba(48, 36, 80, calc(0.12 * var(--sh)));
+}
+.is-motion .hx-float .hx-frag {
+  animation: hx-bob var(--bt, 7s) ease-in-out infinite alternate;
+}
+@keyframes hx-bob {
+  to {
+    transform: translateY(calc(var(--bob, 1) * -8px));
+  }
+}
+.is-motion .hx-ask {
+  display: block;
+  position: absolute;
+  left: 0;
+  top: 0;
+  z-index: 6;
+  transform-origin: 0 0;
+  --sh: 1;
+}
+.hx-ask {
+  display: none;
+}
+.hx-cursor {
+  position: absolute;
+  right: 26px;
+  bottom: -24px;
+  width: 26px;
+  height: 26px;
+  filter: drop-shadow(0 2px 3px rgba(0, 0, 0, 0.18));
+}
+.hx-cursor path {
+  fill: #16181d;
+  stroke: #fff;
+  stroke-width: 1.5;
+  stroke-linejoin: round;
+}
+
+/* ---------- the entrance ----------
+   It runs only while html has .hx-intro, which Hero.tsx adds once the floating cards have mounted and
+   ScrollTrigger has stopped re-measuring: every refresh re-pins the hero, moving it in the DOM, and a
+   DOM move restarts every CSS animation inside it (in r4 that happened 4 times in the first 0.6s, so the
+   headline showed, vanished and replayed). Until then the parts wait hidden; afterwards .hx-shown leaves
+   them still, so a later refresh (window resize) can't replay the entrance. The 3s keyframe is only a
+   safety net in case the script never runs. */
+.is-motion:not(.hx-intro):not(.hx-shown) .hx-copy > *,
+.is-motion:not(.hx-intro):not(.hx-shown) .hx-px,
+.is-motion:not(.hx-intro):not(.hx-shown) .hx-ask .hx-frag {
+  opacity: 0;
+  animation: hx-safety 0s 3s forwards;
+}
+@keyframes hx-safety {
+  to {
+    opacity: 1;
+  }
+}
+/* opacity + a small lift, both run on the compositor, so the cards keep moving while scripts work.
+   (A blur can't be composited: all six cards would be repainted blurred on the main thread every frame
+   and freeze whenever a script ran.) Safe on .hx-px and on the ask box's .hx-frag: the timeline animates
+   their parents (.hx-float, .hx-ask), never these. */
+@keyframes hx-rise {
+  from {
+    opacity: 0;
+    transform: translateY(16px) scale(0.985);
+  }
+}
+.is-motion.hx-intro .hx-px {
+  animation: hx-rise 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+  animation-delay: var(--d, 0.2s);
+}
+.is-motion.hx-intro .hx-ask .hx-frag {
+  animation: hx-rise 1.1s cubic-bezier(0.2, 0.7, 0.2, 1) 0.55s backwards;
+}
+.is-motion.hx-intro .hx-copy .hx-pill,
+.is-motion.hx-intro .hx-h1 .ln,
+.is-motion.hx-intro .hx-lede,
+.is-motion.hx-intro .hx-ctas {
+  animation: hx-up 1s cubic-bezier(0.2, 0.7, 0.2, 1) backwards;
+}
+.is-motion.hx-intro .hx-h1 .ln:nth-child(2) {
+  animation-delay: 0.08s;
+}
+.is-motion.hx-intro .hx-lede {
+  animation-delay: 0.16s;
+}
+.is-motion.hx-intro .hx-ctas {
+  animation-delay: 0.24s;
+}
+@keyframes hx-up {
+  from {
+    opacity: 0;
+    transform: translateY(18px);
+  }
+}
+
+/* ---------- floating copies of the real cards ----------
+   Each keeps the card's headline content and drops footnotes, links and second-tier lines, exactly as
+   r4/hero/hero.css trimmed the replicas (`.hx-float [data-frag=…]`); the full card is what lands in the
+   window. The @repo/ui markup has no class hooks, so these go by structure. */
+/* Where it went: the Details link and the "Not yet categorized" box (the freshness chip is a prop) */
+.hx-float[data-frag='whereItWent'] button,
+.hx-float[data-frag='whereItWent'] ul > li:last-child,
+/* Latest transactions: the "412 transactions" line, the All-transactions link, rows past the first day */
+.hx-float[data-frag='latestRows'] section > p,
+.hx-float[data-frag='latestRows'] section > div:first-child button,
+.hx-float[data-frag='latestRows'] section > div:last-child > :nth-child(n + 5),
+/* What you own & owe: the Accounts link and the Assets / oldest-input lines beside the net worth */
+.hx-float[data-frag='ownOwe'] section > div:first-child button,
+.hx-float[data-frag='ownOwe'] section > div:nth-of-type(2) > div:last-child,
+/* Spend by month: the footnotes and the Kept strip (In/Out stays) */
+.hx-float[data-frag='spendByMonth'] section > p,
+.hx-float[data-frag='spendByMonth'] section > div:last-child,
+/* Review: the why line, the affordance note, the Reject button and the out/in label */
+.hx-float[data-frag='review'] article > p,
+.hx-float[data-frag='review'] article > div:last-child > span,
+.hx-float[data-frag='review'] article > div:last-child > button:last-of-type,
+.hx-float[data-frag='review'] article > div:first-child > div:last-child > span:last-child {
+  display: none !important;
+}
