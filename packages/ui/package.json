@@ -1,0 +1,46 @@
+{
+  "name": "@repo/ui",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "sideEffects": ["*.css"],
+  "exports": {
+    "./styles.css": "./src/styles.css",
+    "./types": "./src/types.ts",
+    "./format": "./src/lib/format.ts",
+    "./categories": "./src/lib/categories.ts",
+    "./connection-health": "./src/lib/connection-health.ts",
+    "./hooks": "./src/lib/hooks.ts",
+    "./primitives": "./src/components/ui/index.ts",
+    "./brand": "./src/components/brand.tsx",
+    "./shell": "./src/components/shell/index.ts",
+    "./transactions": "./src/components/transactions/index.ts",
+    "./overview": "./src/components/overview/index.ts",
+    "./accounts": "./src/components/accounts/index.ts",
+    "./cashflow": "./src/components/cashflow/index.ts",
+    "./review": "./src/components/review/index.ts",
+    "./assistant": "./src/components/assistant/index.ts",
+    "./settings": "./src/components/settings/index.ts",
+    "./rules": "./src/components/rules/index.ts"
+  },
+  "scripts": {
+    "check-types": "tsc --noEmit -p tsconfig.json",
+    "lint": "oxlint",
+    "test": "bun test"
+  },
+  "dependencies": {
+    "@fontsource-variable/archivo": "^5.3.0",
+    "@fontsource-variable/geist-mono": "^5.3.0",
+    "@fontsource-variable/plus-jakarta-sans": "^5.3.0"
+  },
+  "peerDependencies": {
+    "react": "^19.2.8",
+    "react-dom": "^19.2.8"
+  },
+  "devDependencies": {
+    "@types/react": "^19.2.18",
+    "@types/react-dom": "^19.2.7",
+    "oxlint": "^1.81.0",
+    "typescript": "~6.0.2"
+  }
+}

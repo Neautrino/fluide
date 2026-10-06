@@ -1,9 +1,9 @@
 import { useQuery } from '@tanstack/react-query'
 import { useId } from 'react'
 import type { GateSettings } from '../../lib/api'
-import { toNumber } from '../../lib/format'
+import { toNumber } from '@repo/ui/format'
 import { gateOptions, useReviewCount } from '../../lib/queries'
-import { CARD, CardHead } from './shared'
+import { CARD, CardHead } from '@repo/ui/rules'
 
 const STEPS = [
   { title: 'Rules first', text: 'An active rule that matches always wins. Rules you wrote come before learned ones.' },

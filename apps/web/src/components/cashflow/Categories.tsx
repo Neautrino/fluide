@@ -1,13 +1,9 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useState } from 'react'
 import type { CashFlow, CashFlowCompare } from '../../lib/api'
-import { Button } from '../ui/Button'
-import { Empty } from '../ui/States'
+import { Button, Empty } from '@repo/ui/primitives'
 import { CategoryBar } from './CategoryBar'
-import { baselineNoun, compareShort, formatWhole, pct } from './figures'
-import { Amt, Card, DrillButton, Figure, type Drill } from './primitives'
-import { topRiser } from './movers'
-import { TextLink } from './TextLink'
+import { Amt, baselineNoun, Card, compareShort, DrillButton, Figure, formatWhole, pct, TextLink, topRiser, type Drill } from '@repo/ui/cashflow'
 
 const CATEGORY_ROWS = 9
 

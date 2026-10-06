@@ -1,17 +1,22 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
-import { AfterDecide } from '../components/review/AfterDecide'
-import { AtStake } from '../components/review/AtStake'
-import { ConfidenceSplit } from '../components/review/ConfidenceSplit'
-import { Hero } from '../components/review/Hero'
-import { QueueCard } from '../components/review/QueueCard'
-import { atStakeByCurrency, itemAmount, itemName, tilesFor, type ReviewFilter } from '../components/review/helpers'
-import { TransferCard } from '../components/review/TransferCard'
-import { TrustLine } from '../components/review/TrustLine'
-import { Segmented } from '../components/ui/Segmented'
-import { Button } from '../components/ui/Button'
-import { ErrorState, Loading, Notice } from '../components/ui/States'
+import { Button, ErrorState, Loading, Notice, Segmented } from '@repo/ui/primitives'
+import {
+  AfterDecide,
+  AtStake,
+  atStakeByCurrency,
+  ConfidenceSplit,
+  itemAmount,
+  itemName,
+  QueueCard,
+  ReviewHero,
+  ReviewTrustLine,
+  ReviewView,
+  tilesFor,
+  TransferCard,
+  type ReviewFilter,
+} from '@repo/ui/review'
 import {
   decideTransfer,
   errorMessage,
@@ -181,11 +186,33 @@ export function Review() {
   const tiles = items ? tilesFor(items, accounts.isError ? undefined : accounts.data) : null
 
   return (
-    <div ref={wrapRef} tabIndex={-1} className="flex flex-col gap-6 outline-none">
-      {items && items.length > 0 && <Hero count={items.length} stake={stake} high={gateBounds?.high ?? null} />}
-      {items && <TrustLine count={items.length} stake={stake} transfers={transferGroups} connections={connections.isError ? undefined : connections.data} />}
-      <div className="grid grid-cols-1 items-start gap-6 xl:grid-cols-[minmax(0,1fr)_340px] xl:gap-x-[26px]">
-        <div className="flex min-w-0 flex-col gap-4">
+    <ReviewView
+      wrapRef={wrapRef}
+      hero={items && items.length > 0 && <ReviewHero count={items.length} stake={stake} high={gateBounds?.high ?? null} />}
+      trustLine={
+        items && (
+          <ReviewTrustLine
+            count={items.length}
+            stake={stake}
+            transfers={transferGroups}
+            connections={connections.isError ? undefined : connections.data}
+          />
+        )
+      }
+      aside={
+        <>
+          {tiles && <AtStake tiles={tiles} />}
+          <TransferCard
+            groups={transferGroups}
+            disabled={pending !== null}
+            pendingKey={pending?.key ?? null}
+            error={transferError}
+            onDecide={decide}
+          />
+          <AfterDecide />
+        </>
+      }
+    >
           {outcomes.length > 0 && (
             <div className="flex flex-col gap-2" aria-live="polite">
               {outcomes.map((o) => (
@@ -267,19 +294,6 @@ export function Review() {
               </div>
             </>
           )}
-        </div>
-        <aside className="flex min-w-0 flex-col gap-4">
-          {tiles && <AtStake tiles={tiles} />}
-          <TransferCard
-            groups={transferGroups}
-            disabled={pending !== null}
-            pendingKey={pending?.key ?? null}
-            error={transferError}
-            onDecide={decide}
-          />
-          <AfterDecide />
-        </aside>
-      </div>
-    </div>
+    </ReviewView>
   )
 }

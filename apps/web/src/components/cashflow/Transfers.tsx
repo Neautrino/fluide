@@ -1,6 +1,5 @@
 import type { CashFlow } from '../../lib/api'
-import { formatWhole } from './figures'
-import { Amt, Card, DrillButton, Figure } from './primitives'
+import { Amt, Card, DrillButton, Figure, formatWhole } from '@repo/ui/cashflow'
 
 type Kind = CashFlow['transfers'][number]['kind']
 

@@ -1,10 +1,6 @@
 import type { CashFlow } from '../../lib/api'
 import { useApp } from '../../lib/app-context'
-import { baselineNoun } from './figures'
-import { biggestMovers } from './movers'
-import { Amt, useDrill } from './primitives'
-import { money } from './shared'
-import { TextLink } from './TextLink'
+import { Amt, baselineNoun, biggestMovers, money, TextLink, useDrill } from '@repo/ui/cashflow'
 
 const TILE_BG = ['bg-tile-1', 'bg-tile-2', 'bg-tile-3', 'bg-tile-4']
 const MAX_TILES = 4

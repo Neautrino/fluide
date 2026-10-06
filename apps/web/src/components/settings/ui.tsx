@@ -1,5 +1,5 @@
 import type { ComponentProps, ReactNode, Ref } from 'react'
-import { Spinner } from '../ui/Button'
+import { Spinner } from '@repo/ui/primitives'
 
 type Tone = 'secondary' | 'primary' | 'broken' | 'danger'
 

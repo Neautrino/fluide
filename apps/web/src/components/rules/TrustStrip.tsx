@@ -1,6 +1,6 @@
 import { useNavigate } from '@tanstack/react-router'
 import { useReviewCount } from '../../lib/queries'
-import { Button } from '../ui/Button'
+import { Button } from '@repo/ui/primitives'
 
 export function TrustStrip() {
   const navigate = useNavigate()

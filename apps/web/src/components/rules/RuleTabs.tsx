@@ -1,5 +1,5 @@
 import type { KeyboardEvent } from 'react'
-import type { RuleTab } from './model'
+import type { RuleTab } from '@repo/ui/rules'
 
 const TABS: { id: RuleTab; label: string }[] = [
   { id: 'active', label: 'Active' },

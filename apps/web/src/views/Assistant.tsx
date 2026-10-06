@@ -1,8 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { AskCard } from '../components/assistant/AskCard'
-import { Conversation } from '../components/assistant/Conversation'
+import { AskCard, AssistantView, Conversation, type Message } from '@repo/ui/assistant'
 import { TrustLine } from '../components/assistant/TrustLine'
-import type { Message } from '../components/assistant/Turn'
 import {
   deleteAllChatThreads,
   deleteChatThread,
@@ -156,30 +154,32 @@ export function Assistant({ visible }: { visible: boolean }) {
   }
 
   return (
-    <div className="flex flex-col gap-5">
-      {visible && <TrustLine />}
-      <AskCard loading={loading} inputRef={askRef} onSend={(t) => void send(t)} />
-      <Conversation
-        turns={toTurns(messages)}
-        loading={loading}
-        threads={threads}
-        historyOpen={historyOpen}
-        history={{
-          currentId: threadId,
-          opening,
-          locked: loading || deleting,
-          onOpen: (id) => void open(id),
-          onDelete: (id) => void remove(id),
-          onClearAll: () => void clearAll(),
-        }}
-        error={error}
-        panelRef={panelRef}
-        latestRef={latestRef}
-        inputRef={followUpRef}
-        onToggleHistory={() => setHistoryOpen((o) => !o)}
-        onSend={(t) => void send(t)}
-        onReset={reset}
-      />
-    </div>
+    <AssistantView
+      trustLine={visible && <TrustLine />}
+      askCard={<AskCard loading={loading} inputRef={askRef} onSend={(t) => void send(t)} />}
+      conversation={
+        <Conversation
+          turns={toTurns(messages)}
+          loading={loading}
+          threads={threads}
+          historyOpen={historyOpen}
+          history={{
+            currentId: threadId,
+            opening,
+            locked: loading || deleting,
+            onOpen: (id) => void open(id),
+            onDelete: (id) => void remove(id),
+            onClearAll: () => void clearAll(),
+          }}
+          error={error}
+          panelRef={panelRef}
+          latestRef={latestRef}
+          inputRef={followUpRef}
+          onToggleHistory={() => setHistoryOpen((o) => !o)}
+          onSend={(t) => void send(t)}
+          onReset={reset}
+        />
+      }
+    />
   )
 }

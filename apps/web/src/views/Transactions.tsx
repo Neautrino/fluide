@@ -1,17 +1,28 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { Fragment, useMemo, useRef, useState, useEffect } from 'react'
+import { Button, Empty, ErrorState, Loading, Notice, Select } from '@repo/ui/primitives'
+import {
+  CategorizeGlyph,
+  DayHeading,
+  DayTotal,
+  dayTotals,
+  groupByDay,
+  groupByMonth,
+  LedgerColumns,
+  MonthDivider,
+  MonthFlowSummary,
+  MonthTotalsCard,
+  SyncGlyph,
+  TransactionRow,
+  TransactionsView,
+  WaitingStrip,
+} from '@repo/ui/transactions'
 import { SyncNotice } from '../components/SyncNotice'
 import { TransactionDrawer, type DrawerRow } from '../components/TransactionDrawer'
-import { DayHeading } from '../components/TransactionDay'
-import { groupByDay } from '../components/groupByDay'
-import { TransactionRow } from '../components/TransactionRow'
-import { Button } from '../components/ui/Button'
-import { Select } from '../components/ui/Field'
-import { Empty, ErrorState, Loading, Notice } from '../components/ui/States'
 import { errorMessage, sendJson, type Account, type CategorizeResult, type LedgerRow, type SyncOutcome, type CashFlowParams } from '../lib/api'
 import { useDisplayCurrency } from '../lib/app-context'
-import { formatMoneyParts, formatMoney, toNumber } from '../lib/format'
+import { toNumber } from '@repo/ui/format'
 import { accountsOptions, cashFlowOptions, queryError, reviewQueueOptions, transactionsOptions } from '../lib/queries'
 
 const UNCATEGORIZED = '__uncategorized'
@@ -19,61 +30,6 @@ const UNCATEGORIZED = '__uncategorized'
 const route = getRouteApi('/currency/transactions')
 
 type Row = DrawerRow & { key: string }
-
-const monthLabel = new Intl.DateTimeFormat(undefined, { month: 'long', year: 'numeric', timeZone: 'UTC' })
-const monthOnlyLabel = new Intl.DateTimeFormat(undefined, { month: 'long', timeZone: 'UTC' })
-
-function MoneyParts({ value, currency }: { value: number; currency: string }) {
-  const { whole, fraction } = formatMoneyParts(value, currency, 'never')
-  return (
-    <span className="amt">
-      {whole}
-      {fraction && <small className="opacity-55" style={{ color: 'inherit' }}>{fraction}</small>}
-    </span>
-  )
-}
-
-function groupByMonth(rows: Row[]) {
-  const groups: { month: string; label: string; rows: Row[] }[] = []
-  for (const r of rows) {
-    const month = r.date.slice(0, 7)
-    let g = groups[groups.length - 1]
-    if (!g || g.month !== month) {
-      g = { month, label: monthLabel.format(new Date(r.date)), rows: [] }
-      groups.push(g)
-    }
-    g.rows.push(r)
-  }
-  return groups
-}
-
-type DayInfo = { count: number; total: number | null; currency: string | null }
-
-function dayTotals(rows: Row[]) {
-  const info: Record<string, DayInfo> = {}
-  for (const r of rows) {
-    const date = r.date.slice(0, 10)
-    const entry = (info[date] ??= { count: 0, total: 0, currency: null })
-    entry.count++
-    if (!r.countsTowardTotals || entry.total === null) continue
-    if (entry.currency === null) entry.currency = r.posting.currency
-    if (r.posting.currency !== entry.currency) entry.total = null
-    else entry.total += toNumber(r.posting.amount)
-  }
-  return info
-}
-
-function DayTotal({ info }: { info: DayInfo }) {
-  if (info.total === null || info.currency === null) return null
-  const total = Math.round(info.total * 100) / 100
-  return (
-    <div className="ml-auto text-[11.5px] text-ink-3">
-      {info.currency}{' '}
-      {total < 0 && '\u2212'}
-      <span className="amt">{formatMoney(Math.abs(total), info.currency, 'never')}</span>
-    </div>
-  )
-}
 
 type Action =
   | { kind: 'idle' }
@@ -219,141 +175,77 @@ export function Transactions() {
   }
 
   return (
-    <div className={`-mx-[28px] -mb-[30px] mt-[20px] min-h-0 flex-1 border-t border-line ${selected && isDesktop ? 'grid grid-cols-[minmax(0,1fr)_372px]' : 'flex flex-col'}`}>
-      <div className="flex min-w-0 flex-col gap-[16px] p-[20px_28px_30px]">
-        {/* 1. Review strip */}
-        {waiting && waiting.length > 0 && (
-        <div className="flex flex-wrap items-center gap-3.5 rounded-lg border border-line bg-surface p-[10px_12px_10px_14px] text-[13px] shadow-1" role="status">
-          <span className="flex items-center gap-2 whitespace-nowrap font-bold text-ink">
-            <span className="size-[10px] rounded-full bg-warning shadow-[0_0_0_3px_var(--warning-wash)]"></span>
-            {waiting.length} waiting ·{' '}
-            {(() => {
-              const sums: Record<string, number> = {}
-              for (const item of waiting) {
-                if (!item.posting) continue
-                const curr = item.posting.currency
-                sums[curr] = (sums[curr] || 0) + Math.abs(toNumber(item.posting.amount))
-              }
-              const entries = Object.entries(sums)
-              return entries.map(([curr, amount], i) => (
-                <Fragment key={curr}>
-                  <span className="amt">{formatMoney(amount, curr, 'never')}</span>
-                  {i < entries.length - 1 ? ' · ' : ''}
-                </Fragment>
-              ))
-            })()}
-          </span>
-          <span className="ml-auto flex items-center gap-2">
+    <TransactionsView
+      docked={!!selected && isDesktop}
+      count={rows?.length ?? 0}
+      headingRef={listHeadingRef}
+      search={{ value: query, onChange: (q) => setFilter({ q }, true) }}
+      shown={rows ? { visible: visible.length, total: rows.length } : null}
+      drawer={selected && <TransactionDrawer key={selected.key} row={selected} onClose={closeDetail} docked={isDesktop} />}
+      waiting={
+        waiting &&
+        waiting.length > 0 && (
+          <WaitingStrip
+            count={waiting.length}
+            totals={Object.entries(
+              waiting.reduce<Record<string, number>>((sums, item) => {
+                if (item.posting) sums[item.posting.currency] = (sums[item.posting.currency] ?? 0) + Math.abs(toNumber(item.posting.amount))
+                return sums
+              }, {}),
+            ).map(([currency, total]) => ({ currency, total }))}
+          >
             <Button variant="primary" size="sm" onClick={() => void navigate({ to: '/review' })}>
               Review {waiting.length}
             </Button>
-          </span>
-        </div>
-      )}
-
-      {/* 2. Out in <Month> card */}
-      {cashFlow.isError ? (
-        <ErrorState title="Couldn't load cash flow" message={queryError(cashFlow)} onRetry={() => void cashFlow.refetch()} />
-      ) : !cashFlowData ? (
-        <Loading label="Loading month summary" rows={3} />
-      ) : (
-        <div className="@container">
-          <section
-            className="grid grid-cols-1 overflow-hidden rounded-lg bg-surface-inverse text-ink-inverse @[600px]:grid-cols-[minmax(0,.92fr)_minmax(0,1.08fr)]"
-            aria-label={`${monthLabel.format(new Date(`${cashFlowData.month}-01T00:00:00Z`))} ledger`}
-          >
-            <div className="flex flex-col gap-[6px] p-[20px_22px]">
-              <div className="flex items-center gap-[8px] text-[12.5px] font-semibold opacity-[.78]">
-                Out in {monthOnlyLabel.format(new Date(`${cashFlowData.month}-01T00:00:00Z`))} · {cashFlowData.currency}
-              </div>
-              <div className="mt-[6px] whitespace-nowrap font-display text-[44px] font-[800] leading-none tracking-[-0.03em]">
-                {cashFlowData.totals.moneyOut > 0 && '\u2212'}
-                <MoneyParts value={cashFlowData.totals.moneyOut} currency={cashFlowData.currency} />
-              </div>
-            </div>
-            <div className="flex min-w-0 flex-row gap-[22px] border-t border-ink-inverse/20 p-[16px_22px] @[600px]:flex-col @[600px]:gap-[10px] @[600px]:border-t-0 @[600px]:border-l @[600px]:p-[18px_22px_16px]">
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-[8px] text-[11px] font-semibold opacity-[.8]">
-                  In
-                </div>
-                <div className="mt-[6px] whitespace-nowrap font-display text-[26px] font-[800] leading-none tracking-[-0.03em]">
-                  <MoneyParts value={cashFlowData.totals.moneyIn} currency={cashFlowData.currency} />
-                </div>
-              </div>
-              <div className="min-w-0 flex-1">
-                <div className="flex items-center justify-between gap-[8px] text-[11px] font-semibold opacity-[.8]">
-                  Kept
-                </div>
-                <div className="mt-[6px] whitespace-nowrap font-display text-[26px] font-[800] leading-none tracking-[-0.03em]">
-                  {cashFlowData.totals.kept >= 0 ? '+' : '\u2212'}
-                  <MoneyParts value={Math.abs(cashFlowData.totals.kept)} currency={cashFlowData.currency} />
-                </div>
-              </div>
-            </div>
-          </section>
-        </div>
-      )}
-
-      {/* 3. Transactions card */}
-      <div className="flex items-end gap-[12px]">
-        <div>
-          <h2 ref={listHeadingRef} tabIndex={-1} className="font-display text-[17px] font-bold tracking-[-0.01em] text-ink outline-none">Ledger</h2>
-          <p className="mt-[3px] text-[12px] text-ink-3">{rows?.length ?? 0} transactions · all accounts</p>
-        </div>
-        <div className="ml-auto flex gap-[8px]">
-          <Button
-            size="sm"
-            onClick={() => run('sync')}
-            busy={busy === 'sync'}
-            disabled={busy !== null}
-          >
+          </WaitingStrip>
+        )
+      }
+      monthCard={
+        cashFlow.isError ? (
+          <ErrorState title="Couldn't load cash flow" message={queryError(cashFlow)} onRetry={() => void cashFlow.refetch()} />
+        ) : !cashFlowData ? (
+          <Loading label="Loading month summary" rows={3} />
+        ) : (
+          <MonthTotalsCard
+            month={cashFlowData.month}
+            currency={cashFlowData.currency}
+            moneyOut={cashFlowData.totals.moneyOut}
+            moneyIn={cashFlowData.totals.moneyIn}
+            kept={cashFlowData.totals.kept}
+          />
+        )
+      }
+      actions={
+        <>
+          <Button size="sm" onClick={() => run('sync')} busy={busy === 'sync'} disabled={busy !== null}>
             {busy === 'sync' ? 'Syncing…' : (
               <>
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-[14px]"><path d="M13.5 6.5A5.6 5.6 0 0 0 3.2 4.6M2.5 9.5a5.6 5.6 0 0 0 10.3 1.9"/><path d="M3 1.8v3h3M13 14.2v-3h-3"/></svg>
+                <SyncGlyph />
                 Sync
               </>
             )}
           </Button>
-          <Button
-            variant="primary"
-            size="sm"
-            onClick={() => run('categorize')}
-            busy={busy === 'categorize'}
-            disabled={busy !== null}
-          >
+          <Button variant="primary" size="sm" onClick={() => run('categorize')} busy={busy === 'categorize'} disabled={busy !== null}>
             {busy === 'categorize' ? 'Categorizing…' : (
               <>
-                <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" className="size-[14px]"><path d="M14 8.5L7.5 15l-6-6V2h7l6.5 6.5z"/><circle cx="5" cy="5.5" r="1.5" fill="currentColor" stroke="none"/></svg>
+                <CategorizeGlyph />
                 Run categorization
                 {uncategorizedCount > 0 && <small className="hidden text-[11px] font-medium opacity-[.65] min-[1360px]:inline-block">{uncategorizedCount} uncategorized</small>}
               </>
             )}
           </Button>
-        </div>
-      </div>
-
-      {busy === 'categorize' && (
-        <Notice>Categorizing uncategorized postings — rules first, then the Jev model. This can take a while.</Notice>
-      )}
-      {action.kind === 'done' && <Notice tone={action.tone}>{action.message}</Notice>}
-      {action.kind === 'synced' && <SyncNotice outcomes={action.outcomes} />}
-
-      <div className="flex flex-wrap items-center gap-[8px]">
-        <label className="flex h-[34px] min-w-[170px] max-w-[260px] flex-1 items-center gap-[8px] rounded-[17px] border border-line bg-surface px-[12px] transition-colors focus-within:border-line-strong hover:border-line-strong">
-          <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" className="size-[14px] flex-none text-ink-3">
-            <circle cx="7" cy="7" r="4.8" />
-            <path d="m10.5 10.5 3.5 3.5" />
-          </svg>
-          <input
-            id="tx-search"
-            type="search"
-            aria-label="Search merchant or description"
-            placeholder="Search merchant or description"
-            value={query}
-            onChange={(e) => setFilter({ q: e.target.value }, true)}
-            className="min-w-0 flex-1 bg-transparent text-[12.5px] text-ink outline-none placeholder:text-ink-3"
-          />
-        </label>
+        </>
+      }
+      notices={
+        <>
+          {busy === 'categorize' && (
+            <Notice>Categorizing uncategorized postings — rules first, then the Jev model. This can take a while.</Notice>
+          )}
+          {action.kind === 'done' && <Notice tone={action.tone}>{action.message}</Notice>}
+          {action.kind === 'synced' && <SyncNotice outcomes={action.outcomes} />}
+        </>
+      }
+      filter={
         <Select
           id="tx-category"
           aria-label="Filter by category"
@@ -370,14 +262,8 @@ export function Transactions() {
             </option>
           ))}
         </Select>
-        {rows && (
-          <span className="ml-auto whitespace-nowrap text-[12px] text-ink-3">
-            <span className="font-display text-[15px] font-[800] text-ink">{visible.length}</span> of {rows.length}
-          </span>
-        )}
-      </div>
-
-      <div data-tx-list className="mt-[16px] overflow-hidden rounded-lg border border-line bg-surface shadow-1">
+      }
+    >
         {ledgerError ? (
           <ErrorState
             title="Couldn't load transactions"
@@ -395,15 +281,10 @@ export function Transactions() {
           <Empty title="No matching transactions">Try a different search or category.</Empty>
         ) : (
           <>
-            <div className="hidden grid-cols-[minmax(0,1.25fr)_minmax(0,1.3fr)_108px] items-center gap-[8px] border-b border-line bg-surface-2 p-[8px_14px] text-[10.5px] font-semibold uppercase leading-[1.2] tracking-[0.08em] text-ink-3 sm:grid min-[1360px]:grid-cols-[minmax(0,1.3fr)_minmax(0,1.3fr)_124px] min-[1360px]:gap-[12px]">
-              <span>Merchant · Account</span>
-              <span>Category</span>
-              <span className="text-right">Amount</span>
-            </div>
+            <LedgerColumns />
             {groupByMonth(visible.slice(0, limit)).map((g) => (
               <Fragment key={g.month}>
-                <div className="flex flex-wrap items-baseline gap-[12px] border-b border-line p-[14px_14px_12px]">
-                  <h3 className="font-display text-[17px] font-bold tracking-[-0.01em] text-ink">{g.label}</h3>
+                <MonthDivider label={g.label}>
                   {(() => {
                     const flow = monthFlow(g.month)
                     const currency = cashFlowData?.currency
@@ -411,19 +292,9 @@ export function Transactions() {
                       const count = monthInfo.get(g.month)?.count ?? g.rows.length
                       return <span className="ml-auto text-[12px] text-ink-3">{count} row{count !== 1 ? 's' : ''}</span>
                     }
-                    return (
-                      <div className="ml-auto flex flex-wrap items-baseline justify-end gap-[10px] text-[12px] text-ink-2">
-                        <span>
-                          In <span className="amt">{formatMoney(flow.moneyIn, currency, 'never')}</span> ·{' '}
-                          Out <span className="amt">{formatMoney(flow.moneyOut, currency, 'never')}</span> ·{' '}
-                          net <b className="font-display text-[16px] font-[800] text-ink">
-                            {flow.net >= 0 ? '+' : '\u2212'}<span className="amt">{formatMoney(Math.abs(flow.net), currency, 'never')}</span>
-                          </b>
-                        </span>
-                      </div>
-                    )
+                    return <MonthFlowSummary moneyIn={flow.moneyIn} moneyOut={flow.moneyOut} net={flow.net} currency={currency} />
                   })()}
-                </div>
+                </MonthDivider>
                 {groupByDay(g.rows).map((dGroup) => {
                   const day = dayInfo[dGroup.date]
                   return (
@@ -459,10 +330,6 @@ export function Transactions() {
             )}
           </>
         )}
-      </div>
-
-      </div>
-      {selected && <TransactionDrawer key={selected.key} row={selected} onClose={closeDetail} docked={isDesktop} />}
-    </div>
+    </TransactionsView>
   )
 }

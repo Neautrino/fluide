@@ -1,31 +1,38 @@
 import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { getRouteApi } from '@tanstack/react-router'
 import { useState } from 'react'
+import {
+  CashFlowHero,
+  CashFlowRow,
+  CashFlowView,
+  CF_HALVES,
+  Controls,
+  currentMonth,
+  DailySpend,
+  DrillContext,
+  InOutRate,
+  Merchants,
+  monthLong,
+  MonthByMonth,
+  monthShortYear,
+  monthStart,
+  scopedConnections,
+  type Drill,
+} from '@repo/ui/cashflow'
 import { Categories } from '../components/cashflow/Categories'
-import { Controls } from '../components/cashflow/Controls'
-import { DailySpend } from '../components/cashflow/DailySpend'
 import { DrillDrawer } from '../components/cashflow/DrillDrawer'
-import { currentMonth, monthLong, monthShortYear, monthStart, scopedConnections } from '../components/cashflow/figures'
-import { Hero } from '../components/cashflow/Hero'
-import { InOutRate } from '../components/cashflow/InOutRate'
 import { Largest } from '../components/cashflow/Largest'
-import { Merchants } from '../components/cashflow/Merchants'
-import { MonthByMonth } from '../components/cashflow/MonthByMonth'
 import { MoveTiles } from '../components/cashflow/MoveTiles'
 import { NotCounted } from '../components/cashflow/NotCounted'
-import { DrillContext, type Drill } from '../components/cashflow/primitives'
 import { SankeyCard } from '../components/cashflow/SankeyCard'
 import { Sources } from '../components/cashflow/Sources'
 import { Transfers } from '../components/cashflow/Transfers'
 import { TrustLine } from '../components/cashflow/TrustLine'
-import { Empty, ErrorState, Loading } from '../components/ui/States'
+import { Empty, ErrorState, Loading } from '@repo/ui/primitives'
 import type { CashFlowCompare, CashFlowParams } from '../lib/api'
 import { useDisplayCurrency } from '../lib/app-context'
-import { summarizeConnections } from '../lib/connection-health'
+import { summarizeConnections } from '@repo/ui/connection-health'
 import { cashFlowOptions, connectionsOptions, queryError } from '../lib/queries'
-
-const ROW = 'grid grid-cols-1 items-start gap-[18px]'
-const HALVES = `${ROW} lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]`
 
 const route = getRouteApi('/currency/cashflow')
 
@@ -61,19 +68,22 @@ export function CashFlow() {
 
   return (
     <DrillContext.Provider value={setDrill}>
-      <div className="cashflow flex flex-col gap-5 text-[14px] leading-[1.45]" aria-busy={flow.isFetching || undefined}>
-        {data && health && <TrustLine data={data} attention={health.attention} connected={health.live.length} syncStamp={health.syncStamp} />}
-        <Controls
-          month={month}
-          onMonth={(m) => setSearch({ month: m })}
-          compare={compare}
-          onCompare={(c) => setSearch({ compare: c })}
-          accounts={accounts}
-          onAccounts={(ids) => setSearch({ accounts: ids }, true)}
-          data={data}
-          currency={currency}
-        />
-
+      <CashFlowView
+        busy={flow.isFetching}
+        trustLine={data && health && <TrustLine data={data} attention={health.attention} connected={health.live.length} syncStamp={health.syncStamp} />}
+        controls={
+          <Controls
+            month={month}
+            onMonth={(m) => setSearch({ month: m })}
+            compare={compare}
+            onCompare={(c) => setSearch({ compare: c })}
+            accounts={accounts}
+            onAccounts={(ids) => setSearch({ accounts: ids }, true)}
+            data={data}
+            currency={currency}
+          />
+        }
+      >
         {flow.isError ? (
           <ErrorState title="Couldn't load your cash flow" message={queryError(flow)} onRetry={() => void flow.refetch()} />
         ) : !data ? (
@@ -89,28 +99,26 @@ export function CashFlow() {
           </div>
         ) : (
           <>
-            <Hero data={data} syncStamp={health?.syncStamp ?? null} />
-            <div className={`${ROW} min-[1200px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]`}>
+            <CashFlowHero data={data} syncStamp={health?.syncStamp ?? null} />
+            <CashFlowRow cols="min-[1200px]:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
               <InOutRate data={data} />
               <MonthByMonth data={data} onMonth={(m) => setSearch({ month: m })} />
-            </div>
+            </CashFlowRow>
             <MoveTiles data={data} />
             <SankeyCard data={data} />
-            <div className={`${ROW} lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]`}>
+            <CashFlowRow cols="lg:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)]">
               <Categories data={data} />
               <Merchants data={data} />
-            </div>
-            <div className={HALVES}>
+            </CashFlowRow>
+            <div className={CF_HALVES}>
               <DailySpend data={data} />
               <NotCounted data={data} params={params} />
             </div>
-            <div
-              className={`${ROW} lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] min-[110rem]:grid-cols-[minmax(0,1.3fr)_minmax(0,.85fr)_minmax(0,1.1fr)]`}
-            >
+            <CashFlowRow cols="lg:grid-cols-[minmax(0,1.2fr)_minmax(0,1fr)] min-[110rem]:grid-cols-[minmax(0,1.3fr)_minmax(0,.85fr)_minmax(0,1.1fr)]">
               <Transfers data={data} />
               <Sources data={data} />
               <Largest data={data} className="lg:col-span-2 min-[110rem]:col-span-1" />
-            </div>
+            </CashFlowRow>
           </>
         )}
 
@@ -123,7 +131,7 @@ export function CashFlow() {
             onClose={() => setDrill(null)}
           />
         )}
-      </div>
+      </CashFlowView>
     </DrillContext.Provider>
   )
 }

@@ -2,10 +2,9 @@ import { useCallback, useEffect, useRef, useState, type ReactNode } from 'react'
 import { createPortal } from 'react-dom'
 import { usePlaidLink } from 'react-plaid-link'
 import { duplicateLinkOf, errorMessage, sendJson, type DuplicateLink, type SyncOutcome } from '../lib/api'
-import { formatTimestamp } from '../lib/format'
+import { formatTimestamp } from '@repo/ui/format'
 import { SyncNotice } from './SyncNotice'
-import { Button } from './ui/Button'
-import { Notice } from './ui/States'
+import { Button, Notice } from '@repo/ui/primitives'
 
 type Props = {
   onConnected: () => void

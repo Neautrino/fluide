@@ -1,12 +1,12 @@
 import { useQueryClient, type UseQueryResult } from '@tanstack/react-query'
 import { useEffect, useRef, type ReactNode } from 'react'
 import type { ConnectionSummary } from '../lib/api'
-import { connectionHealth, isLiveConnection, summarizeConnections } from '../lib/connection-health'
+import { connectionHealth, isLiveConnection, summarizeConnections } from '@repo/ui/connection-health'
 import { queryError } from '../lib/queries'
 import { ConnectionRow } from './settings/ConnectionRow'
 import { plural } from './settings/time'
 import { CardHeader, Stamp } from './settings/ui'
-import { Empty, ErrorState, Loading } from './ui/States'
+import { Empty, ErrorState, Loading } from '@repo/ui/primitives'
 
 /** Accounts a replaced login had that its successor does not carry: from the
  * cut-over date nothing counts their history. */

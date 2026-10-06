@@ -1,8 +1,8 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { consumeEnableBankingCallback, type CallbackOutcome } from '../lib/enable-banking'
-import { formatLocalDate } from '../lib/format'
-import { Notice } from './ui/States'
+import { formatLocalDate } from '@repo/ui/format'
+import { Notice } from '@repo/ui/primitives'
 
 /** Shows the result of a bank redirect back to Fluide (Enable Banking).
  * Renders nothing on a normal page load. */

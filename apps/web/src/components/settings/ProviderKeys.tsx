@@ -2,11 +2,9 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { errorMessage, sendJson, type ConnectionSummary } from '../../lib/api'
 import { ENABLE_BANKING_AVAILABLE } from '../../lib/enable-banking'
-import { formatLocalDate } from '../../lib/format'
+import { formatLocalDate } from '@repo/ui/format'
 import { providerCredentialsOptions, queryError } from '../../lib/queries'
-import { Button } from '../ui/Button'
-import { Field, Input } from '../ui/Field'
-import { Notice } from '../ui/States'
+import { Button, Field, Input, Notice } from '@repo/ui/primitives'
 import { CardHeader, TextButton } from './ui'
 
 type CredentialField = { key: string; label: string; statusLabel: string; type?: string; help?: string }
@@ -63,9 +61,9 @@ export function ProviderKeys({ connections }: { connections: ConnectionSummary[]
   )
 }
 
-  const queryClient = useQueryClient()
 function ProviderBlock({ provider, banks }: { provider: Provider; banks: string }) {
   const { id, title, description, fields, disabled = false } = provider
+  const queryClient = useQueryClient()
   const status = useQuery(providerCredentialsOptions(id))
   const emptyDraft = () => Object.fromEntries(fields.map((f) => [f.key, ''])) as Record<string, string>
   const [draft, setDraft] = useState<Record<string, string>>(emptyDraft)

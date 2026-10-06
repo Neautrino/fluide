@@ -1,14 +1,12 @@
 import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
-import { currentMonth } from '../components/cashflow/figures'
+import { currentMonth } from '@repo/ui/cashflow'
+import { freshness, OverviewView, PromptChips, toLatest } from '@repo/ui/overview'
 import { CashOnHand } from '../components/overview/CashOnHand'
 import { ConnectFirst } from '../components/overview/ConnectFirst'
-import { toLatest } from '../components/overview/data'
 import { LatestTransactions } from '../components/overview/LatestTransactions'
-import { freshness } from '../components/overview/model'
 import { NeedsYouStrip } from '../components/overview/NeedsYouStrip'
 import { OwnAndOwe } from '../components/overview/OwnAndOwe'
-import { PromptChips } from '../components/overview/PromptChips'
 import { SpendByMonth } from '../components/overview/SpendByMonth'
 import { WhereItWent } from '../components/overview/WhereItWent'
 import { useApp, useDisplayCurrency } from '../lib/app-context'
@@ -41,20 +39,14 @@ export function Overview() {
   const fresh = freshness(balances, connections.isError ? undefined : connections.data, now)
 
   return (
-    <div className="flex flex-col gap-5">
-      <PromptChips flow={flow.isError ? undefined : flow.data} ask={ask} />
-      <NeedsYouStrip connections={connections} review={review} transfers={transfers} now={now} />
-      <div className="grid grid-cols-1 items-start gap-4 min-[1280px]:grid-cols-[minmax(0,8fr)_minmax(0,4fr)]">
-        <div className="flex min-w-0 flex-col gap-4">
-          <CashOnHand accounts={accounts} currency={currency} currencyKnown fresh={fresh} />
-          <OwnAndOwe accounts={accounts} connections={connections} currency={currency} currencyKnown now={now} />
-          <LatestTransactions latest={latest} currency={currency} fresh={fresh} />
-        </div>
-        <div className="mx-auto flex w-full min-w-0 max-w-[480px] flex-col gap-4 min-[1280px]:max-w-none">
-          <SpendByMonth flow={flow} review={review} fresh={fresh} />
-          <WhereItWent flow={flow} review={review} fresh={fresh} />
-        </div>
-      </div>
-    </div>
+    <OverviewView
+      chips={<PromptChips flow={flow.isError ? undefined : flow.data} ask={ask} />}
+      needsYou={<NeedsYouStrip connections={connections} review={review} transfers={transfers} now={now} />}
+      cashOnHand={<CashOnHand accounts={accounts} currency={currency} currencyKnown fresh={fresh} />}
+      ownAndOwe={<OwnAndOwe accounts={accounts} connections={connections} currency={currency} currencyKnown now={now} />}
+      latest={<LatestTransactions latest={latest} currency={currency} fresh={fresh} />}
+      spendByMonth={<SpendByMonth flow={flow} review={review} fresh={fresh} />}
+      whereItWent={<WhereItWent flow={flow} review={review} fresh={fresh} />}
+    />
   )
 }

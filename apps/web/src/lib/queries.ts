@@ -17,17 +17,15 @@ import {
   type ConnectionSummary,
   type GateSettings,
   type LedgerRow,
-  type PossibleTransfer,
   type ProviderCredentialsStatus,
   type ReviewItem,
   type Rule,
 } from './api'
-import { buildCatalogue } from './categories'
+import { buildCatalogue } from '@repo/ui/categories'
+import type { PostingAccount, TransferGroup } from '@repo/ui/types'
 import type { EnableBankingBank } from './enable-banking'
 
-export type TransferGroup = { currency: string; rows: PossibleTransfer[] }
-
-export type PostingAccount = { accountId: string; name: string }
+export type { PostingAccount, TransferGroup }
 
 export const connectionsOptions = () =>
   queryOptions({

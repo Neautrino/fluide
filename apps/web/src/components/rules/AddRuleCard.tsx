@@ -1,11 +1,8 @@
 import { useState } from 'react'
 import { errorMessage, sendJson, type Rule } from '../../lib/api'
-import type { CategoryCatalogue } from '../../lib/categories'
-import { CategorySelect } from '../CategorySelect'
-import { Button } from '../ui/Button'
-import { Notice } from '../ui/States'
-import { checkPattern } from './model'
-import { CARD, CardHead } from './shared'
+import type { CategoryCatalogue } from '@repo/ui/categories'
+import { Button, CategorySelect, Notice } from '@repo/ui/primitives'
+import { CARD, CardHead, checkPattern } from '@repo/ui/rules'
 
 type Props = {
   rules: Rule[] | undefined

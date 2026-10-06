@@ -1,6 +1,5 @@
 import type { Rule } from '../../lib/api'
-import { plural, type MatchStats } from './model'
-import { CARD, CardHead } from './shared'
+import { CARD, CardHead, plural, type MatchStats } from '@repo/ui/rules'
 
 const TOP = 8
 const SLOT = 84

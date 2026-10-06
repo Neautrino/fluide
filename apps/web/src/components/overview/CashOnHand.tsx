@@ -1,10 +1,9 @@
 import type { UseQueryResult } from '@tanstack/react-query'
 import { useNavigate } from '@tanstack/react-router'
-import type { AccountBalance } from '../../lib/api'
-import { isLive, totalsByCurrency } from '../accounts/model'
-import { Amt } from '../accounts/shared'
-import { countedIn, plural, type Fresh } from './model'
-import { CardLink, Freshness, OverviewCard, Pending } from './shared'
+import { isLive, totalsByCurrency } from '@repo/ui/accounts'
+import { CashOnHandCard, countedIn, type Fresh } from '@repo/ui/overview'
+import type { AccountBalance } from '@repo/ui/types'
+import { Pending } from './Pending'
 
 export function CashOnHand({
   accounts,
@@ -25,28 +24,14 @@ export function CashOnHand({
   const cash = currency ? (totalsByCurrency(list.filter(isLive)).find((t) => t.currency === currency)?.cash ?? 0) : 0
 
   return (
-    <OverviewCard
-      title="Cash on hand"
-      unit={currency ?? undefined}
-      aside={
-        <>
-          <Freshness fresh={fresh} />
-          <CardLink onClick={() => void navigate({ to: '/accounts' })}>{count > 0 ? `${plural(count, 'account')} ›` : 'Accounts ›'}</CardLink>
-        </>
-      }
-    >
-      <Pending resource={accounts} what="balances" ready={balances !== undefined && currencyKnown} />
-      {balances &&
-        currencyKnown &&
-        (!currency ? (
-          <p className="mt-2 text-[13px] text-ink-3">No counted balances.</p>
-        ) : count === 0 ? (
-          <p className="mt-2 text-[13px] text-ink-3">No cash accounts in {currency}.</p>
-        ) : (
-          <div className="mt-1.5 font-display text-[44px] leading-[1.15] font-extrabold tracking-[-0.02em] text-ink">
-            <Amt value={cash} currency={currency} />
-          </div>
-        ))}
-    </OverviewCard>
+    <CashOnHandCard
+      cash={cash}
+      currency={currency}
+      count={count}
+      fresh={fresh}
+      ready={balances !== undefined && currencyKnown}
+      pending={<Pending resource={accounts} what="balances" ready={balances !== undefined && currencyKnown} />}
+      onOpenAccounts={() => void navigate({ to: '/accounts' })}
+    />
   )
 }

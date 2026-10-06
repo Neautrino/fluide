@@ -1,5 +1,5 @@
 import type { BalanceFlag, SyncOutcome } from '../lib/api'
-import { Notice } from './ui/States'
+import { Notice } from '@repo/ui/primitives'
 
 const FLAG_TEXT: Record<BalanceFlag['issue'], string> = {
   no_bank_balance: 'the bank sent no balance, so it is not reconciled',

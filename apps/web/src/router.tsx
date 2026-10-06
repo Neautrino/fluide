@@ -1,6 +1,6 @@
 import { createRootRoute, createRoute, createRouter, stripSearchParams, type SearchSchemaInput } from '@tanstack/react-router'
-import type { ReviewFilter } from './components/review/helpers'
-import type { RuleTab } from './components/rules/model'
+import type { ReviewFilter } from '@repo/ui/review'
+import type { RuleTab } from '@repo/ui/rules'
 import type { CashFlowCompare } from './lib/api'
 import { consumeEnableBankingCallback } from './lib/enable-banking'
 import { CurrencyGate, ErrorScreen, NotFound, RootLayout } from './Shell'

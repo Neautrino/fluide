@@ -1,22 +1,31 @@
 import { keepPreviousData, useQuery, useQueryClient } from '@tanstack/react-query'
 import { getRouteApi, useRouter } from '@tanstack/react-router'
 import { useEffect, useMemo, useRef, useState, type ReactNode } from 'react'
-import { AccountIcon } from '../components/AccountIcon'
-import { BalanceSheet } from '../components/accounts/BalanceSheet'
-import { DataAge } from '../components/accounts/DataAge'
+import { AccountIcon, Empty, ErrorState, Loading, Money } from '@repo/ui/primitives'
+import {
+  AccountsView,
+  balanceLabel,
+  balanceText,
+  BalanceSheet,
+  CARD,
+  DataAge,
+  displayBalance,
+  identity,
+  isDebt,
+  isLive,
+  MismatchNote,
+  NetWorthCard,
+  OweCard,
+  TAG,
+  totalsByCurrency,
+} from '@repo/ui/accounts'
 import { NeedsYou } from '../components/accounts/NeedsYou'
-import { NetWorthCard } from '../components/accounts/NetWorthCard'
-import { OweCard } from '../components/accounts/OweCard'
-import { balanceLabel, balanceText, CARD, displayBalance, identity, isDebt, isLive, TAG, totalsByCurrency } from '../components/accounts/model'
-import { MismatchNote } from '../components/accounts/shared'
 import { ConnectBank } from '../components/ConnectBank'
 import { ConnectEuropeanBank } from '../components/ConnectEuropeanBank'
-import { Empty, ErrorState, Loading } from '../components/ui/States'
-import { Money } from '../components/ui/Typography'
 import type { AccountBalance, ConnectionStatus, ConnectionSummary, LedgerRow } from '../lib/api'
 import { useDisplayCurrency } from '../lib/app-context'
-import { summarizeConnections, timeAgo } from '../lib/connection-health'
-import { formatLedgerDate, formatLocalDate, formatMoney, formatTimestamp } from '../lib/format'
+import { summarizeConnections, timeAgo } from '@repo/ui/connection-health'
+import { formatLedgerDate, formatLocalDate, formatMoney, formatTimestamp } from '@repo/ui/format'
 import { accountBalancesOptions, connectionsOptions, queryError, transactionsOptions } from '../lib/queries'
 
 const STRIP = 'bg-surface-2/60'
@@ -81,13 +90,21 @@ export function Accounts() {
   }, [listShown])
   if (selected) return <AccountDetail key={selected.id} account={selected} onBack={() => select(null)} />
 
-  return (
-    <div className="flex flex-col gap-5">
-      {accounts.isError ? (
+  if (accounts.isError)
+    return (
+      <div className="flex flex-col gap-5">
         <ErrorState title="Couldn't load your accounts" message={queryError(accounts)} onRetry={() => void accounts.refetch()} />
-      ) : !data ? (
+      </div>
+    )
+  if (!data)
+    return (
+      <div className="flex flex-col gap-5">
         <Loading label="Loading accounts" rows={4} />
-      ) : data.length === 0 ? (
+      </div>
+    )
+  if (data.length === 0)
+    return (
+      <div className="flex flex-col gap-5">
         <Empty title="No accounts yet">
           Connect a bank and your accounts will appear here.
           <div className="mt-3 flex flex-wrap items-center gap-2">
@@ -95,20 +112,21 @@ export function Accounts() {
             <ConnectEuropeanBank variant="secondary" />
           </div>
         </Empty>
-      ) : (
-        <AccountsBody
-          accounts={data}
-          connections={connections.isError ? undefined : connections.data}
-          connectionsError={queryError(connections)}
-          onOpen={select}
-          onSettings={() => void navigate({ to: '/settings' })}
-          onAddBank={() => {
-            void navigate({ to: '/settings' })
-            requestAnimationFrame(() => showAddConnection())
-          }}
-        />
-      )}
-    </div>
+      </div>
+    )
+
+  return (
+    <AccountsBody
+      accounts={data}
+      connections={connections.isError ? undefined : connections.data}
+      connectionsError={queryError(connections)}
+      onOpen={select}
+      onSettings={() => void navigate({ to: '/settings' })}
+      onAddBank={() => {
+        void navigate({ to: '/settings' })
+        requestAnimationFrame(() => showAddConnection())
+      }}
+    />
   )
 }
 
@@ -137,25 +155,26 @@ function AccountsBody({
   const showAge = liveConnections.length > 0
 
   return (
-    <>
-      <NeedsYou connections={connections} error={connectionsError} now={now} onSettings={onSettings} />
-      {!main && live.length > 0 && (
-        <p role="status" className="rounded-md border border-line bg-surface px-3.5 py-2.5 text-[13px] text-ink-2">
-          No net worth to show: every account is either left out of net worth or has no known balance.
-        </p>
-      )}
-      {main && <NetWorthCard totals={main} uncounted={live.filter((a) => !a.countsTowardTotals).length} stamp={stamp} />}
-      {(hasDebt || showAge) && (
-        <div className={`grid gap-4 ${hasDebt && showAge ? 'lg:grid-cols-2' : ''}`}>
-          {main && hasDebt && <OweCard totals={main} accounts={live} />}
-          {showAge && <DataAge connections={liveConnections} stamp={stamp} now={now} />}
-        </div>
-      )}
-      {live.length > 0 && (
-        <BalanceSheet accounts={live} connections={connections} main={currency} mainTotals={main} now={now} onOpen={onOpen} onAddBank={onAddBank} />
-      )}
-      <NoLongerConnected accounts={accounts.filter((a) => !isLive(a))} onOpen={onOpen} />
-    </>
+    <AccountsView
+      needsYou={<NeedsYou connections={connections} error={connectionsError} now={now} onSettings={onSettings} />}
+      notice={
+        !main &&
+        live.length > 0 && (
+          <p role="status" className="rounded-md border border-line bg-surface px-3.5 py-2.5 text-[13px] text-ink-2">
+            No net worth to show: every account is either left out of net worth or has no known balance.
+          </p>
+        )
+      }
+      netWorth={main && <NetWorthCard totals={main} uncounted={live.filter((a) => !a.countsTowardTotals).length} stamp={stamp} />}
+      owe={main && hasDebt && <OweCard totals={main} accounts={live} />}
+      dataAge={showAge && <DataAge connections={liveConnections} stamp={stamp} now={now} />}
+      balanceSheet={
+        live.length > 0 && (
+          <BalanceSheet accounts={live} connections={connections} main={currency} mainTotals={main} now={now} onOpen={onOpen} onAddBank={onAddBank} />
+        )
+      }
+      disconnected={<NoLongerConnected accounts={accounts.filter((a) => !isLive(a))} onOpen={onOpen} />}
+    />
   )
 }
 

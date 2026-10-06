@@ -4,7 +4,8 @@ import { useCallback, useMemo, useState } from 'react'
 import { EnableBankingCallback } from './components/EnableBankingCallback'
 import { Header } from './components/Header'
 import { Sidebar } from './components/Sidebar'
-import { Empty, ErrorState, Loading } from './components/ui/States'
+import { Empty, ErrorState, Loading } from '@repo/ui/primitives'
+import { AppWindow } from '@repo/ui/shell'
 import { errorMessage } from './lib/api'
 import { AppContext } from './lib/app-context'
 import { generalSettingsOptions, queryError } from './lib/queries'
@@ -31,23 +32,18 @@ export function RootLayout() {
 
   return (
     <AppContext.Provider value={ctx}>
-      <div className="min-h-svh bg-canvas md:p-6">
-        <div className="mx-auto flex min-h-svh flex-col overflow-clip bg-surface md:min-h-[852px] md:max-w-[1392px] md:grid md:grid-cols-[232px_minmax(0,1fr)] md:rounded-xl md:border md:border-line md:shadow-2">
-          <Sidebar />
-          <main className="flex min-w-0 flex-1 flex-col gap-5 px-[28px] pb-[30px]">
-            <Header />
-            <EnableBankingCallback />
-            {!onAssistant && (
-              <div key={outletKey} className="animate-rise flex min-w-0 flex-1 flex-col">
-                <Outlet />
-              </div>
-            )}
-            <div hidden={!onAssistant} className="min-w-0">
-              <Assistant visible={onAssistant} />
-            </div>
-          </main>
+      <AppWindow sidebar={<Sidebar />}>
+        <Header />
+        <EnableBankingCallback />
+        {!onAssistant && (
+          <div key={outletKey} className="animate-rise flex min-w-0 flex-1 flex-col">
+            <Outlet />
+          </div>
+        )}
+        <div hidden={!onAssistant} className="min-w-0">
+          <Assistant visible={onAssistant} />
         </div>
-      </div>
+      </AppWindow>
     </AppContext.Provider>
   )
 }

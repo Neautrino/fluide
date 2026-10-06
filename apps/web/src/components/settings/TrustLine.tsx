@@ -1,5 +1,5 @@
 import type { ConnectionSummary } from '../../lib/api'
-import { allOkText, chipText, othersConnectedText, summarizeConnections } from '../../lib/connection-health'
+import { allOkText, chipText, othersConnectedText, summarizeConnections } from '@repo/ui/connection-health'
 import { scrollToSection } from './scroll'
 import { plural } from './time'
 import { Stamp } from './ui'

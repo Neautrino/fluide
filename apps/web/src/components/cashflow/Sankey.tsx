@@ -1,10 +1,22 @@
 import { useState, type FocusEvent, type MouseEvent, type ReactNode } from 'react'
 import type { CashFlow, CashFlowFilter } from '../../lib/api'
-import { AMOUNT_HIDDEN } from './amounts'
-import { Amt, DrillButton, Figure } from './primitives'
+import {
+  AMOUNT_HIDDEN,
+  Amt,
+  DrillButton,
+  Figure,
+  money,
+  moneyParts,
+  percent,
+  spread,
+  svgButton,
+  useTooltip,
+  useWidth,
+  type CfSelect,
+  type TipContent,
+} from '@repo/ui/cashflow'
 import { GROUPS, orderSources, orderTargets, ribbonEnds, stackTargets, type Group, type Source, type Target } from './sankey-layout'
 import './sankey.css'
-import { money, moneyParts, percent, spread, svgButton, useTooltip, useWidth, type CfSelect, type TipContent } from './shared'
 
 type SankeyData = CashFlow['sankey']
 

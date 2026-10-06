@@ -1,6 +1,6 @@
 import { useQuery } from '@tanstack/react-query'
 import { useMemo } from 'react'
-import { shortName, summarizeConnections } from './connection-health'
+import { shortName, summarizeConnections } from '@repo/ui/connection-health'
 import { connectionsOptions, useReviewCount, versionInfoOptions } from './queries'
 
 export type NotificationTone = 'accent' | 'warning' | 'broken'

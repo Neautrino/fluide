@@ -1,4 +1,4 @@
-import { plural, type MatchStats } from './model'
+import { plural, type MatchStats } from '@repo/ui/rules'
 
 const count = new Intl.NumberFormat()
 

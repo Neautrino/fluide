@@ -13,11 +13,10 @@ import {
   type AiState,
   type AiTestResult,
 } from '../../lib/api'
-import { formatLocalDate, formatTimestamp } from '../../lib/format'
+import { formatLocalDate, formatTimestamp } from '@repo/ui/format'
 import { aiSettingsOptions, queryError } from '../../lib/queries'
-import { Button } from '../ui/Button'
-import { Field, Input } from '../ui/Field'
-import { ErrorState, Loading, Notice } from '../ui/States'
+import { Button, ErrorState, Field, Input, Loading, Notice } from '@repo/ui/primitives'
+import { ModelSummary, ProviderTiles } from '@repo/ui/settings'
 import { plural } from './time'
 import { CardHeader, PillButton, Stamp, TextButton } from './ui'
 
@@ -80,8 +79,8 @@ function usedByOther(cred: AiCredentialStatus | undefined, role: AiRole): boolea
   return cred?.usedBy.includes(OTHER_ROLE[role]) ?? false
 }
 
-  const queryClient = useQueryClient()
 export function AiCard() {
+  const queryClient = useQueryClient()
   const state = useQuery(aiSettingsOptions())
   return (
     <section id="assistant" className="scroll-mt-6 @container rounded-lg border border-line bg-surface px-[18px] py-4 shadow-1">
@@ -301,24 +300,7 @@ function AiRoleCard({ role, state, reload }: { role: AiRole; state: AiState; rel
     return (
       <div ref={card} role="group" aria-labelledby={`${base}-title`} className="flex min-w-0 flex-col gap-2.5 rounded-md border border-line p-3">
         {header}
-        <dl className="grid grid-cols-[72px_minmax(0,1fr)] items-baseline gap-x-3 gap-y-1.5 text-[12.5px]">
-          <dt className="text-ink-3">Provider</dt>
-          <dd className="min-w-0 font-medium text-ink">{preset?.label ?? current.provider}</dd>
-          <dt className="text-ink-3">Endpoint</dt>
-          <dd className="min-w-0">
-            <code className="block font-mono text-[12px] break-all text-ink-2">
-              {current.endpoint}
-            </code>
-          </dd>
-          <dt className="text-ink-3">Model</dt>
-          <dd className="min-w-0">
-            <code className="block font-mono text-[12px] break-all text-ink-2">
-              {current.model}
-            </code>
-          </dd>
-          <dt className="text-ink-3">Key</dt>
-          <dd className="min-w-0 text-ink-2">{keyLine}</dd>
-        </dl>
+        <ModelSummary provider={preset?.label ?? current.provider} endpoint={current.endpoint} model={current.model} keyLine={keyLine} />
         {current.lastTest && busy !== 'test' && (
           <Notice tone={current.lastTest.ok ? 'success' : 'error'}>{current.lastTest.message}</Notice>
         )}
@@ -452,35 +434,17 @@ function AiRoleCard({ role, state, reload }: { role: AiRole; state: AiState; rel
     <div ref={card} role="group" aria-labelledby={`${base}-title`} className="flex min-w-0 flex-col gap-3.5 rounded-md border border-line p-3">
       {header}
 
-      <div data-provider className="flex min-w-0 flex-col gap-1.5">
-        <span id={`${base}-provider`} className="text-sm font-medium text-ink">
-          Provider
-        </span>
-        {/* Wrapping tiles, not Segmented: six chat providers don't fit one scrolling row in a half-width card. */}
-        <div role="group" aria-labelledby={`${base}-title ${base}-provider`} className="flex flex-wrap gap-1.5">
-          {presets.map((p) => {
-            const active = p.provider === draft.provider
-            return (
-              <button
-                key={p.provider}
-                type="button"
-                aria-pressed={active}
-                disabled={locked}
-                onClick={() => {
-                  if (active) return
-                  setDraft(draftFor(role, p.provider, state))
-                  resetEditState()
-                }}
-                className={`h-7 shrink-0 rounded-full border px-[13px] text-[12px] font-semibold whitespace-nowrap transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-accent disabled:cursor-not-allowed ${
-                  active ? 'border-line-strong bg-surface text-ink ring-1 ring-line-strong' : 'border-line bg-surface-2 text-ink-2 hover:text-ink'
-                }`}
-              >
-                {p.label}
-              </button>
-            )
-          })}
-        </div>
-      </div>
+      <ProviderTiles
+        presets={presets}
+        value={draft.provider}
+        labelId={`${base}-provider`}
+        labelledBy={`${base}-title ${base}-provider`}
+        disabled={locked}
+        onChange={(provider) => {
+          setDraft(draftFor(role, provider, state))
+          resetEditState()
+        }}
+      />
 
       <div className="flex min-w-0 flex-col gap-1.5">
         {showEndpointInput ? (

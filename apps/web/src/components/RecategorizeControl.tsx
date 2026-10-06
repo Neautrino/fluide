@@ -3,9 +3,7 @@ import { useNavigate } from '@tanstack/react-router'
 import { useId, useState } from 'react'
 import { errorMessage, sendJson } from '../lib/api'
 import { queryError, useCategories } from '../lib/queries'
-import { CategorySelect } from './CategorySelect'
-import { Button } from './ui/Button'
-import { Notice } from './ui/States'
+import { Button, CategorySelect, Notice } from '@repo/ui/primitives'
 
 type Result = { postingId: string; categoryId: string; ruleId: string | null; alsoFiled: number }
 

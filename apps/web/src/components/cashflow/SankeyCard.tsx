@@ -1,12 +1,8 @@
 import { useState } from 'react'
 import type { CashFlow } from '../../lib/api'
-import { Segmented } from '../ui/Segmented'
-import { useAmountsHidden } from './amounts'
-import { baselineNoun } from './figures'
-import { topRiser } from './movers'
-import { Amt, Card, useDrill } from './primitives'
+import { Segmented } from '@repo/ui/primitives'
+import { Amt, baselineNoun, Card, money, topRiser, useAmountsHidden, useDrill } from '@repo/ui/cashflow'
 import { Sankey, SankeyTable } from './Sankey'
-import { money } from './shared'
 
 export function SankeyCard({ data }: { data: CashFlow }) {
   const [view, setView] = useState<'flow' | 'table'>('flow')

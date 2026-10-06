@@ -2,12 +2,10 @@ import { keepPreviousData, useQuery } from '@tanstack/react-query'
 import { useEffect, useRef, useState, type ReactNode, type RefObject } from 'react'
 import { createPortal } from 'react-dom'
 import { errorMessage } from '../lib/api'
-import { HTTPS_REASON, isHttps } from '../lib/connection-health'
+import { HTTPS_REASON, isHttps } from '../lib/https'
 import { ENABLE_BANKING_AVAILABLE, startEnableBankingConnect } from '../lib/enable-banking'
 import { aspspsOptions, queryError } from '../lib/queries'
-import { Button } from './ui/Button'
-import { Field, Select } from './ui/Field'
-import { Notice } from './ui/States'
+import { Button, Field, Notice, Select } from '@repo/ui/primitives'
 
 /** Pick a country and bank, then leave for the bank's own login (Enable
  * Banking, PSD2, read-only). The bank redirects back to

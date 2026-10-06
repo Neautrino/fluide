@@ -1,6 +1,5 @@
 import type { CashFlow } from '../../lib/api'
-import { pct } from './figures'
-import { Amt, Card, DrillButton, Figure } from './primitives'
+import { Amt, Card, DrillButton, Figure, pct } from '@repo/ui/cashflow'
 
 export function Sources({ data }: { data: CashFlow }) {
   const { currency } = data

@@ -1,5 +1,5 @@
 import { useState, type ComponentProps, type ReactNode } from 'react'
-import { HTTPS_REASON, isHttps } from '../../lib/connection-health'
+import { HTTPS_REASON, isHttps } from '../../lib/https'
 import { ENABLE_BANKING_AVAILABLE } from '../../lib/enable-banking'
 import { ConnectBank } from '../ConnectBank'
 import { ConnectEuropeanBank } from '../ConnectEuropeanBank'

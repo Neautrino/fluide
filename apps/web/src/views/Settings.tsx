@@ -8,7 +8,7 @@ import { ProviderKeys } from '../components/settings/ProviderKeys'
 import { SettingsNav } from '../components/settings/SettingsNav'
 import { AiCard } from '../components/settings/AiCard'
 import { TrustLine } from '../components/settings/TrustLine'
-import { summarizeConnections } from '../lib/connection-health'
+import { summarizeConnections } from '@repo/ui/connection-health'
 import { connectionsOptions } from '../lib/queries'
 
 export function Settings() {

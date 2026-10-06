@@ -1,11 +1,11 @@
 import { useQueryClient } from '@tanstack/react-query'
 import { useState } from 'react'
 import { errorMessage, sendJson, type ConnectionSummary } from '../../lib/api'
-import { shortName, type Health } from '../../lib/connection-health'
+import { shortName, type Health } from '@repo/ui/connection-health'
 import { bankRedirectUrl } from '../../lib/enable-banking'
 import { ConnectBank } from '../ConnectBank'
-import { Button } from '../ui/Button'
-import { blocksReconnect, HTTPS_REASON_ID } from './model'
+import { Button } from '@repo/ui/primitives'
+import { blocksReconnect, HTTPS_REASON_ID } from '../../lib/https'
 
 /**
  * What to do about a connection that needs attention. A failed sync is fixed from Settings (this page has no Sync);

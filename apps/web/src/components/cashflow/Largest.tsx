@@ -1,9 +1,7 @@
 import type { CashFlow } from '../../lib/api'
-import { formatLedgerDate } from '../../lib/format'
-import { Button } from '../ui/Button'
-import { Empty } from '../ui/States'
-import { monthOnly, monthStart } from './figures'
-import { Amt, Card, Figure, useDrill } from './primitives'
+import { formatLedgerDate } from '@repo/ui/format'
+import { Button, Empty } from '@repo/ui/primitives'
+import { Amt, Card, Figure, monthOnly, monthStart, useDrill } from '@repo/ui/cashflow'
 
 export function Largest({ data, className = '' }: { data: CashFlow; className?: string }) {
   const open = useDrill()

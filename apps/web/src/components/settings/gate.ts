@@ -1,5 +1,5 @@
 import type { GateSettings } from '../../lib/api'
-import { toNumber } from '../../lib/format'
+import { toNumber } from '@repo/ui/format'
 
 export type Draft = { highConfidence: string; lowConfidence: string; amountRangeTolerance: string }
 export type Key = keyof Draft

@@ -2,9 +2,8 @@ import { useQuery, useQueryClient } from '@tanstack/react-query'
 import { useEffect, useState } from 'react'
 import { errorMessage, putGeneralSettings } from '../../lib/api'
 import { accountBalancesOptions, generalSettingsOptions, queryError, versionInfoOptions } from '../../lib/queries'
-import { isLive } from '../accounts/model'
-import { Segmented } from '../ui/Segmented'
-import { ErrorState, Loading } from '../ui/States'
+import { isLive } from '@repo/ui/accounts'
+import { ErrorState, Loading, Segmented } from '@repo/ui/primitives'
 import { CardHeader, Stamp, TextButton } from './ui'
 
 const CURRENCIES = ['USD', 'EUR', 'INR'] as const

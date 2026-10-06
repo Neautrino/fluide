@@ -1,6 +1,6 @@
 import type { CashFlow, CashFlowParams, NotCountedKind } from '../../lib/api'
 import { PossibleTransfers } from '../PossibleTransfers'
-import { Amt, Card, DrillButton, Figure } from './primitives'
+import { Amt, Card, DrillButton, Figure } from '@repo/ui/cashflow'
 
 const LABEL: Record<NotCountedKind, string> = {
   between_accounts: 'Moved between your own accounts',
