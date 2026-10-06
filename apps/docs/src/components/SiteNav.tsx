@@ -49,7 +49,7 @@ export function SiteNav() {
       )}
       <nav
         aria-label="Primary"
-        className="absolute left-1/2 flex -translate-x-1/2 gap-[34px] text-[14.5px] font-semibold max-[1000px]:static max-[1000px]:mr-5 max-[1000px]:ml-auto max-[1000px]:translate-x-0 max-[1000px]:gap-5 max-[560px]:mr-3 max-[560px]:gap-3.5 max-[560px]:text-sm"
+        className="absolute left-1/2 flex -translate-x-1/2 gap-[34px] text-[14.5px] font-semibold max-[1000px]:static max-[1000px]:mr-5 max-[1000px]:ml-auto max-[1000px]:translate-x-0 max-[1000px]:gap-5 max-[560px]:mr-3 max-[560px]:gap-3.5 max-[560px]:text-sm max-[400px]:mr-2.5 max-[400px]:gap-2.5 max-[400px]:text-[13px]"
       >
         <Link to="/manifesto" className={NAV_LINK}>
           Manifesto
@@ -57,6 +57,9 @@ export function SiteNav() {
         <Link to="/docs" className={NAV_LINK}>
           Docs
         </Link>
+        <HashLink to="/" hash="changelog" className={NAV_LINK}>
+          Changelog
+        </HashLink>
       </nav>
       <div className="flex items-center gap-[22px]">
         <a className={`${pill('outline')} max-[760px]:hidden`} href={GITHUB}>
@@ -65,7 +68,7 @@ export function SiteNav() {
         <HashLink
           to="/docs"
           hash="install"
-          className={`${pill('solid')} max-[560px]:h-[34px] max-[560px]:px-3.5 max-[560px]:text-[13px]`}
+          className={`${pill('solid')} max-[560px]:h-[34px] max-[560px]:px-3.5 max-[560px]:text-[13px] max-[400px]:px-3`}
         >
           Self-host it
         </HashLink>
