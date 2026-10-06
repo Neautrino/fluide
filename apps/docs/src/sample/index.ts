@@ -1,9 +1,11 @@
 /* The landing's sample world (today = Tue 29 Sep 2026, 14:00 UTC), as the props the real @repo/ui components
    take. Derived from ./fixtures.ts the same way apps/web derives them from its queries (views/Overview.tsx,
    components/overview/*, views/Review.tsx, components/assistant/TrustLine.tsx), so every view agrees with the
-   others. No value is adjusted: the fixtures already carry the landing's figures (Checking ••4821 $8,412.37,
-   Savings ••0917 $24,150.00, Sapphire ••3390 $1,284.55, Sept out $3,918.64 / in $6,240.00, the four review
-   items). @repo/ui's SampleAnswer hard-codes its own Shopping figures ($548.20 vs $397.00, +38%). */
+   others. The fixtures carry the landing's figures (Checking ••4821 $8,412.37, Savings ••0917 $24,150.00,
+   Sapphire ••3390 $1,284.55, Sept out $3,918.64 / in $6,240.00, the four review items). One adjustment: the
+   waiting $203.75 Amazon purchase counts under Shopping (not its bank tag), and Shopping's typical is $421.50,
+   so September Shopping reads $581.90, +38% — the riser the donut highlights and the hero question asks about.
+   @repo/ui's SampleAnswer hard-codes its own Shopping figures ($548.20 vs $397.00, +38%). */
 import type { ComponentProps } from 'react'
 import { creditUsage, isLive, totalsByCurrency } from '@repo/ui/accounts'
 import type { TrustFlag } from '@repo/ui/assistant'

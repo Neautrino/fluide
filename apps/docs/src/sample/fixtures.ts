@@ -1876,17 +1876,17 @@ export const cashflow: CashFlow = {
     "fromBank": false
    },
    {
-    "id": "category:Groceries",
-    "label": "Groceries",
-    "amount": 572.82,
+    "id": "category:Shopping",
+    "label": "Shopping",
+    "amount": 581.9,
     "group": "spending",
     "kind": "category",
     "fromBank": false
    },
    {
-    "id": "category:Shopping",
-    "label": "Shopping",
-    "amount": 378.15,
+    "id": "category:Groceries",
+    "label": "Groceries",
+    "amount": 572.82,
     "group": "spending",
     "kind": "category",
     "fromBank": false
@@ -1906,14 +1906,6 @@ export const cashflow: CashFlow = {
     "group": "spending",
     "kind": "category",
     "fromBank": false
-   },
-   {
-    "id": "category:General merchandise",
-    "label": "General merchandise",
-    "amount": 203.75,
-    "group": "spending",
-    "kind": "category",
-    "fromBank": true
    },
    {
     "id": "category:Gym & Fitness",
@@ -2221,21 +2213,21 @@ export const cashflow: CashFlow = {
    "fromBank": false
   },
   {
+   "label": "Shopping",
+   "amount": 581.9,
+   "shareOfSpending": 0.14849539636200315,
+   "shareOfIncome": 0.09325320512820512,
+   "baseline": 421.5,
+   "change": 0.38054567022538555,
+   "fromBank": false
+  },
+  {
    "label": "Groceries",
    "amount": 572.82,
    "shareOfSpending": 0.1461782659289958,
    "shareOfIncome": 0.09179807692307693,
    "baseline": 490.280909,
    "change": 0.1683506118326138,
-   "fromBank": false
-  },
-  {
-   "label": "Shopping",
-   "amount": 378.15,
-   "shareOfSpending": 0.09650031643631464,
-   "shareOfIncome": 0.060600961538461534,
-   "baseline": 337.217273,
-   "change": 0.12138383848445392,
    "fromBank": false
   },
   {
@@ -2255,15 +2247,6 @@ export const cashflow: CashFlow = {
    "baseline": 209.413636,
    "change": 0.17241648963107642,
    "fromBank": false
-  },
-  {
-   "label": "General merchandise",
-   "amount": 203.75,
-   "shareOfSpending": 0.051995079925688505,
-   "shareOfIncome": 0.03265224358974359,
-   "baseline": 0,
-   "change": null,
-   "fromBank": true
   },
   {
    "label": "Gym & Fitness",
@@ -2406,8 +2389,8 @@ export const cashflow: CashFlow = {
    "accountName": "Sapphire Card",
    "amount": -203.75,
    "currency": "USD",
-   "category": "General merchandise",
-   "fromBank": true,
+   "category": "Shopping",
+   "fromBank": false,
    "pending": false
   },
   {
