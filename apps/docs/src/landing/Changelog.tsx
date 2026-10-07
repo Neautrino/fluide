@@ -30,12 +30,6 @@ const ENTRIES = [
     title: 'Ask about any month',
     body: 'Last month, last year, or a month you name, like September.',
   },
-  {
-    date: '2026-10-01',
-    label: 'October 1, 2026',
-    title: 'AI models in Settings',
-    body: 'Pick a sorting model and a chat model in Settings, and test each one.',
-  },
 ]
 
 const H3 = `${DISPLAY} tracking-[-0.02em] text-ink`
