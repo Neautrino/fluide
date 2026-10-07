@@ -1,0 +1,70 @@
+name: CI
+
+# Lint, type check, tests and the source-of-truth header check, on every push to main and every
+# pull request. Packages are found by their files (tsconfig.json, test/), so a new one is covered
+# without editing this file.
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Bun
+        uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14 # package.json devEngines
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 24 # package.json engines; runs tsc and vite
+
+      - name: Install
+        run: bun install --frozen-lockfile
+
+      - name: Lint
+        run: bunx turbo run lint
+
+      # apps/web and apps/docs have a tsconfig.json of project references only, which
+      # `tsc --noEmit -p` would check nothing with; `tsc -b` checks the referenced projects.
+      - name: Type check
+        run: |
+          for d in apps/* packages/*; do
+            [ -f "$d/tsconfig.json" ] || continue
+            echo "::group::$d"
+            if grep -q '"references"' "$d/tsconfig.json"; then
+              (cd "$d" && bunx tsc -b)
+            else
+              (cd "$d" && bunx tsc --noEmit -p tsconfig.json)
+            fi
+            echo "::endgroup::"
+          done
+
+      - name: Test
+        env:
+          # packages/ledger's db client refuses to load without DATABASE_URL; its tests never connect
+          DATABASE_URL: postgres://ci:ci@127.0.0.1:1/unused
+        run: |
+          for d in apps/* packages/*; do
+            if [ -d "$d/test" ]; then
+              echo "::group::$d"
+              (cd "$d" && bun test)
+              echo "::endgroup::"
+            fi
+          done
+
+      - name: Source-of-truth headers
+        run: bun scripts/check-headers.ts

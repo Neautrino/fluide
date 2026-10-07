@@ -46,6 +46,9 @@ bun run lint                         # from the repo root
 bun scripts/check-headers.ts         # from the repo root
 ```
 
+CI runs the same checks on every pull request; a red check has to be fixed before
+the pull request is merged.
+
 In the pull request, say what you changed and how you checked it: the commands you
 ran, and screenshots for anything visible in the app or on the site.
 

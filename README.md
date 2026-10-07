@@ -206,9 +206,12 @@ Checks:
 
 ```sh
 bunx tsc --noEmit -p tsconfig.json   # in each package you touched
-bun test                             # in apps/web, packages/connectors, packages/ledger
+bun test                             # in each package that has a test/ folder
 bun scripts/check-headers.ts         # source-of-truth file headers (repo root)
 ```
+
+CI (`.github/workflows/ci.yml`) runs lint, the type check, the tests and the header
+check on every push to `main` and every pull request.
 
 See [`CONTRIBUTING.md`](CONTRIBUTING.md) for how to contribute, and `AGENTS.md` for the
 change protocol and repository rules.
