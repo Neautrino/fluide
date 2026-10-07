@@ -7,6 +7,8 @@ transactions into a local Postgres ledger, and categorizes them.
 Fluide never moves money: the only Plaid product it requests is Transactions.
 European banks (via Enable Banking) are not available yet.
 
+Website and docs: <https://fluide.neautrino.space>
+
 ## Requirements
 
 - Docker Engine 28.3.3 or newer, with Docker Compose v2 (`docker compose`).

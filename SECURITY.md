@@ -22,8 +22,8 @@ in the advisory unless you prefer not to be.
 
 ## Supported versions
 
-Fluide is in its 0.x releases. Fixes go into the latest release only, so please
-check that a problem still exists there.
+Fixes go into the latest release only, so please check that a problem still exists
+there.
 
 ## What the security model covers
 
