@@ -7,6 +7,12 @@ import './Changelog.css'
 /** Entries from the app's commit history, dated as committed. */
 const ENTRIES = [
   {
+    date: '2026-10-07',
+    label: 'October 7, 2026',
+    title: 'Fluide 1.0',
+    body: 'The first release: read-only bank sync, categorization and the assistant, in one docker-compose file.',
+  },
+  {
     date: '2026-10-03',
     label: 'October 3, 2026',
     title: 'Pages you can link to',
