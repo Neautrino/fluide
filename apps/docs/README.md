@@ -35,7 +35,8 @@ src/
 3. `prerender.ts` imports that bundle and, for every route in `src/pages.ts`, renders the app with a
    router on a memory history (`createMemoryHistory` + `router.load()` + `react-dom/server`
    `renderToString`), puts the HTML into `<div id="root">` of the built `dist/index.html`, sets the
-   route's `<title>` and description, and writes `dist/index.html`, `dist/manifesto/index.html`,
+   route's `<title>`, description, link-preview (`og:*`) tags and canonical URL (on the origin of
+   `index.html`'s `og:url`), and writes `dist/index.html`, `dist/manifesto/index.html`,
    `dist/docs/index.html`. The SSR bundle is deleted afterwards.
 
 In the browser, `src/entry-client.tsx` creates the router on the browser history, waits for

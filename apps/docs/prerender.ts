@@ -13,9 +13,18 @@ type ServerEntry = {
 
 const escapeHtml = (s: string) => s.replace(/&/g, '&amp;').replace(/"/g, '&quot;').replace(/</g, '&lt;')
 
+/** Replaces the attribute value that follows `before` (e.g. `<meta property="og:url" content="`). */
+function setAttr(html: string, before: string, value: string) {
+  const start = html.indexOf(before)
+  if (start < 0) throw new Error(`prerender: index.html has no ${before}…"`)
+  const from = start + before.length
+  return html.slice(0, from) + escapeHtml(value) + html.slice(html.indexOf('"', from))
+}
+
 /**
  * Renders every route of the built site to static HTML: the client build's index.html is the template,
- * the SSR build renders the app into #root, and each route gets its own title and description.
+ * the SSR build renders the app into #root, and each route gets its own title, description, link-preview
+ * tags and canonical URL (on the origin of the template's og:url).
  * Writes dist/index.html, dist/<route>/index.html; the client bundle hydrates them.
  */
 export async function prerender(client: ResolvedConfig, server: ResolvedConfig) {
@@ -25,14 +34,20 @@ export async function prerender(client: ResolvedConfig, server: ResolvedConfig) 
   const entry = (await import(pathToFileURL(path.join(serverDir, 'entry-server.js')).href)) as ServerEntry
   const template = await readFile(path.join(outDir, 'index.html'), 'utf8')
   if (!template.includes('<div id="root"></div>')) throw new Error('prerender: index.html has no empty <div id="root"></div>')
+  const origin = /<meta property="og:url" content="([^"]+)"/.exec(template)?.[1]
+  if (!origin) throw new Error('prerender: index.html has no og:url')
 
   for (const url of entry.ROUTES) {
     const page = entry.PAGES[url]
+    const pageUrl = new URL(url, origin).href
     const app = await entry.render(url)
-    const html = template
-      .replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(page.title)}</title>`)
-      .replace(/(<meta name="description" content=")[^"]*(")/, `$1${escapeHtml(page.description)}$2`)
-      .replace('<div id="root"></div>', `<div id="root">${app}</div>`)
+    let html = template.replace(/<title>[^<]*<\/title>/, `<title>${escapeHtml(page.title)}</title>`)
+    html = setAttr(html, '<meta name="description" content="', page.description)
+    html = setAttr(html, '<meta property="og:title" content="', page.title)
+    html = setAttr(html, '<meta property="og:description" content="', page.description)
+    html = setAttr(html, '<meta property="og:url" content="', pageUrl)
+    html = setAttr(html, '<link rel="canonical" href="', pageUrl)
+    html = html.replace('<div id="root"></div>', `<div id="root">${app}</div>`)
     const file = path.join(outDir, url, 'index.html')
     await mkdir(path.dirname(file), { recursive: true })
     await writeFile(file, html)
